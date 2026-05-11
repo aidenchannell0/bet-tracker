@@ -174,7 +174,12 @@ function Card({ children, className = "" }) {
 
 function Button({ children, className = "", variant = "primary", ...props }) {
   const base = "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
-  const styles = variant === "outline" ? "border border-slate-300 bg-white text-slate-900 hover:bg-slate-100" : variant === "ghost" ? "bg-transparent text-slate-600 hover:bg-slate-100" : "bg-slate-950 text-white hover:bg-slate-800";
+  const styles =
+    variant === "outline"
+      ? "border border-slate-300 bg-white text-slate-900 hover:bg-slate-100"
+      : variant === "ghost"
+      ? "bg-transparent text-slate-600 hover:bg-slate-100"
+      : "bg-slate-950 text-white hover:bg-slate-800";
   return <button className={base + " " + styles + " " + className} {...props}>{children}</button>;
 }
 
@@ -266,6 +271,81 @@ function PasswordRecoveryScreen({ newPassword, setNewPassword, loading, message,
   );
 }
 
+function Footer({ setActivePage }) {
+  return (
+    <footer className="border-t border-slate-200 py-6 text-sm text-slate-500">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 md:flex-row md:items-center md:justify-between md:px-8">
+        <p>© {new Date().getFullYear()} Bet Tracker. Informational use only.</p>
+        <div className="flex flex-wrap gap-4">
+          <button onClick={() => setActivePage("disclaimer")} className="hover:text-slate-950">Disclaimer</button>
+          <button onClick={() => setActivePage("responsible")} className="hover:text-slate-950">Responsible Gambling</button>
+          <button onClick={() => setActivePage("privacy")} className="hover:text-slate-950">Privacy</button>
+          <button onClick={() => setActivePage("terms")} className="hover:text-slate-950">Terms</button>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function LegalPage({ page, setActivePage }) {
+  const content = {
+    disclaimer: {
+      title: "Disclaimer",
+      body: [
+        "Bet Tracker is designed to help users record, review and understand their own betting activity. The information shown in the app is for general informational and tracking purposes only.",
+        "Nothing in Bet Tracker should be treated as financial advice, betting advice, a guarantee of results or an instruction to place a bet. Betting involves risk, and users are responsible for their own decisions.",
+        "Statistics, graphs and future AI-generated analysis may contain errors, omissions or outdated information. Always check information independently before relying on it."
+      ]
+    },
+    responsible: {
+      title: "Responsible Gambling",
+      body: [
+        "Bet Tracker is intended to support awareness and accountability. If betting stops being fun, causes stress, or affects your finances, relationships, study or work, consider taking a break and seeking support.",
+        "Set limits before you bet, never bet more than you can afford to lose, and do not chase losses. Tracking losses clearly is one of the reasons this app exists.",
+        "If you are in Australia and need support, consider contacting Gambling Help Online or your local gambling support service. If you are outside Australia, contact the relevant support service in your country."
+      ]
+    },
+    privacy: {
+      title: "Privacy Policy",
+      body: [
+        "Bet Tracker stores account and bet-tracking information so users can access their data across devices. This may include email address, bet dates, stakes, returns, results, notes and related performance statistics.",
+        "Bet Tracker does not need users to enter bookmaker account details or payment card details to use the core tracking features. Do not enter sensitive personal information into the notes field.",
+        "Data is stored using third-party infrastructure providers such as Supabase and Vercel. As the product develops, this policy should be reviewed and replaced with a full legal privacy policy before wider public marketing."
+      ]
+    },
+    terms: {
+      title: "Terms of Use",
+      body: [
+        "By using Bet Tracker, you agree to use it for lawful personal tracking and informational purposes only. You are responsible for the accuracy of the information you enter.",
+        "Bet Tracker does not accept bets, process wagers, provide bookmaker services or guarantee betting outcomes. Any betting decisions are made entirely by the user.",
+        "The app may change, experience downtime, or contain errors while it is being developed. These terms are a working draft and should be reviewed by a qualified lawyer before commercial launch."
+      ]
+    }
+  };
+
+  const selected = content[page] || content.disclaimer;
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 text-slate-950 md:p-8">
+      <div className="mx-auto max-w-3xl space-y-6">
+        <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
+        <Card>
+          <div className="p-6 md:p-8">
+            <p className="text-sm font-medium text-slate-500">Bet Tracker</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">{selected.title}</h1>
+            <div className="mt-6 space-y-4 text-sm leading-7 text-slate-700">
+              {selected.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+            </div>
+            <div className="mt-6 rounded-2xl bg-slate-100 p-4 text-sm text-slate-600">
+              This page is a working draft for an early-stage product and is not a substitute for legal advice.
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function BettingTrackerWebsite() {
   const [session, setSession] = useState(null);
   const [authMode, setAuthMode] = useState("login");
@@ -275,14 +355,14 @@ export default function BettingTrackerWebsite() {
   const [message, setMessage] = useState("");
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [newPassword, setNewPassword] = useState("");
+  const [activePage, setActivePage] = useState("app");
   const [bets, setBets] = useState([]);
   const [loadingBets, setLoadingBets] = useState(false);
   const [editingBetId, setEditingBetId] = useState(null);
   const fileInputRef = useRef(null);
   const formRef = useRef(null);
   const [chartView, setChartView] = useState("weekly");
-  const emptyForm = { date: todayString(), stake: "", odds: "", result: "win", returnAmount: "", notes: "" };
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState({ date: todayString(), stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
 
   useEffect(() => {
     if (!supabase) return;
@@ -466,19 +546,11 @@ export default function BettingTrackerWebsite() {
     });
 
     if (editingBetId) {
-      const { data, error } = await supabase
-        .from("bets")
-        .update(betToDatabaseRow(betPayload, session.user.id))
-        .eq("id", editingBetId)
-        .eq("user_id", session.user.id)
-        .select()
-        .single();
-
+      const { data, error } = await supabase.from("bets").update(betToDatabaseRow(betPayload, session.user.id)).eq("id", editingBetId).eq("user_id", session.user.id).select().single();
       if (error) {
         setMessage("Could not update bet: " + error.message);
         return;
       }
-
       const updatedBet = databaseRowToBet(data);
       setBets((current) => current.map((bet) => (bet.id === editingBetId ? updatedBet : bet)));
       setMessage("Bet updated successfully.");
@@ -587,6 +659,10 @@ export default function BettingTrackerWebsite() {
     );
   }
 
+  if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) {
+    return <LegalPage page={activePage} setActivePage={setActivePage} />;
+  }
+
   if (recoveryMode) {
     return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   }
@@ -596,152 +672,155 @@ export default function BettingTrackerWebsite() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 text-slate-950 md:p-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <div>
-            <p className="text-sm font-medium text-slate-500">Online account version</p>
-            <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Bet Tracker</h1>
-            <p className="mt-2 max-w-2xl text-slate-600">Track stakes, returns, profit/loss, win rate, ROI and weekly performance. Your data is saved online with Supabase.</p>
-            <p className="mt-1 text-sm text-slate-500">Logged in as {session.user.email}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <Button onClick={exportCsv} variant="outline" disabled={!bets.length} className="w-full sm:w-auto">Export CSV</Button>
-            <Button onClick={exportBackup} variant="outline" disabled={!bets.length} className="w-full sm:w-auto">Export Backup</Button>
-            <Button onClick={() => fileInputRef.current && fileInputRef.current.click()} variant="outline" className="w-full sm:w-auto">Import Backup</Button>
-            <Button onClick={clearAllBets} variant="outline" disabled={!bets.length} className="w-full sm:w-auto">Clear All</Button>
-            <Button onClick={handleLogout} variant="outline" className="col-span-2 w-full sm:col-span-1 sm:w-auto">Log out</Button>
-            <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={importBackup} className="hidden" />
-          </div>
-        </header>
-
-        {message ? <Card><div className="p-4 text-sm text-slate-700">{message}</div></Card> : null}
-        {loadingBets ? <Card><div className="p-4 text-sm text-slate-700">Loading your saved bets...</div></Card> : null}
-        {riskWarning ? <Card className="border-red-200 bg-red-50"><div className="p-4 text-sm text-red-800">Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.</div></Card> : null}
-
-        <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total Profit/Loss" value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
-          <StatCard title="Win Rate" value={stats.winRate.toFixed(1) + "%"} helper={stats.wins + " wins, " + stats.losses + " losses"} />
-          <StatCard title="ROI" value={stats.roi.toFixed(1) + "%"} helper="Profit compared to total staked" />
-          <StatCard title="Total Staked" value={formatCurrency(stats.totalStaked)} helper={"Returned: " + formatCurrency(stats.totalReturned)} />
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-5">
-          <Card className="lg:col-span-2">
-            <div ref={formRef} className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
-                  {editingBetId ? <p className="mt-1 text-sm text-slate-500">Update the details below, then save your changes.</p> : null}
-                </div>
-                {editingBetId ? <Button type="button" variant="outline" onClick={resetBetForm}>Cancel</Button> : null}
-              </div>
-
-              <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
-                  <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
-                  <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
-                  <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
-                </div>
-                <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
-                <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
-                <Button type="submit" className="w-full">{editingBetId ? "Update Bet" : "Add Bet"}</Button>
-              </form>
+    <div className="min-h-screen bg-slate-50 text-slate-950">
+      <main className="p-4 md:p-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div>
+              <p className="text-sm font-medium text-slate-500">Online account version</p>
+              <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Bet Tracker</h1>
+              <p className="mt-2 max-w-2xl text-slate-600">Track stakes, returns, profit/loss, win rate, ROI and weekly performance. Your data is saved online with Supabase.</p>
+              <p className="mt-1 text-sm text-slate-500">Logged in as {session.user.email}</p>
             </div>
-          </Card>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <Button onClick={exportCsv} variant="outline" disabled={!bets.length} className="w-full sm:w-auto">Export CSV</Button>
+              <Button onClick={exportBackup} variant="outline" disabled={!bets.length} className="w-full sm:w-auto">Export Backup</Button>
+              <Button onClick={() => fileInputRef.current && fileInputRef.current.click()} variant="outline" className="w-full sm:w-auto">Import Backup</Button>
+              <Button onClick={clearAllBets} variant="outline" disabled={!bets.length} className="w-full sm:w-auto">Clear All</Button>
+              <Button onClick={handleLogout} variant="outline" className="col-span-2 w-full sm:col-span-1 sm:w-auto">Log out</Button>
+              <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={importBackup} className="hidden" />
+            </div>
+          </header>
 
-          <Card className="lg:col-span-3">
+          {message ? <Card><div className="p-4 text-sm text-slate-700">{message}</div></Card> : null}
+          {loadingBets ? <Card><div className="p-4 text-sm text-slate-700">Loading your saved bets...</div></Card> : null}
+          {riskWarning ? <Card className="border-red-200 bg-red-50"><div className="p-4 text-sm text-red-800">Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.</div></Card> : null}
+
+          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard title="Total Profit/Loss" value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
+            <StatCard title="Win Rate" value={stats.winRate.toFixed(1) + "%"} helper={stats.wins + " wins, " + stats.losses + " losses"} />
+            <StatCard title="ROI" value={stats.roi.toFixed(1) + "%"} helper="Profit compared to total staked" />
+            <StatCard title="Total Staked" value={formatCurrency(stats.totalStaked)} helper={"Returned: " + formatCurrency(stats.totalReturned)} />
+          </section>
+
+          <section className="grid gap-6 lg:grid-cols-5">
+            <Card className="lg:col-span-2">
+              <div ref={formRef} className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
+                    {editingBetId ? <p className="mt-1 text-sm text-slate-500">Update the details below, then save your changes.</p> : null}
+                  </div>
+                  {editingBetId ? <Button type="button" variant="outline" onClick={resetBetForm}>Cancel</Button> : null}
+                </div>
+
+                <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
+                    <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
+                    <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
+                    <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
+                  </div>
+                  <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
+                  <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
+                  <Button type="submit" className="w-full">{editingBetId ? "Update Bet" : "Add Bet"}</Button>
+                </form>
+              </div>
+            </Card>
+
+            <Card className="lg:col-span-3">
+              <div className="p-5">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                  <div><h2 className="text-xl font-semibold">{chartTitle}</h2><p className="text-sm text-slate-500">{chartDescription}</p></div>
+                  <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+                </div>
+                <div className="mt-4 h-80">
+                  {chartData.length ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
+                        <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
+                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                        <Bar dataKey="profitLoss" radius={[10, 10, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <div className="flex h-full items-center justify-center rounded-2xl bg-slate-100 text-sm text-slate-500">Add your first bet to see the graph.</div>}
+                </div>
+              </div>
+            </Card>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard title="Biggest Win" value={formatCurrency(stats.biggestWin)} />
+            <StatCard title="Biggest Loss" value={formatCurrency(stats.biggestLoss)} />
+            <StatCard title="Longest Winning Streak" value={String(stats.longestWinningStreak) + " bets"} />
+            <StatCard title="Longest Losing Streak" value={String(stats.longestLosingStreak) + " bets"} />
+          </section>
+
+          <Card>
             <div className="p-5">
-              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                <div><h2 className="text-xl font-semibold">{chartTitle}</h2><p className="text-sm text-slate-500">{chartDescription}</p></div>
-                <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+              <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+                <div>
+                  <h2 className="text-xl font-semibold">Bet history</h2>
+                  <p className="text-sm text-slate-500">Edit or delete entries if you make a mistake.</p>
+                </div>
+                <p className="text-sm text-slate-500">{bets.length} total bets</p>
               </div>
-              <div className="mt-4 h-80">
-                {chartData.length ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
-                      <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
-                      <Tooltip formatter={(value) => formatCurrency(value)} />
-                      <Bar dataKey="profitLoss" radius={[10, 10, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <div className="flex h-full items-center justify-center rounded-2xl bg-slate-100 text-sm text-slate-500">Add your first bet to see the graph.</div>}
+
+              <div className="mt-4 space-y-3 md:hidden">
+                {bets.map((bet) => (
+                  <div key={bet.id} className={"rounded-2xl border border-slate-200 p-4 " + (editingBetId === bet.id ? "bg-slate-50" : "bg-white")}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">{bet.date}</p>
+                        <p className="mt-1 text-xs capitalize text-slate-500">{bet.result} · Odds {bet.odds || "-"}</p>
+                      </div>
+                      <p className={"text-base font-semibold " + (bet.profitLoss >= 0 ? "text-emerald-700" : "text-red-700")}>{formatCurrency(bet.profitLoss)}</p>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-xl bg-slate-100 p-3">
+                        <p className="text-xs text-slate-500">Stake</p>
+                        <p className="font-medium text-slate-950">{formatCurrency(bet.stake)}</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-100 p-3">
+                        <p className="text-xs text-slate-500">Return</p>
+                        <p className="font-medium text-slate-950">{formatCurrency(bet.returnAmount)}</p>
+                      </div>
+                    </div>
+
+                    {bet.notes ? <p className="mt-3 text-sm text-slate-600">{bet.notes}</p> : null}
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <Button variant="outline" onClick={() => startEditingBet(bet)} className="w-full">Edit</Button>
+                      <Button variant="ghost" onClick={() => deleteBet(bet.id)} className="w-full">Delete</Button>
+                    </div>
+                  </div>
+                ))}
+
+                {!bets.length ? <div className="rounded-2xl bg-slate-100 p-8 text-center text-sm text-slate-500">No bets added yet.</div> : null}
+              </div>
+
+              <div className="mt-4 hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[820px] text-left text-sm">
+                  <thead><tr className="border-b text-slate-500"><th className="py-3 pr-4 font-medium">Date</th><th className="py-3 pr-4 font-medium">Stake</th><th className="py-3 pr-4 font-medium">Odds</th><th className="py-3 pr-4 font-medium">Result</th><th className="py-3 pr-4 font-medium">Return</th><th className="py-3 pr-4 font-medium">Profit/Loss</th><th className="py-3 pr-4 font-medium">Notes</th><th className="py-3 pr-4 font-medium">Actions</th></tr></thead>
+                  <tbody>
+                    {bets.map((bet) => (
+                      <tr key={bet.id} className={"border-b last:border-0 " + (editingBetId === bet.id ? "bg-slate-50" : "")}><td className="py-3 pr-4">{bet.date}</td><td className="py-3 pr-4">{formatCurrency(bet.stake)}</td><td className="py-3 pr-4">{bet.odds || "-"}</td><td className="py-3 pr-4 capitalize">{bet.result}</td><td className="py-3 pr-4">{formatCurrency(bet.returnAmount)}</td><td className={"py-3 pr-4 font-medium " + (bet.profitLoss >= 0 ? "text-emerald-700" : "text-red-700")}>{formatCurrency(bet.profitLoss)}</td><td className="max-w-[240px] truncate py-3 pr-4 text-slate-600">{bet.notes || "-"}</td><td className="py-3 pr-4"><div className="flex gap-2"><Button variant="ghost" onClick={() => startEditingBet(bet)}>Edit</Button><Button variant="ghost" onClick={() => deleteBet(bet.id)}>Delete</Button></div></td></tr>
+                    ))}
+                    {!bets.length ? <tr><td colSpan="8" className="py-10 text-center text-slate-500">No bets added yet.</td></tr> : null}
+                  </tbody>
+                </table>
               </div>
             </div>
           </Card>
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Biggest Win" value={formatCurrency(stats.biggestWin)} />
-          <StatCard title="Biggest Loss" value={formatCurrency(stats.biggestLoss)} />
-          <StatCard title="Longest Winning Streak" value={String(stats.longestWinningStreak) + " bets"} />
-          <StatCard title="Longest Losing Streak" value={String(stats.longestLosingStreak) + " bets"} />
-        </section>
-
-        <Card>
-          <div className="p-5">
-            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-              <div>
-                <h2 className="text-xl font-semibold">Bet history</h2>
-                <p className="text-sm text-slate-500">Edit or delete entries if you make a mistake.</p>
-              </div>
-              <p className="text-sm text-slate-500">{bets.length} total bets</p>
-            </div>
-
-            <div className="mt-4 space-y-3 md:hidden">
-              {bets.map((bet) => (
-                <div key={bet.id} className={"rounded-2xl border border-slate-200 p-4 " + (editingBetId === bet.id ? "bg-slate-50" : "bg-white")}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">{bet.date}</p>
-                      <p className="mt-1 text-xs capitalize text-slate-500">{bet.result} · Odds {bet.odds || "-"}</p>
-                    </div>
-                    <p className={"text-base font-semibold " + (bet.profitLoss >= 0 ? "text-emerald-700" : "text-red-700")}>{formatCurrency(bet.profitLoss)}</p>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-xl bg-slate-100 p-3">
-                      <p className="text-xs text-slate-500">Stake</p>
-                      <p className="font-medium text-slate-950">{formatCurrency(bet.stake)}</p>
-                    </div>
-                    <div className="rounded-xl bg-slate-100 p-3">
-                      <p className="text-xs text-slate-500">Return</p>
-                      <p className="font-medium text-slate-950">{formatCurrency(bet.returnAmount)}</p>
-                    </div>
-                  </div>
-
-                  {bet.notes ? <p className="mt-3 text-sm text-slate-600">{bet.notes}</p> : null}
-
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <Button variant="outline" onClick={() => startEditingBet(bet)} className="w-full">Edit</Button>
-                    <Button variant="ghost" onClick={() => deleteBet(bet.id)} className="w-full">Delete</Button>
-                  </div>
-                </div>
-              ))}
-
-              {!bets.length ? <div className="rounded-2xl bg-slate-100 p-8 text-center text-sm text-slate-500">No bets added yet.</div> : null}
-            </div>
-
-            <div className="mt-4 hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[820px] text-left text-sm">
-                <thead><tr className="border-b text-slate-500"><th className="py-3 pr-4 font-medium">Date</th><th className="py-3 pr-4 font-medium">Stake</th><th className="py-3 pr-4 font-medium">Odds</th><th className="py-3 pr-4 font-medium">Result</th><th className="py-3 pr-4 font-medium">Return</th><th className="py-3 pr-4 font-medium">Profit/Loss</th><th className="py-3 pr-4 font-medium">Notes</th><th className="py-3 pr-4 font-medium">Actions</th></tr></thead>
-                <tbody>
-                  {bets.map((bet) => (
-                    <tr key={bet.id} className={"border-b last:border-0 " + (editingBetId === bet.id ? "bg-slate-50" : "")}><td className="py-3 pr-4">{bet.date}</td><td className="py-3 pr-4">{formatCurrency(bet.stake)}</td><td className="py-3 pr-4">{bet.odds || "-"}</td><td className="py-3 pr-4 capitalize">{bet.result}</td><td className="py-3 pr-4">{formatCurrency(bet.returnAmount)}</td><td className={"py-3 pr-4 font-medium " + (bet.profitLoss >= 0 ? "text-emerald-700" : "text-red-700")}>{formatCurrency(bet.profitLoss)}</td><td className="max-w-[240px] truncate py-3 pr-4 text-slate-600">{bet.notes || "-"}</td><td className="py-3 pr-4"><div className="flex gap-2"><Button variant="ghost" onClick={() => startEditingBet(bet)}>Edit</Button><Button variant="ghost" onClick={() => deleteBet(bet.id)}>Delete</Button></div></td></tr>
-                  ))}
-                  {!bets.length ? <tr><td colSpan="8" className="py-10 text-center text-slate-500">No bets added yet.</td></tr> : null}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </Card>
-      </div>
+        </div>
+      </main>
+      <Footer setActivePage={setActivePage} />
     </div>
   );
 }
