@@ -287,6 +287,92 @@ function Footer({ setActivePage }) {
   );
 }
 
+function LandingPage({ setActivePage, setAuthMode }) {
+  const openAuth = (mode) => {
+    setAuthMode(mode);
+    setActivePage("auth");
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-950">
+      <main className="p-4 md:p-8">
+        <div className="mx-auto max-w-7xl space-y-10">
+          <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div>
+              <p className="text-sm font-medium text-slate-500">Bet Tracker</p>
+              <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Track every bet. Understand every result.</h1>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => openAuth("login")}>Log in</Button>
+              <Button onClick={() => openAuth("signup")}>Sign up</Button>
+            </div>
+          </header>
+
+          <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-4xl font-bold tracking-tight md:text-6xl">Know if you are actually winning.</h2>
+                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
+                  Bet Tracker helps you record every bet, review your profit and loss, monitor your win rate, and understand your performance over time.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Start tracking</Button>
+                <Button variant="outline" onClick={() => openAuth("login")} className="w-full sm:w-auto">I already have an account</Button>
+              </div>
+              <p className="text-sm text-slate-500">Built for tracking and informational use. Bet Tracker does not accept bets or guarantee outcomes.</p>
+            </div>
+
+            <Card>
+              <div className="p-5 md:p-6">
+                <p className="text-sm font-medium text-slate-500">Dashboard preview</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-slate-100 p-4">
+                    <p className="text-sm text-slate-500">Total Profit/Loss</p>
+                    <p className="mt-1 text-2xl font-semibold text-emerald-700">+$246.50</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-100 p-4">
+                    <p className="text-sm text-slate-500">Win Rate</p>
+                    <p className="mt-1 text-2xl font-semibold">58.3%</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-100 p-4">
+                    <p className="text-sm text-slate-500">ROI</p>
+                    <p className="mt-1 text-2xl font-semibold">12.8%</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-100 p-4">
+                    <p className="text-sm text-slate-500">Longest Win Streak</p>
+                    <p className="mt-1 text-2xl font-semibold">5 bets</p>
+                  </div>
+                </div>
+                <div className="mt-5 rounded-2xl border border-slate-200 p-4">
+                  <div className="mb-3 flex items-center justify-between text-sm">
+                    <span className="font-medium">Weekly profit/loss</span>
+                    <span className="text-slate-500">Example</span>
+                  </div>
+                  <div className="flex h-32 items-end gap-3">
+                    <div className="h-16 flex-1 rounded-t-xl bg-slate-300" />
+                    <div className="h-24 flex-1 rounded-t-xl bg-slate-900" />
+                    <div className="h-10 flex-1 rounded-t-xl bg-slate-300" />
+                    <div className="h-28 flex-1 rounded-t-xl bg-slate-900" />
+                    <div className="h-20 flex-1 rounded-t-xl bg-slate-300" />
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-3">
+            <Card><div className="p-5"><h3 className="text-lg font-semibold">Track every bet</h3><p className="mt-2 text-sm leading-6 text-slate-600">Record stakes, odds, returns, results and notes so your betting history is easy to review.</p></div></Card>
+            <Card><div className="p-5"><h3 className="text-lg font-semibold">Understand performance</h3><p className="mt-2 text-sm leading-6 text-slate-600">See profit/loss, ROI, win rate, streaks and weekly, monthly or yearly trends.</p></div></Card>
+            <Card><div className="p-5"><h3 className="text-lg font-semibold">Edge is coming</h3><p className="mt-2 text-sm leading-6 text-slate-600">Soon, Edge will help users explore data-backed game analysis and example bet constructions.</p></div></Card>
+          </section>
+        </div>
+      </main>
+      <Footer setActivePage={setActivePage} />
+    </div>
+  );
+}
+
 function LegalPage({ page, setActivePage }) {
   const content = {
     disclaimer: {
@@ -665,6 +751,10 @@ export default function BettingTrackerWebsite() {
 
   if (recoveryMode) {
     return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
+  }
+
+  if (!session && activePage !== "auth") {
+    return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
   }
 
   if (!session) {
