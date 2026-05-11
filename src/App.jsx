@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { Analytics } from "@vercel/analytics/react";
 
 const env = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : {};
 const supabaseUrl = env.VITE_SUPABASE_URL || "";
@@ -911,6 +912,7 @@ export default function BettingTrackerWebsite() {
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
+      <Analytics />
     </div>
   );
 }
