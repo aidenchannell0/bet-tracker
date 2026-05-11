@@ -277,9 +277,12 @@ export default function BettingTrackerWebsite() {
   const [newPassword, setNewPassword] = useState("");
   const [bets, setBets] = useState([]);
   const [loadingBets, setLoadingBets] = useState(false);
+  const [editingBetId, setEditingBetId] = useState(null);
   const fileInputRef = useRef(null);
+  const formRef = useRef(null);
   const [chartView, setChartView] = useState("weekly");
-  const [form, setForm] = useState({ date: todayString(), stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
+  const emptyForm = { date: todayString(), stake: "", odds: "", result: "win", returnAmount: "", notes: "" };
+  const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
     if (!supabase) return;
@@ -423,21 +426,73 @@ export default function BettingTrackerWebsite() {
   const chartDescription = chartView === "monthly" ? "Grouped by the month of each bet." : chartView === "yearly" ? "Grouped by the year of each bet." : "Grouped by Monday to Sunday week ranges.";
   const xAxisLabel = chartView === "weekly" ? "Week Range" : chartView === "monthly" ? "Month" : "Year";
 
-  const handleAddBet = async (event) => {
+  const resetBetForm = () => {
+    setEditingBetId(null);
+    setForm({ date: todayString(), stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
+  };
+
+  const startEditingBet = (bet) => {
+    setEditingBetId(bet.id);
+    setForm({
+      date: bet.date,
+      stake: String(bet.stake || ""),
+      odds: String(bet.odds || ""),
+      result: bet.result,
+      returnAmount: String(bet.returnAmount || ""),
+      notes: bet.notes || "",
+    });
+    setMessage("Editing bet from " + bet.date + ". Make changes and click Update Bet.");
+    window.setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
+
+  const handleAddOrUpdateBet = async (event) => {
     event.preventDefault();
     if (!supabase || !session?.user?.id) return;
     const stakeNum = Number(form.stake);
     const oddsNum = Number(form.odds || 0);
     const returnNum = form.result === "loss" ? 0 : Number(form.returnAmount || 0);
     if (!form.date || !stakeNum || stakeNum <= 0) return;
-    const newBet = normaliseBet({ date: form.date, stake: stakeNum, odds: oddsNum, result: form.result, returnAmount: returnNum, profitLoss: calculateProfitLoss(form.result, stakeNum, returnNum), notes: form.notes.trim() });
-    const { data, error } = await supabase.from("bets").insert(betToDatabaseRow(newBet, session.user.id)).select().single();
+
+    const betPayload = normaliseBet({
+      date: form.date,
+      stake: stakeNum,
+      odds: oddsNum,
+      result: form.result,
+      returnAmount: returnNum,
+      profitLoss: calculateProfitLoss(form.result, stakeNum, returnNum),
+      notes: form.notes.trim(),
+    });
+
+    if (editingBetId) {
+      const { data, error } = await supabase
+        .from("bets")
+        .update(betToDatabaseRow(betPayload, session.user.id))
+        .eq("id", editingBetId)
+        .eq("user_id", session.user.id)
+        .select()
+        .single();
+
+      if (error) {
+        setMessage("Could not update bet: " + error.message);
+        return;
+      }
+
+      const updatedBet = databaseRowToBet(data);
+      setBets((current) => current.map((bet) => (bet.id === editingBetId ? updatedBet : bet)));
+      setMessage("Bet updated successfully.");
+      resetBetForm();
+      return;
+    }
+
+    const { data, error } = await supabase.from("bets").insert(betToDatabaseRow(betPayload, session.user.id)).select().single();
     if (error) {
       setMessage("Could not add bet: " + error.message);
       return;
     }
     setBets((current) => [databaseRowToBet(data), ...current]);
-    setForm({ date: todayString(), stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
+    resetBetForm();
   };
 
   const deleteBet = async (id) => {
@@ -448,6 +503,7 @@ export default function BettingTrackerWebsite() {
       return;
     }
     setBets((current) => current.filter((bet) => bet.id !== id));
+    if (editingBetId === id) resetBetForm();
   };
 
   const clearAllBets = async () => {
@@ -459,6 +515,7 @@ export default function BettingTrackerWebsite() {
       return;
     }
     setBets([]);
+    resetBetForm();
   };
 
   const downloadFile = (content, filename, type) => {
@@ -571,9 +628,16 @@ export default function BettingTrackerWebsite() {
 
         <section className="grid gap-6 lg:grid-cols-5">
           <Card className="lg:col-span-2">
-            <div className="p-5">
-              <h2 className="text-xl font-semibold">Add a bet</h2>
-              <form onSubmit={handleAddBet} className="mt-5 space-y-4">
+            <div ref={formRef} className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
+                  {editingBetId ? <p className="mt-1 text-sm text-slate-500">Update the details below, then save your changes.</p> : null}
+                </div>
+                {editingBetId ? <Button type="button" variant="outline" onClick={resetBetForm}>Cancel</Button> : null}
+              </div>
+
+              <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
                   <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
@@ -585,7 +649,7 @@ export default function BettingTrackerWebsite() {
                 </div>
                 <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
                 <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
-                <Button type="submit" className="w-full">Add Bet</Button>
+                <Button type="submit" className="w-full">{editingBetId ? "Update Bet" : "Add Bet"}</Button>
               </form>
             </div>
           </Card>
@@ -622,13 +686,13 @@ export default function BettingTrackerWebsite() {
 
         <Card>
           <div className="p-5">
-            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end"><div><h2 className="text-xl font-semibold">Bet history</h2><p className="text-sm text-slate-500">Delete entries if you make a mistake.</p></div><p className="text-sm text-slate-500">{bets.length} total bets</p></div>
+            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end"><div><h2 className="text-xl font-semibold">Bet history</h2><p className="text-sm text-slate-500">Edit or delete entries if you make a mistake.</p></div><p className="text-sm text-slate-500">{bets.length} total bets</p></div>
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead><tr className="border-b text-slate-500"><th className="py-3 pr-4 font-medium">Date</th><th className="py-3 pr-4 font-medium">Stake</th><th className="py-3 pr-4 font-medium">Odds</th><th className="py-3 pr-4 font-medium">Result</th><th className="py-3 pr-4 font-medium">Return</th><th className="py-3 pr-4 font-medium">Profit/Loss</th><th className="py-3 pr-4 font-medium">Notes</th><th className="py-3 pr-4 font-medium">Action</th></tr></thead>
+              <table className="w-full min-w-[820px] text-left text-sm">
+                <thead><tr className="border-b text-slate-500"><th className="py-3 pr-4 font-medium">Date</th><th className="py-3 pr-4 font-medium">Stake</th><th className="py-3 pr-4 font-medium">Odds</th><th className="py-3 pr-4 font-medium">Result</th><th className="py-3 pr-4 font-medium">Return</th><th className="py-3 pr-4 font-medium">Profit/Loss</th><th className="py-3 pr-4 font-medium">Notes</th><th className="py-3 pr-4 font-medium">Actions</th></tr></thead>
                 <tbody>
                   {bets.map((bet) => (
-                    <tr key={bet.id} className="border-b last:border-0"><td className="py-3 pr-4">{bet.date}</td><td className="py-3 pr-4">{formatCurrency(bet.stake)}</td><td className="py-3 pr-4">{bet.odds || "-"}</td><td className="py-3 pr-4 capitalize">{bet.result}</td><td className="py-3 pr-4">{formatCurrency(bet.returnAmount)}</td><td className={"py-3 pr-4 font-medium " + (bet.profitLoss >= 0 ? "text-emerald-700" : "text-red-700")}>{formatCurrency(bet.profitLoss)}</td><td className="max-w-[240px] truncate py-3 pr-4 text-slate-600">{bet.notes || "-"}</td><td className="py-3 pr-4"><Button variant="ghost" onClick={() => deleteBet(bet.id)}>Delete</Button></td></tr>
+                    <tr key={bet.id} className={"border-b last:border-0 " + (editingBetId === bet.id ? "bg-slate-50" : "")}><td className="py-3 pr-4">{bet.date}</td><td className="py-3 pr-4">{formatCurrency(bet.stake)}</td><td className="py-3 pr-4">{bet.odds || "-"}</td><td className="py-3 pr-4 capitalize">{bet.result}</td><td className="py-3 pr-4">{formatCurrency(bet.returnAmount)}</td><td className={"py-3 pr-4 font-medium " + (bet.profitLoss >= 0 ? "text-emerald-700" : "text-red-700")}>{formatCurrency(bet.profitLoss)}</td><td className="max-w-[240px] truncate py-3 pr-4 text-slate-600">{bet.notes || "-"}</td><td className="py-3 pr-4"><div className="flex gap-2"><Button variant="ghost" onClick={() => startEditingBet(bet)}>Edit</Button><Button variant="ghost" onClick={() => deleteBet(bet.id)}>Delete</Button></div></td></tr>
                   ))}
                   {!bets.length ? <tr><td colSpan="8" className="py-10 text-center text-slate-500">No bets added yet.</td></tr> : null}
                 </tbody>
