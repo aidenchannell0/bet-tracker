@@ -605,12 +605,12 @@ export default function BettingTrackerWebsite() {
             <p className="mt-2 max-w-2xl text-slate-600">Track stakes, returns, profit/loss, win rate, ROI and weekly performance. Your data is saved online with Supabase.</p>
             <p className="mt-1 text-sm text-slate-500">Logged in as {session.user.email}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={exportCsv} variant="outline" disabled={!bets.length}>Export CSV</Button>
-            <Button onClick={exportBackup} variant="outline" disabled={!bets.length}>Export Backup</Button>
-            <Button onClick={() => fileInputRef.current && fileInputRef.current.click()} variant="outline">Import Backup</Button>
-            <Button onClick={clearAllBets} variant="outline" disabled={!bets.length}>Clear All</Button>
-            <Button onClick={handleLogout} variant="outline">Log out</Button>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <Button onClick={exportCsv} variant="outline" disabled={!bets.length} className="w-full sm:w-auto">Export CSV</Button>
+            <Button onClick={exportBackup} variant="outline" disabled={!bets.length} className="w-full sm:w-auto">Export Backup</Button>
+            <Button onClick={() => fileInputRef.current && fileInputRef.current.click()} variant="outline" className="w-full sm:w-auto">Import Backup</Button>
+            <Button onClick={clearAllBets} variant="outline" disabled={!bets.length} className="w-full sm:w-auto">Clear All</Button>
+            <Button onClick={handleLogout} variant="outline" className="col-span-2 w-full sm:col-span-1 sm:w-auto">Log out</Button>
             <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={importBackup} className="hidden" />
           </div>
         </header>
@@ -686,8 +686,49 @@ export default function BettingTrackerWebsite() {
 
         <Card>
           <div className="p-5">
-            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end"><div><h2 className="text-xl font-semibold">Bet history</h2><p className="text-sm text-slate-500">Edit or delete entries if you make a mistake.</p></div><p className="text-sm text-slate-500">{bets.length} total bets</p></div>
-            <div className="mt-4 overflow-x-auto">
+            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+              <div>
+                <h2 className="text-xl font-semibold">Bet history</h2>
+                <p className="text-sm text-slate-500">Edit or delete entries if you make a mistake.</p>
+              </div>
+              <p className="text-sm text-slate-500">{bets.length} total bets</p>
+            </div>
+
+            <div className="mt-4 space-y-3 md:hidden">
+              {bets.map((bet) => (
+                <div key={bet.id} className={"rounded-2xl border border-slate-200 p-4 " + (editingBetId === bet.id ? "bg-slate-50" : "bg-white")}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">{bet.date}</p>
+                      <p className="mt-1 text-xs capitalize text-slate-500">{bet.result} · Odds {bet.odds || "-"}</p>
+                    </div>
+                    <p className={"text-base font-semibold " + (bet.profitLoss >= 0 ? "text-emerald-700" : "text-red-700")}>{formatCurrency(bet.profitLoss)}</p>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl bg-slate-100 p-3">
+                      <p className="text-xs text-slate-500">Stake</p>
+                      <p className="font-medium text-slate-950">{formatCurrency(bet.stake)}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-100 p-3">
+                      <p className="text-xs text-slate-500">Return</p>
+                      <p className="font-medium text-slate-950">{formatCurrency(bet.returnAmount)}</p>
+                    </div>
+                  </div>
+
+                  {bet.notes ? <p className="mt-3 text-sm text-slate-600">{bet.notes}</p> : null}
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <Button variant="outline" onClick={() => startEditingBet(bet)} className="w-full">Edit</Button>
+                    <Button variant="ghost" onClick={() => deleteBet(bet.id)} className="w-full">Delete</Button>
+                  </div>
+                </div>
+              ))}
+
+              {!bets.length ? <div className="rounded-2xl bg-slate-100 p-8 text-center text-sm text-slate-500">No bets added yet.</div> : null}
+            </div>
+
+            <div className="mt-4 hidden overflow-x-auto md:block">
               <table className="w-full min-w-[820px] text-left text-sm">
                 <thead><tr className="border-b text-slate-500"><th className="py-3 pr-4 font-medium">Date</th><th className="py-3 pr-4 font-medium">Stake</th><th className="py-3 pr-4 font-medium">Odds</th><th className="py-3 pr-4 font-medium">Result</th><th className="py-3 pr-4 font-medium">Return</th><th className="py-3 pr-4 font-medium">Profit/Loss</th><th className="py-3 pr-4 font-medium">Notes</th><th className="py-3 pr-4 font-medium">Actions</th></tr></thead>
                 <tbody>
