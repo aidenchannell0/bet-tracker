@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-const viteEnv = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : {};
-const supabaseUrl = viteEnv.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = viteEnv.VITE_SUPABASE_ANON_KEY || "";
+const env = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : {};
+const supabaseUrl = env.VITE_SUPABASE_URL || "";
+const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || "";
 const hasSupabaseKeys = Boolean(supabaseUrl && supabaseAnonKey);
 const supabase = hasSupabaseKeys ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
@@ -17,11 +17,7 @@ function todayString() {
 }
 
 function formatCurrency(value) {
-  const number = Number(value || 0);
-  return new Intl.NumberFormat("en-AU", {
-    style: "currency",
-    currency: "AUD",
-  }).format(number);
+  return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(Number(value || 0));
 }
 
 function parseBetDate(dateString) {
@@ -38,68 +34,48 @@ function getOrdinalSuffix(day) {
   return "th";
 }
 
-function formatDayWithSuffix(day) {
+function formatDay(day) {
   return String(day) + getOrdinalSuffix(day);
 }
 
-function formatMonthShort(date) {
+function formatMonth(date) {
   return date.toLocaleString("en-AU", { month: "short" });
 }
 
 function getStartOfWeek(date) {
   const start = new Date(date);
   const day = start.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  start.setDate(start.getDate() + diff);
+  start.setDate(start.getDate() + (day === 0 ? -6 : 1 - day));
   start.setHours(0, 0, 0, 0);
   return start;
-}
-
-function getEndOfWeek(date) {
-  const end = new Date(getStartOfWeek(date));
-  end.setDate(end.getDate() + 6);
-  end.setHours(0, 0, 0, 0);
-  return end;
 }
 
 function getWeekInfo(dateString) {
   const date = parseBetDate(dateString);
   if (!date) return { key: "no-date", label: "No date" };
-
   const start = getStartOfWeek(date);
-  const end = getEndOfWeek(date);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
   const key = start.toISOString().slice(0, 10);
-
-  let label = "";
-  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    label = formatDayWithSuffix(start.getDate()) + "-" + formatDayWithSuffix(end.getDate()) + " " + formatMonthShort(end);
-  } else {
-    label =
-      formatDayWithSuffix(start.getDate()) +
-      " " +
-      formatMonthShort(start) +
-      "-" +
-      formatDayWithSuffix(end.getDate()) +
-      " " +
-      formatMonthShort(end);
-  }
-
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  const label = sameMonth
+    ? formatDay(start.getDate()) + "-" + formatDay(end.getDate()) + " " + formatMonth(end)
+    : formatDay(start.getDate()) + " " + formatMonth(start) + "-" + formatDay(end.getDate()) + " " + formatMonth(end);
   return { key, label };
 }
 
 function getMonthInfo(dateString) {
   const date = parseBetDate(dateString);
   if (!date) return { key: "no-date", label: "No date" };
-
-  const key = String(date.getFullYear()) + "-" + String(date.getMonth() + 1).padStart(2, "0");
-  const label = date.toLocaleString("en-AU", { month: "short", year: "numeric" });
-  return { key, label };
+  return {
+    key: String(date.getFullYear()) + "-" + String(date.getMonth() + 1).padStart(2, "0"),
+    label: date.toLocaleString("en-AU", { month: "short", year: "numeric" }),
+  };
 }
 
 function getYearInfo(dateString) {
   const date = parseBetDate(dateString);
   if (!date) return { key: "no-date", label: "No date" };
-
   const year = String(date.getFullYear());
   return { key: year, label: year };
 }
@@ -113,7 +89,6 @@ function getPeriodInfo(dateString, view) {
 function calculateProfitLoss(result, stake, returnAmount) {
   const stakeNum = Number(stake || 0);
   const returnNum = Number(returnAmount || 0);
-
   if (result === "win") return returnNum - stakeNum;
   if (result === "loss") return -stakeNum;
   if (result === "void") return 0;
@@ -156,8 +131,7 @@ function normaliseBet(bet) {
   const result = isValidResult(source.result) ? source.result : "void";
   const stake = Number(source.stake || 0);
   const returnAmount = Number(source.returnAmount || source.return_amount || 0);
-  const fallbackProfitLoss = calculateProfitLoss(result, stake, returnAmount);
-
+  const profitLoss = Number(source.profitLoss ?? source.profit_loss ?? calculateProfitLoss(result, stake, returnAmount));
   return {
     id: source.id || createId(),
     date: source.date || todayString(),
@@ -165,22 +139,21 @@ function normaliseBet(bet) {
     odds: Number(source.odds || 0),
     result,
     returnAmount,
-    profitLoss: Number(source.profitLoss ?? source.profit_loss ?? fallbackProfitLoss),
+    profitLoss,
     notes: String(source.notes || ""),
     createdAt: source.createdAt || source.created_at || new Date().toISOString(),
   };
 }
 
 function csvCell(value) {
-  const text = String(value ?? "");
-  return '"' + text.replaceAll('"', '""') + '"';
+  return '"' + String(value ?? "").replaceAll('"', '""') + '"';
 }
 
 function runBasicTests() {
   console.assert(calculateProfitLoss("win", 50, 100) === 50, "Win profit/loss test failed");
   console.assert(calculateProfitLoss("loss", 50, 0) === -50, "Loss profit/loss test failed");
   console.assert(calculateProfitLoss("void", 50, 50) === 0, "Void profit/loss test failed");
-  console.assert(typeof createId() === "string" && createId().startsWith("bet_"), "ID creation test failed");
+  console.assert(createId().startsWith("bet_"), "ID creation test failed");
   console.assert(getMonthInfo("2026-04-30").key === "2026-04", "Month key test failed");
   console.assert(getYearInfo("2026-04-30").key === "2026", "Year key test failed");
   console.assert(getPeriodInfo("2026-04-30", "monthly").label === "Apr 2026", "Period monthly label test failed");
@@ -189,6 +162,7 @@ function runBasicTests() {
   console.assert(normaliseBet({ result: "win", stake: 10, returnAmount: 25 }).profitLoss === 15, "Normalise bet test failed");
   console.assert(databaseRowToBet({ id: "1", date: "2026-05-04", stake: 10, odds: 2, result: "win", return_amount: 20, profit_loss: 10 }).returnAmount === 20, "Database row mapping test failed");
   console.assert(csvCell('hello "mate"') === '"hello ""mate"""', "CSV escaping test failed");
+  console.assert(["login", "signup", "reset"].includes("reset"), "Auth mode test failed");
   console.assert(typeof hasSupabaseKeys === "boolean", "Supabase key detection test failed");
 }
 
@@ -200,27 +174,12 @@ function Card({ children, className = "" }) {
 
 function Button({ children, className = "", variant = "primary", ...props }) {
   const base = "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
-  const styles =
-    variant === "outline"
-      ? "border border-slate-300 bg-white text-slate-900 hover:bg-slate-100"
-      : variant === "ghost"
-      ? "bg-transparent text-slate-600 hover:bg-slate-100"
-      : "bg-slate-950 text-white hover:bg-slate-800";
-
-  return (
-    <button className={base + " " + styles + " " + className} {...props}>
-      {children}
-    </button>
-  );
+  const styles = variant === "outline" ? "border border-slate-300 bg-white text-slate-900 hover:bg-slate-100" : variant === "ghost" ? "bg-transparent text-slate-600 hover:bg-slate-100" : "bg-slate-950 text-white hover:bg-slate-800";
+  return <button className={base + " " + styles + " " + className} {...props}>{children}</button>;
 }
 
 function Input({ className = "", ...props }) {
-  return (
-    <input
-      className={"w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100 " + className}
-      {...props}
-    />
-  );
+  return <input className={"w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100 " + className} {...props} />;
 }
 
 function StatCard({ title, value, helper }) {
@@ -235,7 +194,7 @@ function StatCard({ title, value, helper }) {
   );
 }
 
-function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassword, loading, message, onSubmit }) {
+function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassword, loading, message, onSubmit, onResetPassword }) {
   return (
     <div className="min-h-screen bg-slate-50 p-4 text-slate-950 md:p-8">
       <div className="mx-auto flex min-h-[80vh] max-w-xl items-center justify-center">
@@ -243,9 +202,8 @@ function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassw
           <div className="p-6 md:p-8">
             <p className="text-sm font-medium text-slate-500">Online version</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight">Bet Tracker</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Create an account or log in to save your bets online and access them from any device.
-            </p>
+            <p className="mt-2 text-sm text-slate-600">Create an account or log in to save your bets online and access them from any device.</p>
+            {authMode === "reset" ? <p className="mt-2 text-sm text-slate-600">Enter your email and we will send you a password reset link.</p> : null}
 
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
               <label className="space-y-1 text-sm font-medium">
@@ -253,28 +211,54 @@ function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassw
                 <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required />
               </label>
 
-              <label className="space-y-1 text-sm font-medium">
-                Password
-                <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Minimum 6 characters" required />
-              </label>
+              {authMode !== "reset" ? (
+                <label className="space-y-1 text-sm font-medium">
+                  Password
+                  <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Minimum 6 characters" required />
+                </label>
+              ) : null}
 
               {message ? <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">{message}</div> : null}
 
               <Button type="submit" className="mt-3 w-full" disabled={loading}>
-                {loading ? "Please wait..." : authMode === "login" ? "Log in" : "Sign up"}
+                {loading ? "Please wait..." : authMode === "login" ? "Log in" : authMode === "signup" ? "Sign up" : "Send reset link"}
               </Button>
             </form>
 
+            {authMode === "login" ? (
+              <button type="button" onClick={onResetPassword} className="mt-3 w-full text-center text-sm font-medium text-slate-950 underline">Forgot password?</button>
+            ) : null}
+
             <div className="mt-4 text-center text-sm text-slate-600">
-              {authMode === "login" ? "Need an account? " : "Already have an account? "}
-              <button
-                type="button"
-                onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
-                className="font-medium text-slate-950 underline"
-              >
+              {authMode === "login" ? "Need an account? " : authMode === "signup" ? "Already have an account? " : "Remembered your password? "}
+              <button type="button" onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")} className="font-medium text-slate-950 underline">
                 {authMode === "login" ? "Sign up" : "Log in"}
               </button>
             </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function PasswordRecoveryScreen({ newPassword, setNewPassword, loading, message, onSubmit }) {
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 text-slate-950 md:p-8">
+      <div className="mx-auto flex min-h-[80vh] max-w-xl items-center justify-center">
+        <Card className="w-full">
+          <div className="p-6 md:p-8">
+            <p className="text-sm font-medium text-slate-500">Password reset</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">Set a new password</h1>
+            <p className="mt-2 text-sm text-slate-600">Enter a new password for your Bet Tracker account.</p>
+            <form onSubmit={onSubmit} className="mt-6 space-y-4">
+              <label className="space-y-1 text-sm font-medium">
+                New password
+                <Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Minimum 6 characters" required />
+              </label>
+              {message ? <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">{message}</div> : null}
+              <Button type="submit" className="mt-3 w-full" disabled={loading}>{loading ? "Updating..." : "Update password"}</Button>
+            </form>
           </div>
         </Card>
       </div>
@@ -289,98 +273,99 @@ export default function BettingTrackerWebsite() {
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [message, setMessage] = useState("");
-
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
   const [bets, setBets] = useState([]);
   const [loadingBets, setLoadingBets] = useState(false);
   const fileInputRef = useRef(null);
   const [chartView, setChartView] = useState("weekly");
-  const [form, setForm] = useState({
-    date: todayString(),
-    stake: "",
-    odds: "",
-    result: "win",
-    returnAmount: "",
-    notes: "",
-  });
+  const [form, setForm] = useState({ date: todayString(), stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
 
   useEffect(() => {
     if (!supabase) return;
-
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryMode(true);
+        setMessage("");
+      }
     });
-
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (session?.user?.id) {
-      loadBets();
-    } else {
-      setBets([]);
-    }
+    if (session?.user?.id) loadBets();
+    else setBets([]);
   }, [session?.user?.id]);
 
   const loadBets = async () => {
     if (!supabase || !session?.user?.id) return;
-
     setLoadingBets(true);
     setMessage("");
-
-    const { data, error } = await supabase
-      .from("bets")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .order("date", { ascending: false })
-      .order("created_at", { ascending: false });
-
+    const { data, error } = await supabase.from("bets").select("*").eq("user_id", session.user.id).order("date", { ascending: false }).order("created_at", { ascending: false });
     if (error) {
       setMessage("Could not load bets: " + error.message);
       setBets([]);
     } else {
       setBets((data || []).map(databaseRowToBet));
     }
-
     setLoadingBets(false);
   };
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
     if (!supabase) return;
-
     setAuthLoading(true);
     setMessage("");
-
     try {
-      let response;
-
-      if (authMode === "login") {
-        response = await supabase.auth.signInWithPassword({ email, password });
-      } else {
-        response = await supabase.auth.signUp({ email, password });
+      if (authMode === "reset") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+        if (error) setMessage(error.message);
+        else setMessage("Password reset email sent. Check your inbox and follow the link.");
+        return;
       }
-
+      const response = authMode === "login" ? await supabase.auth.signInWithPassword({ email, password }) : await supabase.auth.signUp({ email, password });
       if (response.error) {
         setMessage(response.error.message);
         return;
       }
-
       if (authMode === "signup") {
         setMessage("Account created. If Supabase asks for email confirmation, check your inbox, then log in.");
         setAuthMode("login");
         return;
       }
-
       setEmail("");
       setPassword("");
     } catch (error) {
       setMessage("Auth request failed. Check your Supabase URL/key and internet connection.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handlePasswordResetRequest = () => {
+    setAuthMode("reset");
+    setMessage("");
+    setPassword("");
+  };
+
+  const handleUpdatePassword = async (event) => {
+    event.preventDefault();
+    if (!supabase) return;
+    setAuthLoading(true);
+    setMessage("");
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+      setMessage("Password updated successfully.");
+      setNewPassword("");
+      setRecoveryMode(false);
+    } catch (error) {
+      setMessage("Could not update password. Try requesting a new reset link.");
     } finally {
       setAuthLoading(false);
     }
@@ -403,71 +388,35 @@ export default function BettingTrackerWebsite() {
     const roi = totalStaked ? (totalProfit / totalStaked) * 100 : 0;
     const biggestWin = bets.length ? Math.max(...bets.map((bet) => Number(bet.profitLoss || 0))) : 0;
     const biggestLoss = bets.length ? Math.min(...bets.map((bet) => Number(bet.profitLoss || 0))) : 0;
-
     let currentLosingStreak = 0;
     let longestLosingStreak = 0;
     let currentWinningStreak = 0;
     let longestWinningStreak = 0;
-
-    [...bets]
-      .sort((a, b) => {
-        const dateA = parseBetDate(a.date)?.getTime() || 0;
-        const dateB = parseBetDate(b.date)?.getTime() || 0;
-        return dateA - dateB;
-      })
-      .forEach((bet) => {
-        if (bet.result === "loss") {
-          currentLosingStreak += 1;
-          longestLosingStreak = Math.max(longestLosingStreak, currentLosingStreak);
-          currentWinningStreak = 0;
-        } else if (bet.result === "win") {
-          currentWinningStreak += 1;
-          longestWinningStreak = Math.max(longestWinningStreak, currentWinningStreak);
-          currentLosingStreak = 0;
-        } else {
-          currentLosingStreak = 0;
-          currentWinningStreak = 0;
-        }
-      });
-
-    return {
-      totalStaked,
-      totalReturned,
-      totalProfit,
-      wins,
-      losses,
-      winRate,
-      roi,
-      biggestWin,
-      biggestLoss,
-      longestLosingStreak,
-      longestWinningStreak,
-    };
+    [...bets].sort((a, b) => (parseBetDate(a.date)?.getTime() || 0) - (parseBetDate(b.date)?.getTime() || 0)).forEach((bet) => {
+      if (bet.result === "loss") {
+        currentLosingStreak += 1;
+        longestLosingStreak = Math.max(longestLosingStreak, currentLosingStreak);
+        currentWinningStreak = 0;
+      } else if (bet.result === "win") {
+        currentWinningStreak += 1;
+        longestWinningStreak = Math.max(longestWinningStreak, currentWinningStreak);
+        currentLosingStreak = 0;
+      } else {
+        currentLosingStreak = 0;
+        currentWinningStreak = 0;
+      }
+    });
+    return { totalStaked, totalReturned, totalProfit, wins, losses, winRate, roi, biggestWin, biggestLoss, longestLosingStreak, longestWinningStreak };
   }, [bets]);
 
   const chartData = useMemo(() => {
     const grouped = bets.reduce((acc, bet) => {
       const periodInfo = getPeriodInfo(bet.date, chartView);
-
-      if (!acc[periodInfo.key]) {
-        acc[periodInfo.key] = {
-          sortKey: periodInfo.key,
-          label: periodInfo.label,
-          profitLoss: 0,
-        };
-      }
-
+      if (!acc[periodInfo.key]) acc[periodInfo.key] = { sortKey: periodInfo.key, label: periodInfo.label, profitLoss: 0 };
       acc[periodInfo.key].profitLoss += Number(bet.profitLoss || 0);
       return acc;
     }, {});
-
-    return Object.values(grouped)
-      .map((item) => ({
-        sortKey: item.sortKey,
-        label: item.label,
-        profitLoss: Number(item.profitLoss.toFixed(2)),
-      }))
-      .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    return Object.values(grouped).map((item) => ({ ...item, profitLoss: Number(item.profitLoss.toFixed(2)) })).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   }, [bets, chartView]);
 
   const chartTitle = chartView === "monthly" ? "Monthly profit/loss" : chartView === "yearly" ? "Yearly profit/loss" : "Weekly profit/loss";
@@ -477,34 +426,16 @@ export default function BettingTrackerWebsite() {
   const handleAddBet = async (event) => {
     event.preventDefault();
     if (!supabase || !session?.user?.id) return;
-
     const stakeNum = Number(form.stake);
     const oddsNum = Number(form.odds || 0);
     const returnNum = form.result === "loss" ? 0 : Number(form.returnAmount || 0);
-
     if (!form.date || !stakeNum || stakeNum <= 0) return;
-
-    const newBet = normaliseBet({
-      date: form.date,
-      stake: stakeNum,
-      odds: oddsNum,
-      result: form.result,
-      returnAmount: returnNum,
-      profitLoss: calculateProfitLoss(form.result, stakeNum, returnNum),
-      notes: form.notes.trim(),
-    });
-
-    const { data, error } = await supabase
-      .from("bets")
-      .insert(betToDatabaseRow(newBet, session.user.id))
-      .select()
-      .single();
-
+    const newBet = normaliseBet({ date: form.date, stake: stakeNum, odds: oddsNum, result: form.result, returnAmount: returnNum, profitLoss: calculateProfitLoss(form.result, stakeNum, returnNum), notes: form.notes.trim() });
+    const { data, error } = await supabase.from("bets").insert(betToDatabaseRow(newBet, session.user.id)).select().single();
     if (error) {
       setMessage("Could not add bet: " + error.message);
       return;
     }
-
     setBets((current) => [databaseRowToBet(data), ...current]);
     setForm({ date: todayString(), stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
   };
@@ -512,31 +443,26 @@ export default function BettingTrackerWebsite() {
   const deleteBet = async (id) => {
     if (!supabase) return;
     const { error } = await supabase.from("bets").delete().eq("id", id);
-
     if (error) {
       setMessage("Could not delete bet: " + error.message);
       return;
     }
-
     setBets((current) => current.filter((bet) => bet.id !== id));
   };
 
   const clearAllBets = async () => {
     const confirmed = window.confirm("Are you sure you want to delete all saved bets?");
     if (!confirmed || !supabase || !session?.user?.id) return;
-
     const { error } = await supabase.from("bets").delete().eq("user_id", session.user.id);
-
     if (error) {
       setMessage("Could not clear bets: " + error.message);
       return;
     }
-
     setBets([]);
   };
 
   const downloadFile = (content, filename, type) => {
-    const blob = new Blob([content], { type: type });
+    const blob = new Blob([content], { type });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -549,55 +475,36 @@ export default function BettingTrackerWebsite() {
 
   const exportCsv = () => {
     const headers = ["Date", "Stake", "Odds", "Result", "Return", "Profit/Loss", "Notes"];
-    const rows = bets.map((bet) => [
-      csvCell(bet.date),
-      csvCell(bet.stake),
-      csvCell(bet.odds),
-      csvCell(bet.result),
-      csvCell(bet.returnAmount),
-      csvCell(bet.profitLoss),
-      csvCell(bet.notes),
-    ]);
-
-    const csvRows = [headers.map(csvCell), ...rows];
-    const csv = csvRows.map((row) => row.join(",")).join("\n");
+    const rows = bets.map((bet) => [csvCell(bet.date), csvCell(bet.stake), csvCell(bet.odds), csvCell(bet.result), csvCell(bet.returnAmount), csvCell(bet.profitLoss), csvCell(bet.notes)]);
+    const csv = [headers.map(csvCell), ...rows].map((row) => row.join(",")).join("\n");
     downloadFile(csv, "bet-tracker.csv", "text/csv;charset=utf-8;");
   };
 
   const exportBackup = () => {
-    const backup = { app: "Bet Tracker", version: 2, exportedAt: new Date().toISOString(), bets: bets };
-    downloadFile(JSON.stringify(backup, null, 2), "bet-tracker-backup.json", "application/json;charset=utf-8;");
+    downloadFile(JSON.stringify({ app: "Bet Tracker", version: 2, exportedAt: new Date().toISOString(), bets }, null, 2), "bet-tracker-backup.json", "application/json;charset=utf-8;");
   };
 
   const importBackup = (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file || !supabase || !session?.user?.id) return;
-
     const reader = new FileReader();
-
     reader.onload = async () => {
       try {
         const parsed = JSON.parse(String(reader.result || "{}"));
         const importedBets = Array.isArray(parsed) ? parsed : parsed.bets;
-
         if (!Array.isArray(importedBets)) {
           window.alert("That backup file does not contain a valid bet list.");
           return;
         }
-
         const cleanedBets = importedBets.map(normaliseBet);
-        const messageText = "Import " + cleanedBets.length + " bets? This will add them to your online account.";
-        const confirmed = window.confirm(messageText);
+        const confirmed = window.confirm("Import " + cleanedBets.length + " bets? This will add them to your online account.");
         if (!confirmed) return;
-
         const rows = cleanedBets.map((bet) => betToDatabaseRow(bet, session.user.id));
         const { data, error } = await supabase.from("bets").insert(rows).select();
-
         if (error) {
           setMessage("Could not import backup: " + error.message);
           return;
         }
-
         setBets((current) => [...(data || []).map(databaseRowToBet), ...current]);
       } catch (error) {
         window.alert("Could not import that backup file. Make sure it is a Bet Tracker JSON backup.");
@@ -605,7 +512,6 @@ export default function BettingTrackerWebsite() {
         event.target.value = "";
       }
     };
-
     reader.readAsText(file);
   };
 
@@ -617,29 +523,19 @@ export default function BettingTrackerWebsite() {
         <Card className="mx-auto max-w-xl">
           <div className="p-6">
             <h1 className="text-2xl font-bold">Supabase keys missing</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Check your .env file and make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set. Restart Vite after saving .env.
-            </p>
+            <p className="mt-2 text-sm text-slate-600">Check your .env file and make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set. Restart Vite after saving .env.</p>
           </div>
         </Card>
       </div>
     );
   }
 
+  if (recoveryMode) {
+    return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
+  }
+
   if (!session) {
-    return (
-      <AuthScreen
-        authMode={authMode}
-        setAuthMode={setAuthMode}
-        email={email}
-        setEmail={setEmail}
-        password={password}
-        setPassword={setPassword}
-        loading={authLoading}
-        message={message}
-        onSubmit={handleAuthSubmit}
-      />
-    );
+    return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
   }
 
   return (
@@ -649,9 +545,7 @@ export default function BettingTrackerWebsite() {
           <div>
             <p className="text-sm font-medium text-slate-500">Online account version</p>
             <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Bet Tracker</h1>
-            <p className="mt-2 max-w-2xl text-slate-600">
-              Track stakes, returns, profit/loss, win rate, ROI and weekly performance. Your data is saved online with Supabase.
-            </p>
+            <p className="mt-2 max-w-2xl text-slate-600">Track stakes, returns, profit/loss, win rate, ROI and weekly performance. Your data is saved online with Supabase.</p>
             <p className="mt-1 text-sm text-slate-500">Logged in as {session.user.email}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -666,14 +560,7 @@ export default function BettingTrackerWebsite() {
 
         {message ? <Card><div className="p-4 text-sm text-slate-700">{message}</div></Card> : null}
         {loadingBets ? <Card><div className="p-4 text-sm text-slate-700">Loading your saved bets...</div></Card> : null}
-
-        {riskWarning ? (
-          <Card className="border-red-200 bg-red-50">
-            <div className="p-4 text-sm text-red-800">
-              Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.
-            </div>
-          </Card>
-        ) : null}
+        {riskWarning ? <Card className="border-red-200 bg-red-50"><div className="p-4 text-sm text-red-800">Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.</div></Card> : null}
 
         <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total Profit/Loss" value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
@@ -688,44 +575,16 @@ export default function BettingTrackerWebsite() {
               <h2 className="text-xl font-semibold">Add a bet</h2>
               <form onSubmit={handleAddBet} className="mt-5 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="space-y-1 text-sm font-medium">
-                    Date
-                    <Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} />
-                  </label>
-                  <label className="space-y-1 text-sm font-medium">
-                    Result
-                    <select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200">
-                      <option value="win">Win</option>
-                      <option value="loss">Loss</option>
-                      <option value="void">Void</option>
-                    </select>
-                  </label>
+                  <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
+                  <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
                 </div>
-
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <label className="space-y-1 text-sm font-medium">
-                    Stake
-                    <Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} />
-                  </label>
-                  <label className="space-y-1 text-sm font-medium">
-                    Odds
-                    <Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} />
-                  </label>
-                  <label className="space-y-1 text-sm font-medium">
-                    Return
-                    <Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} />
-                  </label>
+                  <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
+                  <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
+                  <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
                 </div>
-
-                <label className="space-y-1 text-sm font-medium">
-                  Notes
-                  <Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
-                </label>
-
-                <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">
-                  Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}
-                </div>
-
+                <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
+                <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
                 <Button type="submit" className="w-full">Add Bet</Button>
               </form>
             </div>
@@ -734,15 +593,8 @@ export default function BettingTrackerWebsite() {
           <Card className="lg:col-span-3">
             <div className="p-5">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                <div>
-                  <h2 className="text-xl font-semibold">{chartTitle}</h2>
-                  <p className="text-sm text-slate-500">{chartDescription}</p>
-                </div>
-                <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200">
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
+                <div><h2 className="text-xl font-semibold">{chartTitle}</h2><p className="text-sm text-slate-500">{chartDescription}</p></div>
+                <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
               </div>
               <div className="mt-4 h-80">
                 {chartData.length ? (
@@ -755,9 +607,7 @@ export default function BettingTrackerWebsite() {
                       <Bar dataKey="profitLoss" radius={[10, 10, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
-                ) : (
-                  <div className="flex h-full items-center justify-center rounded-2xl bg-slate-100 text-sm text-slate-500">Add your first bet to see the graph.</div>
-                )}
+                ) : <div className="flex h-full items-center justify-center rounded-2xl bg-slate-100 text-sm text-slate-500">Add your first bet to see the graph.</div>}
               </div>
             </div>
           </Card>
@@ -772,46 +622,15 @@ export default function BettingTrackerWebsite() {
 
         <Card>
           <div className="p-5">
-            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-              <div>
-                <h2 className="text-xl font-semibold">Bet history</h2>
-                <p className="text-sm text-slate-500">Delete entries if you make a mistake.</p>
-              </div>
-              <p className="text-sm text-slate-500">{bets.length} total bets</p>
-            </div>
-
+            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end"><div><h2 className="text-xl font-semibold">Bet history</h2><p className="text-sm text-slate-500">Delete entries if you make a mistake.</p></div><p className="text-sm text-slate-500">{bets.length} total bets</p></div>
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead>
-                  <tr className="border-b text-slate-500">
-                    <th className="py-3 pr-4 font-medium">Date</th>
-                    <th className="py-3 pr-4 font-medium">Stake</th>
-                    <th className="py-3 pr-4 font-medium">Odds</th>
-                    <th className="py-3 pr-4 font-medium">Result</th>
-                    <th className="py-3 pr-4 font-medium">Return</th>
-                    <th className="py-3 pr-4 font-medium">Profit/Loss</th>
-                    <th className="py-3 pr-4 font-medium">Notes</th>
-                    <th className="py-3 pr-4 font-medium">Action</th>
-                  </tr>
-                </thead>
+                <thead><tr className="border-b text-slate-500"><th className="py-3 pr-4 font-medium">Date</th><th className="py-3 pr-4 font-medium">Stake</th><th className="py-3 pr-4 font-medium">Odds</th><th className="py-3 pr-4 font-medium">Result</th><th className="py-3 pr-4 font-medium">Return</th><th className="py-3 pr-4 font-medium">Profit/Loss</th><th className="py-3 pr-4 font-medium">Notes</th><th className="py-3 pr-4 font-medium">Action</th></tr></thead>
                 <tbody>
                   {bets.map((bet) => (
-                    <tr key={bet.id} className="border-b last:border-0">
-                      <td className="py-3 pr-4">{bet.date}</td>
-                      <td className="py-3 pr-4">{formatCurrency(bet.stake)}</td>
-                      <td className="py-3 pr-4">{bet.odds || "-"}</td>
-                      <td className="py-3 pr-4 capitalize">{bet.result}</td>
-                      <td className="py-3 pr-4">{formatCurrency(bet.returnAmount)}</td>
-                      <td className={"py-3 pr-4 font-medium " + (bet.profitLoss >= 0 ? "text-emerald-700" : "text-red-700")}>{formatCurrency(bet.profitLoss)}</td>
-                      <td className="max-w-[240px] truncate py-3 pr-4 text-slate-600">{bet.notes || "-"}</td>
-                      <td className="py-3 pr-4"><Button variant="ghost" onClick={() => deleteBet(bet.id)}>Delete</Button></td>
-                    </tr>
+                    <tr key={bet.id} className="border-b last:border-0"><td className="py-3 pr-4">{bet.date}</td><td className="py-3 pr-4">{formatCurrency(bet.stake)}</td><td className="py-3 pr-4">{bet.odds || "-"}</td><td className="py-3 pr-4 capitalize">{bet.result}</td><td className="py-3 pr-4">{formatCurrency(bet.returnAmount)}</td><td className={"py-3 pr-4 font-medium " + (bet.profitLoss >= 0 ? "text-emerald-700" : "text-red-700")}>{formatCurrency(bet.profitLoss)}</td><td className="max-w-[240px] truncate py-3 pr-4 text-slate-600">{bet.notes || "-"}</td><td className="py-3 pr-4"><Button variant="ghost" onClick={() => deleteBet(bet.id)}>Delete</Button></td></tr>
                   ))}
-                  {!bets.length ? (
-                    <tr>
-                      <td colSpan="8" className="py-10 text-center text-slate-500">No bets added yet.</td>
-                    </tr>
-                  ) : null}
+                  {!bets.length ? <tr><td colSpan="8" className="py-10 text-center text-slate-500">No bets added yet.</td></tr> : null}
                 </tbody>
               </table>
             </div>
