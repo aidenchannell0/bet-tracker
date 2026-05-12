@@ -288,16 +288,63 @@ function EdgeSelectField({ label, value, options, onChange }) {
 
 function EdgeMessage({ role, children }) {
   const isEdge = role === "edge";
+  const text = String(children || "");
+
+  const sectionLabels = ["Simple view", "Example structure", "What I would check", "Risk level", "Important"];
+
+  const parseSections = (message) => {
+    const sections = [];
+
+    sectionLabels.forEach((label, index) => {
+      const startToken = label + ":";
+      const startIndex = message.indexOf(startToken);
+      if (startIndex === -1) return;
+
+      const contentStart = startIndex + startToken.length;
+      const nextIndexes = sectionLabels
+        .slice(index + 1)
+        .map((nextLabel) => message.indexOf(nextLabel + ":", contentStart))
+        .filter((value) => value !== -1);
+      const contentEnd = nextIndexes.length ? Math.min(...nextIndexes) : message.length;
+      const content = message.slice(contentStart, contentEnd).trim();
+
+      sections.push({ label, content });
+    });
+
+    return sections;
+  };
+
+  const sections = isEdge ? parseSections(text) : [];
+
+  if (!isEdge) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[88%] whitespace-pre-line rounded-2xl bg-slate-950 px-4 py-3 text-sm leading-6 text-white">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
+  if (!sections.length) {
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[88%] whitespace-pre-line rounded-2xl bg-slate-100 px-4 py-3 text-sm leading-6 text-slate-800">
+          {children}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={"flex " + (isEdge ? "justify-start" : "justify-end")}>
-      <div
-        className={
-          "max-w-[88%] whitespace-pre-line rounded-2xl px-4 py-3 text-sm leading-6 " +
-          (isEdge ? "bg-slate-100 text-slate-800" : "bg-slate-950 text-white")
-        }
-      >
-        {children}
+    <div className="flex justify-start">
+      <div className="max-w-[92%] space-y-3">
+        {sections.map((section) => (
+          <div key={section.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{section.label}</p>
+            <p className="whitespace-pre-line">{section.content}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
