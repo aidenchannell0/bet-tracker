@@ -774,7 +774,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
                 </div>
                 <div className="mt-5 rounded-2xl border border-slate-200 p-4">
                   <div className="mb-3 flex items-center justify-between text-sm"><span className="font-medium">Weekly profit/loss</span><span className="text-slate-500">Example</span></div>
-                  <div className="flex h-32 items-end gap-3"><div className="h-16 flex-1 rounded-t-xl bg-slate-300" /><div className="h-24 flex-1 rounded-t-xl bg-slate-900" /><div className="h-10 flex-1 rounded-t-xl bg-slate-300" /><div className="h-28 flex-1 rounded-t-xl bg-slate-900" /><div className="h-20 flex-1 rounded-t-xl bg-slate-300" /></div>
+                  <div className="flex h-32 items-end gap-3"><div className="h-16 flex-1 rounded-t-xl bg-[#2E7D5B]" /><div className="h-24 flex-1 rounded-t-xl bg-[#2E7D5B]" /><div className="h-10 flex-1 rounded-t-xl bg-[#A94442]" /><div className="h-28 flex-1 rounded-t-xl bg-[#2E7D5B]" /><div className="h-20 flex-1 rounded-t-xl bg-[#A94442]" /></div>
                 </div>
               </div>
             </Card>
