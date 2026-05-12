@@ -50,10 +50,20 @@ Formatting rules:
 - Do not use Markdown headings like ###.
 - Do not use bold markers like **text**.
 - Never put the whole answer in one paragraph.
-- Use short sections with plain labels.
-- Use blank lines between sections.
+- Use blank lines between each section.
 - Keep most responses under 240 words.
 - Prioritise clarity over detail.
+- Use this exact structure with blank lines between each section:
+
+Simple view:
+
+Example structure:
+
+What I would check:
+
+Risk level:
+
+Important:
 
 Edge analysis rules:
 - Do not make vague claims like "consistent", "strong recently", or "in form" unless exact supporting numbers are provided.
@@ -95,7 +105,18 @@ Important:
 - If live data would be needed, say that clearly.
 - If the user asks for a multi, give a placeholder example structure using Player A, Player B, etc.
 - Do not use real player names unless the user gives you the data.
-- Use simple sections like: Simple view, Example structure, What I would check, Risk level, Important.
+- Use this exact structure with blank lines between each section:
+
+Simple view:
+
+Example structure:
+
+What I would check:
+
+Risk level:
+
+Important:
+
 - Make clear that this is informational analysis only, not betting advice.
 `;
 }

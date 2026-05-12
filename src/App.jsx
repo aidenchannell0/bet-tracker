@@ -288,7 +288,19 @@ function EdgeSelectField({ label, value, options, onChange }) {
 
 function EdgeMessage({ role, children }) {
   const isEdge = role === "edge";
-  return <div className={"flex " + (isEdge ? "justify-start" : "justify-end")}><div className={"max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 " + (isEdge ? "bg-slate-100 text-slate-800" : "bg-slate-950 text-white")}>{children}</div></div>;
+
+  return (
+    <div className={"flex " + (isEdge ? "justify-start" : "justify-end")}>
+      <div
+        className={
+          "max-w-[88%] whitespace-pre-line rounded-2xl px-4 py-3 text-sm leading-6 " +
+          (isEdge ? "bg-slate-100 text-slate-800" : "bg-slate-950 text-white")
+        }
+      >
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function EdgeDetailToggle({ leg }) {
