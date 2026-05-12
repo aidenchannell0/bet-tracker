@@ -336,6 +336,7 @@ function EdgePage({ setActivePage }) {
   const [riskProfile, setRiskProfile] = useState("Balanced");
   const [request, setRequest] = useState("Disposals only");
   const [chatInput, setChatInput] = useState("");
+  const [edgeLoading, setEdgeLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { role: "user", text: "Can you only use disposals in the multi?" },
     { role: "edge", text: "Yes. I rebuilt the example using disposals-only legs. In the live version, each leg will include exact supporting data such as recent hit rate, average and market availability." },
@@ -347,11 +348,50 @@ function EdgePage({ setActivePage }) {
     { name: "Player B 25+ disposals", confidence: "74%", reason: "Example data: cleared 25+ in 8 of the last 10 games, averaging 28.1 disposals across that span.", details: [{ label: "Last 10 hit rate", value: "8/10" }, { label: "Last 10 average", value: "28.1" }, { label: "Season average", value: "26.9" }, { label: "Lowest in last 10", value: "21" }, { label: "Highest in last 10", value: "35" }, { label: "Role note", value: "Inside/outside mid" }], trend: "Recent disposal counts: 29, 31, 27, 24, 30, 28, 35, 21, 26, 30. The two misses were close to the line rather than major role drops.", extraReason: "This leg is included because the player has shown a stable disposal floor and has cleared the selected line in most recent matches." },
     { name: "Player C 20+ disposals", confidence: "71%", reason: "Example data: cleared 20+ in 6 of the last 8 games, with a stable midfield role in recent matches.", details: [{ label: "Last 8 hit rate", value: "6/8" }, { label: "Last 8 average", value: "23.6" }, { label: "Season average", value: "22.4" }, { label: "Lowest in last 8", value: "17" }, { label: "Highest in last 8", value: "30" }, { label: "Role note", value: "Mid rotation" }], trend: "Recent disposal counts: 24, 22, 19, 26, 30, 17, 25, 23. This is a lower line, but the role is slightly less secure than the first two legs.", extraReason: "This leg is included because the lower line helps keep the overall multi near the target odds while still being supported by recent form." },
   ];
-  const sendChatMessage = () => {
+  const sendChatMessage = async () => {
     const trimmed = chatInput.trim();
-    if (!trimmed) return;
-    setChatMessages((current) => [...current, { role: "user", text: trimmed }, { role: "edge", text: "Got it. This is a UI preview for Edge. Once the AI backend is connected, I will rebuild the analysis using your latest instruction while keeping the previous filters in mind." }]);
+    if (!trimmed || edgeLoading) return;
+
+    const userMessage = { role: "user", text: trimmed };
+    setChatMessages((current) => [...current, userMessage]);
     setChatInput("");
+    setEdgeLoading(true);
+
+    try {
+      const response = await fetch("/api/edge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: trimmed,
+          context: {
+            mode,
+            sport,
+            legs: displayedLegs,
+            targetOdds: displayedTargetOdds,
+            riskProfile,
+            request,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Edge request failed");
+      }
+
+      setChatMessages((current) => [...current, { role: "edge", text: data.reply }]);
+    } catch (error) {
+      setChatMessages((current) => [
+        ...current,
+        {
+          role: "edge",
+          text: "Edge could not respond right now. Check that the backend API and OpenAI key are set up correctly, then try again.",
+        },
+      ]);
+    } finally {
+      setEdgeLoading(false);
+    }
   };
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
@@ -365,7 +405,7 @@ function EdgePage({ setActivePage }) {
             <Card><div className="p-5"><div className="grid gap-2 rounded-2xl bg-slate-100 p-1 sm:grid-cols-2"><button onClick={() => setMode("multi")} className={"rounded-xl px-4 py-3 text-sm font-semibold transition " + (mode === "multi" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950")}>Example Multi</button><button onClick={() => setMode("analysis")} className={"rounded-xl px-4 py-3 text-sm font-semibold transition " + (mode === "analysis" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-950")}>Game Analysis</button></div>
               {mode === "multi" ? <div className="mt-6 space-y-5"><EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} /><EdgeSelectField label="Games" value="Tonight's games" onChange={() => {}} options={["Tonight's games", "Selected game only", "This weekend"]} /><EdgeSelectField label="Number of legs" value={legs} onChange={setLegs} options={["Any", "2", "3", "4", "5", "Custom"]} />{legs === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom number of legs<Input type="number" min="1" step="1" value={customLegs} onChange={(event) => setCustomLegs(event.target.value)} placeholder="e.g. 6" /></label> : null}<EdgeSelectField label="Target odds" value={targetOdds} onChange={setTargetOdds} options={["$1.50", "$2.00", "$3.00", "$5.00", "Custom"]} />{targetOdds === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom target odds<Input type="number" min="1" step="0.01" value={customTargetOdds} onChange={(event) => setCustomTargetOdds(event.target.value)} placeholder="e.g. 2.20" /></label> : null}<EdgeSelectField label="Risk profile" value={riskProfile} onChange={setRiskProfile} options={["Safer", "Balanced", "Aggressive"]} /><label className="space-y-1 text-sm font-medium">Optional request<Input value={request} onChange={(event) => setRequest(event.target.value)} placeholder="e.g. Disposals only, no same-game legs" /></label><div className="pt-2"><Button className="w-full rounded-2xl py-3 text-base">Preview example multi</Button></div></div> : <div className="mt-6 space-y-5"><EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} /><EdgeSelectField label="Game" value="Select upcoming game" onChange={() => {}} options={["Select upcoming game", "Team A vs Team B", "Team C vs Team D"]} /><label className="space-y-1 text-sm font-medium">Focus area<Input value="Recent form, injuries and head-to-head" readOnly /></label><Button className="w-full rounded-2xl py-3 text-base">Preview game analysis</Button></div>}
             </div></Card>
-            <div className="space-y-6"><Card><div className="p-5 md:p-6"><div className="flex flex-col justify-between gap-3 md:flex-row md:items-start"><div><p className="text-sm font-medium text-slate-500">Edge output</p><h2 className="mt-1 text-2xl font-semibold">Example {displayedLegs}-leg {sport} multi</h2><p className="mt-2 text-sm text-slate-600">This is placeholder preview data only. The live version will use current odds, market availability and sport-specific statistics before producing outputs.</p></div><div className="rounded-2xl bg-slate-950 px-4 py-3 text-white"><p className="text-xs uppercase tracking-wide text-slate-300">Target odds</p><p className="text-2xl font-semibold">{displayedTargetOdds}</p></div></div><div className="mt-6 grid gap-4 md:grid-cols-3">{exampleLegs.map((leg, index) => <div key={leg.name} className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">Leg {index + 1}</p><h3 className="mt-1 font-semibold">{leg.name}</h3><p className="mt-2 text-sm text-slate-600">{leg.reason}</p><p className="mt-3 text-sm font-medium text-slate-950">Confidence: {leg.confidence}</p><EdgeDetailToggle leg={leg} /></div>)}</div><div className="mt-6 grid gap-4 md:grid-cols-[1fr_1.2fr]"><div className="rounded-2xl bg-slate-100 p-4"><EdgeRiskMeter score={6} /></div><div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-700"><p className="font-medium text-slate-900">Why this risk score?</p><p className="mt-1">A 6/10 preview score reflects a balanced multi with multiple legs and player-market variance. The live version will calculate this from odds, markets, leg count and data confidence.</p></div></div><div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-900"><span className="font-semibold">Not betting advice:</span> Edge does not provide betting advice, financial advice, guaranteed outcomes, or instructions to place a bet. Any multi shown here is only an example construction for informational purposes. Odds, markets, injuries and team news may change. You are responsible for your own decisions. Gamble responsibly.</div></div></Card><Card><div className="p-5 md:p-6"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start"><div><p className="text-sm font-medium text-slate-500">Chat with Edge</p><h2 className="text-xl font-semibold">Refine the build naturally</h2></div><span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">Preview mode</span></div><div className="mt-5 space-y-3">{chatMessages.map((message, index) => <EdgeMessage key={index} role={message.role}>{message.text}</EdgeMessage>)}</div><div className="mt-5 flex flex-col gap-2 sm:flex-row"><Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Edge a follow-up..." onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} /><Button onClick={sendChatMessage} className="sm:px-6">Send</Button></div></div></Card></div>
+            <div className="space-y-6"><Card><div className="p-5 md:p-6"><div className="flex flex-col justify-between gap-3 md:flex-row md:items-start"><div><p className="text-sm font-medium text-slate-500">Edge output</p><h2 className="mt-1 text-2xl font-semibold">Example {displayedLegs}-leg {sport} multi</h2><p className="mt-2 text-sm text-slate-600">This is placeholder preview data only. The live version will use current odds, market availability and sport-specific statistics before producing outputs.</p></div><div className="rounded-2xl bg-slate-950 px-4 py-3 text-white"><p className="text-xs uppercase tracking-wide text-slate-300">Target odds</p><p className="text-2xl font-semibold">{displayedTargetOdds}</p></div></div><div className="mt-6 grid gap-4 md:grid-cols-3">{exampleLegs.map((leg, index) => <div key={leg.name} className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">Leg {index + 1}</p><h3 className="mt-1 font-semibold">{leg.name}</h3><p className="mt-2 text-sm text-slate-600">{leg.reason}</p><p className="mt-3 text-sm font-medium text-slate-950">Confidence: {leg.confidence}</p><EdgeDetailToggle leg={leg} /></div>)}</div><div className="mt-6 grid gap-4 md:grid-cols-[1fr_1.2fr]"><div className="rounded-2xl bg-slate-100 p-4"><EdgeRiskMeter score={6} /></div><div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-700"><p className="font-medium text-slate-900">Why this risk score?</p><p className="mt-1">A 6/10 preview score reflects a balanced multi with multiple legs and player-market variance. The live version will calculate this from odds, markets, leg count and data confidence.</p></div></div><div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-900"><span className="font-semibold">Not betting advice:</span> Edge does not provide betting advice, financial advice, guaranteed outcomes, or instructions to place a bet. Any multi shown here is only an example construction for informational purposes. Odds, markets, injuries and team news may change. You are responsible for your own decisions. Gamble responsibly.</div></div></Card><Card><div className="p-5 md:p-6"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start"><div><p className="text-sm font-medium text-slate-500">Chat with Edge</p><h2 className="text-xl font-semibold">Refine the build naturally</h2></div><span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">Preview mode</span></div><div className="mt-5 space-y-3">{chatMessages.map((message, index) => <EdgeMessage key={index} role={message.role}>{message.text}</EdgeMessage>)}</div><div className="mt-5 flex flex-col gap-2 sm:flex-row"><Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Edge a follow-up..." onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} /><Button onClick={sendChatMessage} className="sm:px-6" disabled={edgeLoading}>{edgeLoading ? "Thinking..." : "Send"}</Button></div></div></Card></div>
           </section>
         </div>
       </main>
