@@ -45,6 +45,13 @@ Odds data rules:
 - Do not say a team or market is value unless the user provides enough supporting data.
 - Say that odds can change.
 
+Intent rules:
+- If the user only asks what games or odds are available, only list the available games and sample odds. Do not build a multi.
+- Only provide an example multi if the user asks for a multi, bet build, legs, selections, or example structure.
+- Only provide a risk score if the user asks about risk, a multi, or a build.
+- Only provide the full section structure when it fits the user request.
+- Do not force every response into every section if the user asked a simple question.
+
 Placeholder example rule:
 - If the user asks for an example multi and player stats are not available, provide a generic placeholder structure.
 - Use placeholders like Player A, Player B, Team A, Team B, Midfielder A, Forward B.
@@ -57,14 +64,17 @@ Formatting rules:
 - Do not show equations, formulas, or odds multiplication unless the user specifically asks.
 - Do not over-explain the maths.
 - Do not use Markdown headings like ###.
-- Do not use bold markers like **text**.
+- You may use bold markers like **text** only for important player names, team names, markets, stats, odds, disposals, goals, hit rates, and risk scores.
+- When mentioning important player names, team names, markets, stats, odds, disposals, goals, hit rates, or risk scores, wrap them in **bold** markers so they are easier to scan.
 - Never put the whole answer in one paragraph.
 - Use blank lines between each section.
 - Keep most responses under 260 words.
 - Prioritise clarity over detail.
-- Use this exact structure with blank lines between each section when useful:
+- Use simple section labels like these when useful:
 
 Simple view:
+
+Available games:
 
 Example structure:
 
@@ -93,9 +103,50 @@ function getSafeString(value, fallback) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
+function getUserIntent(message) {
+  const lowerMessage = String(message || "").toLowerCase();
+
+  const asksForGames =
+    lowerMessage.includes("what games") ||
+    lowerMessage.includes("which games") ||
+    lowerMessage.includes("games can you see") ||
+    lowerMessage.includes("odds for right now") ||
+    lowerMessage.includes("available games") ||
+    lowerMessage.includes("upcoming games");
+
+  const asksForMulti =
+    lowerMessage.includes("multi") ||
+    lowerMessage.includes("leg") ||
+    lowerMessage.includes("legs") ||
+    lowerMessage.includes("build") ||
+    lowerMessage.includes("selection") ||
+    lowerMessage.includes("example bet");
+
+  const asksForRisk =
+    lowerMessage.includes("risk") ||
+    lowerMessage.includes("safer") ||
+    lowerMessage.includes("confidence");
+
+  if (asksForGames && !asksForMulti && !asksForRisk) {
+    return "available_games";
+  }
+
+  if (asksForMulti) {
+    return "multi";
+  }
+
+  if (asksForRisk) {
+    return "risk";
+  }
+
+  return "general";
+}
+
 function getPrimaryMarketOdds(event) {
   const bookmaker = event.bookmakers?.[0];
-  const market = bookmaker?.markets?.find((item) => item.key === "h2h") || bookmaker?.markets?.[0];
+  const market =
+    bookmaker?.markets?.find((item) => item.key === "h2h") ||
+    bookmaker?.markets?.[0];
 
   if (!bookmaker || !market?.outcomes?.length) {
     return null;
@@ -118,10 +169,12 @@ function summariseOddsForEdge(oddsData) {
   }
 
   return events
-    .slice(0, 5)
+    .slice(0, 6)
     .map((event, index) => {
       const market = getPrimaryMarketOdds(event);
-      const teams = `${event.homeTeam || "Home team"} vs ${event.awayTeam || "Away team"}`;
+      const teams = `${event.homeTeam || "Home team"} vs ${
+        event.awayTeam || "Away team"
+      }`;
 
       if (!market) {
         return `${index + 1}. ${teams}\nNo clear head-to-head odds returned.`;
@@ -149,7 +202,9 @@ async function fetchOddsContext(req, sport) {
     if (!response.ok) {
       return {
         available: false,
-        summary: `Odds data could not be loaded right now. Error: ${data?.error || "Unknown error"}`,
+        summary: `Odds data could not be loaded right now. Error: ${
+          data?.error || "Unknown error"
+        }`,
       };
     }
 
@@ -168,7 +223,7 @@ async function fetchOddsContext(req, sport) {
   }
 }
 
-function buildUserPrompt({ message, context, oddsContext }) {
+function buildUserPrompt({ message, context, oddsContext, userIntent }) {
   const sport = context?.sport || "Not specified";
   const mode = context?.mode || "Not specified";
   const legs = context?.legs || "Not specified";
@@ -179,6 +234,9 @@ function buildUserPrompt({ message, context, oddsContext }) {
   return `
 User request:
 ${message}
+
+Detected user intent:
+${userIntent}
 
 Current Edge settings:
 - Mode: ${mode}
@@ -197,11 +255,24 @@ Important:
 - Keep the answer short, simple, and user-friendly.
 - Use real odds context if it is relevant to the user request.
 - Do not explain formulas or odds calculations unless asked.
-- Do not use Markdown headings or bold formatting.
+- Do not use Markdown headings.
+- Use **bold** markers for important player names, team names, markets, stats, odds, disposals, goals, hit rates, and risk scores.
 - Do not invent player stats, injuries, lineups, odds, or player data.
+- If Detected user intent is "available_games", only list available games and simple sample odds. Do not create an example multi.
+- If Detected user intent is "multi", you may give an example structure.
 - If the user asks for a multi, give a placeholder example structure unless the required real market/player data is available.
 - Do not use real player names unless the user gives you the data.
-- Use this exact structure with blank lines between each section when it fits the request:
+- Make clear that this is informational analysis only, not betting advice.
+
+For available_games intent, use this structure:
+
+Simple view:
+
+Available games:
+
+Important:
+
+For multi intent, use this structure when useful:
 
 Simple view:
 
@@ -212,8 +283,6 @@ What I would check:
 Risk level:
 
 Important:
-
-- Make clear that this is informational analysis only, not betting advice.
 `;
 }
 
@@ -240,6 +309,7 @@ export default async function handler(req, res) {
     }
 
     const sport = getSafeString(context?.sport, "AFL");
+    const userIntent = getUserIntent(message);
     const oddsContext = await fetchOddsContext(req, sport);
 
     const completion = await openai.chat.completions.create({
@@ -251,7 +321,12 @@ export default async function handler(req, res) {
         },
         {
           role: "user",
-          content: buildUserPrompt({ message, context, oddsContext }),
+          content: buildUserPrompt({
+            message,
+            context,
+            oddsContext,
+            userIntent,
+          }),
         },
       ],
       temperature: 0.25,
@@ -265,6 +340,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       reply,
       oddsConnected: oddsContext.available,
+      intent: userIntent,
     });
   } catch (error) {
     console.error("Edge API error:", error);

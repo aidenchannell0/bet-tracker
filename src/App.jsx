@@ -412,10 +412,26 @@ function EdgeDetailToggle({ leg }) {
   );
 }
 
+function renderEdgeText(text) {
+  const parts = String(text || "").split(/(\*\*[^*]+\*\*)/g);
+
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={index} className="font-semibold text-[#11203B]">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+
+    return <React.Fragment key={index}>{part}</React.Fragment>;
+  });
+}
+
 function EdgeMessage({ role, children }) {
   const isEdge = role === "edge";
   const text = String(children || "");
-  const sectionLabels = ["Simple view", "Example structure", "What I would check", "Risk level", "Important"];
+  const sectionLabels = ["Simple view", "Available games", "Example structure", "What I would check", "Risk level", "Important"];
 
   const parseSections = (message) => {
     const sections = [];
@@ -448,7 +464,7 @@ function EdgeMessage({ role, children }) {
   if (!sections.length) {
     return (
       <div className="flex justify-start">
-        <div className="max-w-[88%] whitespace-pre-line rounded-2xl bg-[#E8E2D4] px-4 py-3 text-sm leading-6 text-slate-800">{children}</div>
+        <div className="max-w-[88%] whitespace-pre-line rounded-2xl bg-[#E8E2D4] px-4 py-3 text-sm leading-6 text-slate-800">{renderEdgeText(children)}</div>
       </div>
     );
   }
@@ -459,7 +475,7 @@ function EdgeMessage({ role, children }) {
         {sections.map((section) => (
           <div key={section.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{section.label}</p>
-            <p className="whitespace-pre-line">{section.content}</p>
+            <p className="whitespace-pre-line">{renderEdgeText(section.content)}</p>
           </div>
         ))}
       </div>
