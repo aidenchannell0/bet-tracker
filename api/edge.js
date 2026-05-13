@@ -44,6 +44,7 @@ Odds data rules:
 - Do not claim the best pick from odds alone.
 - Do not say a team or market is value unless the user provides enough supporting data.
 - Say that odds can change.
+- If no odds are available for the requested sport, say that clearly and do not show odds from another sport unless the user asks.
 
 Intent rules:
 - If the user only asks what games or odds are available, only list the available games and sample odds. Do not build a multi.
@@ -103,6 +104,40 @@ function getSafeString(value, fallback) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
+function getSportFromMessage(message, fallbackSport) {
+  const lowerMessage = String(message || "").toLowerCase();
+
+  if (lowerMessage.includes("nrl") || lowerMessage.includes("rugby league")) {
+    return "NRL";
+  }
+
+  if (lowerMessage.includes("afl") || lowerMessage.includes("aussie rules")) {
+    return "AFL";
+  }
+
+  if (
+    lowerMessage.includes("nba") ||
+    lowerMessage.includes("basketball")
+  ) {
+    return "Basketball";
+  }
+
+  if (
+    lowerMessage.includes("soccer") ||
+    lowerMessage.includes("football") ||
+    lowerMessage.includes("a-league") ||
+    lowerMessage.includes("aleague")
+  ) {
+    return "Soccer";
+  }
+
+  if (lowerMessage.includes("cricket")) {
+    return "Cricket";
+  }
+
+  return fallbackSport || "AFL";
+}
+
 function getUserIntent(message) {
   const lowerMessage = String(message || "").toLowerCase();
 
@@ -111,8 +146,11 @@ function getUserIntent(message) {
     lowerMessage.includes("which games") ||
     lowerMessage.includes("games can you see") ||
     lowerMessage.includes("odds for right now") ||
+    lowerMessage.includes("odds for this week") ||
     lowerMessage.includes("available games") ||
-    lowerMessage.includes("upcoming games");
+    lowerMessage.includes("upcoming games") ||
+    lowerMessage.includes("give me the") && lowerMessage.includes("odds") ||
+    lowerMessage.includes("show me") && lowerMessage.includes("odds");
 
   const asksForMulti =
     lowerMessage.includes("multi") ||
@@ -161,11 +199,11 @@ function getPrimaryMarketOdds(event) {
   };
 }
 
-function summariseOddsForEdge(oddsData) {
+function summariseOddsForEdge(oddsData, requestedSport) {
   const events = oddsData?.events || [];
 
   if (!events.length) {
-    return "No upcoming odds were returned for this sport right now.";
+    return `No upcoming odds were returned for **${requestedSport}** right now.`;
   }
 
   return events
@@ -177,14 +215,14 @@ function summariseOddsForEdge(oddsData) {
       }`;
 
       if (!market) {
-        return `${index + 1}. ${teams}\nNo clear head-to-head odds returned.`;
+        return `${index + 1}. **${teams}**\nNo clear head-to-head odds returned.`;
       }
 
       const prices = market.outcomes
-        .map((outcome) => `${outcome.name}: $${outcome.price}`)
+        .map((outcome) => `**${outcome.name}**: **$${outcome.price}**`)
         .join(", ");
 
-      return `${index + 1}. ${teams}\nBookmaker sample: ${market.bookmaker}\nOdds: ${prices}`;
+      return `${index + 1}. **${teams}**\nBookmaker sample: **${market.bookmaker}**\nOdds: ${prices}`;
     })
     .join("\n\n");
 }
@@ -193,6 +231,7 @@ async function fetchOddsContext(req, sport) {
   try {
     const baseUrl = buildBaseUrl(req);
     const url = new URL("/api/odds", baseUrl);
+
     url.searchParams.set("sport", sport || "AFL");
     url.searchParams.set("markets", "h2h");
 
@@ -202,7 +241,7 @@ async function fetchOddsContext(req, sport) {
     if (!response.ok) {
       return {
         available: false,
-        summary: `Odds data could not be loaded right now. Error: ${
+        summary: `Odds data could not be loaded for **${sport}** right now. Error: ${
           data?.error || "Unknown error"
         }`,
       };
@@ -210,7 +249,7 @@ async function fetchOddsContext(req, sport) {
 
     return {
       available: true,
-      summary: summariseOddsForEdge(data),
+      summary: summariseOddsForEdge(data, sport),
       quota: data.quota,
     };
   } catch (error) {
@@ -218,13 +257,12 @@ async function fetchOddsContext(req, sport) {
 
     return {
       available: false,
-      summary: "Odds data could not be loaded right now.",
+      summary: `Odds data could not be loaded for **${sport}** right now.`,
     };
   }
 }
 
-function buildUserPrompt({ message, context, oddsContext, userIntent }) {
-  const sport = context?.sport || "Not specified";
+function buildUserPrompt({ message, context, oddsContext, userIntent, sport }) {
   const mode = context?.mode || "Not specified";
   const legs = context?.legs || "Not specified";
   const targetOdds = context?.targetOdds || "Not specified";
@@ -237,6 +275,9 @@ ${message}
 
 Detected user intent:
 ${userIntent}
+
+Requested sport:
+${sport}
 
 Current Edge settings:
 - Mode: ${mode}
@@ -254,6 +295,8 @@ Respond as Edge.
 Important:
 - Keep the answer short, simple, and user-friendly.
 - Use real odds context if it is relevant to the user request.
+- Only discuss the requested sport: ${sport}.
+- Do not show odds from a different sport.
 - Do not explain formulas or odds calculations unless asked.
 - Do not use Markdown headings.
 - Use **bold** markers for important player names, team names, markets, stats, odds, disposals, goals, hit rates, and risk scores.
@@ -308,7 +351,8 @@ export default async function handler(req, res) {
       });
     }
 
-    const sport = getSafeString(context?.sport, "AFL");
+    const fallbackSport = getSafeString(context?.sport, "AFL");
+    const sport = getSportFromMessage(message, fallbackSport);
     const userIntent = getUserIntent(message);
     const oddsContext = await fetchOddsContext(req, sport);
 
@@ -326,6 +370,7 @@ export default async function handler(req, res) {
             context,
             oddsContext,
             userIntent,
+            sport,
           }),
         },
       ],
@@ -341,6 +386,7 @@ export default async function handler(req, res) {
       reply,
       oddsConnected: oddsContext.available,
       intent: userIntent,
+      sport,
     });
   } catch (error) {
     console.error("Edge API error:", error);
