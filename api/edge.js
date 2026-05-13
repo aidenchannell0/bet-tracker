@@ -524,13 +524,26 @@ function buildDirectOddsReply({ sport, detectedTeam, dateWindow, oddsContext }) 
     ? `**${detectedTeam.team}**`
     : `**${sport}**`;
 
+  const summary =
+    oddsContext?.summary ||
+    `No odds were returned for ${targetLabel} for **${dateLabel}**.`;
+
+  const hasNoOdds =
+    summary.toLowerCase().includes("no odds were returned") ||
+    summary.toLowerCase().includes("no upcoming odds were returned") ||
+    summary.toLowerCase().includes("could not be loaded");
+
+  const importantMessage = hasNoOdds
+    ? "Odds may not be available that far ahead yet. Check again closer to the game dates. This is informational only, not betting advice."
+    : "Odds can change leading up to the games. These are sample odds from available bookmaker data. This is informational only, not betting advice. Always check the latest odds, team news and player availability before making any decisions.";
+
   return `Available games:
 
-${oddsContext?.summary || `No odds were returned for ${targetLabel} for **${dateLabel}**.`}
+${summary}
 
 Important:
 
-Odds can change leading up to the games. These are sample odds from available bookmaker data. This is informational only, not betting advice. Always check the latest odds, team news and player availability before making any decisions.`;
+${importantMessage}`;
 }
 
 function buildUserPrompt({
