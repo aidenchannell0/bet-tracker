@@ -3,9 +3,21 @@ const ODDS_API_BASE_URL = "https://api.the-odds-api.com/v4";
 const SPORT_KEY_MAP = {
   AFL: "aussierules_afl",
   NRL: "rugbyleague_nrl",
-  Basketball: "basketball_nba",
+
+  EPL: "soccer_epl",
+  ChampionsLeague: "soccer_uefa_champs_league",
   Soccer: "soccer_australia_aleague",
+
+  NBA: "basketball_nba",
+  Basketball: "basketball_nba",
+
+  NFL: "americanfootball_nfl",
+  MLB: "baseball_mlb",
+  NHL: "icehockey_nhl",
+
   Cricket: "cricket_test_match",
+  UFC: "mma_mixed_martial_arts",
+  Tennis: "tennis_atp",
 };
 
 function getSportKey(sport) {

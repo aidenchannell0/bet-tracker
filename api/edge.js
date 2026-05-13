@@ -44,7 +44,8 @@ Odds data rules:
 - Do not claim the best pick from odds alone.
 - Do not say a team or market is value unless the user provides enough supporting data.
 - Say that odds can change.
-- If no odds are available for the requested sport, say that clearly and do not show odds from another sport unless the user asks.
+- If no odds are available for the requested sport or league, say that clearly.
+- Do not show odds from another sport unless the user specifically asks.
 
 Intent rules:
 - If the user only asks what games or odds are available, only list the available games and sample odds. Do not build a multi.
@@ -94,6 +95,96 @@ Edge analysis rules:
 - Keep the answer focused on what the user asked.
 `;
 
+const TEAM_ALIAS_MAP = [
+  // NRL
+  { aliases: ["dragons", "st george", "st george illawarra"], sport: "NRL", team: "St George Illawarra Dragons" },
+  { aliases: ["broncos", "brisbane broncos"], sport: "NRL", team: "Brisbane Broncos" },
+  { aliases: ["storm", "melbourne storm"], sport: "NRL", team: "Melbourne Storm" },
+  { aliases: ["panthers", "penrith", "penrith panthers"], sport: "NRL", team: "Penrith Panthers" },
+  { aliases: ["roosters", "sydney roosters"], sport: "NRL", team: "Sydney Roosters" },
+  { aliases: ["rabbitohs", "souths", "south sydney"], sport: "NRL", team: "South Sydney Rabbitohs" },
+  { aliases: ["eels", "parramatta"], sport: "NRL", team: "Parramatta Eels" },
+  { aliases: ["bulldogs", "canterbury", "canterbury bulldogs"], sport: "NRL", team: "Canterbury-Bankstown Bulldogs" },
+  { aliases: ["sharks", "cronulla", "cronulla sharks"], sport: "NRL", team: "Cronulla Sharks" },
+  { aliases: ["sea eagles", "manly", "manly sea eagles"], sport: "NRL", team: "Manly Sea Eagles" },
+  { aliases: ["cowboys", "north queensland"], sport: "NRL", team: "North Queensland Cowboys" },
+  { aliases: ["dolphins"], sport: "NRL", team: "Dolphins" },
+  { aliases: ["titans", "gold coast titans"], sport: "NRL", team: "Gold Coast Titans" },
+  { aliases: ["raiders", "canberra raiders"], sport: "NRL", team: "Canberra Raiders" },
+  { aliases: ["knights", "newcastle knights"], sport: "NRL", team: "Newcastle Knights" },
+  { aliases: ["warriors", "nz warriors", "new zealand warriors"], sport: "NRL", team: "New Zealand Warriors" },
+  { aliases: ["tigers", "wests tigers"], sport: "NRL", team: "Wests Tigers" },
+
+  // AFL
+  { aliases: ["pies", "magpies", "collingwood", "collingwood magpies"], sport: "AFL", team: "Collingwood Magpies" },
+  { aliases: ["swans", "sydney swans"], sport: "AFL", team: "Sydney Swans" },
+  { aliases: ["cats", "geelong", "geelong cats"], sport: "AFL", team: "Geelong Cats" },
+  { aliases: ["lions", "brisbane lions"], sport: "AFL", team: "Brisbane Lions" },
+  { aliases: ["blues", "carlton", "carlton blues"], sport: "AFL", team: "Carlton Blues" },
+  { aliases: ["bombers", "essendon", "essendon bombers"], sport: "AFL", team: "Essendon Bombers" },
+  { aliases: ["tigers", "richmond", "richmond tigers"], sport: "AFL", team: "Richmond Tigers" },
+  { aliases: ["hawks", "hawthorn", "hawthorn hawks"], sport: "AFL", team: "Hawthorn Hawks" },
+  { aliases: ["demons", "melbourne demons"], sport: "AFL", team: "Melbourne Demons" },
+  { aliases: ["bulldogs", "western bulldogs"], sport: "AFL", team: "Western Bulldogs" },
+  { aliases: ["crows", "adelaide crows"], sport: "AFL", team: "Adelaide Crows" },
+  { aliases: ["port", "port adelaide", "power", "port adelaide power"], sport: "AFL", team: "Port Adelaide Power" },
+  { aliases: ["dockers", "fremantle", "fremantle dockers"], sport: "AFL", team: "Fremantle Dockers" },
+  { aliases: ["eagles", "west coast", "west coast eagles"], sport: "AFL", team: "West Coast Eagles" },
+  { aliases: ["suns", "gold coast suns"], sport: "AFL", team: "Gold Coast Suns" },
+  { aliases: ["giants", "gws", "gws giants"], sport: "AFL", team: "GWS Giants" },
+  { aliases: ["saints", "st kilda", "st kilda saints"], sport: "AFL", team: "St Kilda Saints" },
+  { aliases: ["kangaroos", "north melbourne"], sport: "AFL", team: "North Melbourne Kangaroos" },
+
+  // EPL
+  { aliases: ["man city", "manchester city"], sport: "EPL", team: "Manchester City" },
+  { aliases: ["man united", "man utd", "manchester united"], sport: "EPL", team: "Manchester United" },
+  { aliases: ["arsenal"], sport: "EPL", team: "Arsenal" },
+  { aliases: ["chelsea"], sport: "EPL", team: "Chelsea" },
+  { aliases: ["liverpool"], sport: "EPL", team: "Liverpool" },
+  { aliases: ["spurs", "tottenham", "tottenham hotspur"], sport: "EPL", team: "Tottenham Hotspur" },
+  { aliases: ["newcastle", "newcastle united"], sport: "EPL", team: "Newcastle United" },
+  { aliases: ["aston villa", "villa"], sport: "EPL", team: "Aston Villa" },
+  { aliases: ["west ham"], sport: "EPL", team: "West Ham United" },
+  { aliases: ["everton"], sport: "EPL", team: "Everton" },
+  { aliases: ["leeds", "leeds united"], sport: "EPL", team: "Leeds United" },
+
+  // NBA
+  { aliases: ["lakers", "la lakers", "los angeles lakers"], sport: "NBA", team: "Los Angeles Lakers" },
+  { aliases: ["warriors", "golden state warriors"], sport: "NBA", team: "Golden State Warriors" },
+  { aliases: ["celtics", "boston celtics"], sport: "NBA", team: "Boston Celtics" },
+  { aliases: ["bulls", "chicago bulls"], sport: "NBA", team: "Chicago Bulls" },
+  { aliases: ["knicks", "new york knicks"], sport: "NBA", team: "New York Knicks" },
+  { aliases: ["heat", "miami heat"], sport: "NBA", team: "Miami Heat" },
+  { aliases: ["nuggets", "denver nuggets"], sport: "NBA", team: "Denver Nuggets" },
+  { aliases: ["mavericks", "mavs", "dallas mavericks"], sport: "NBA", team: "Dallas Mavericks" },
+  { aliases: ["bucks", "milwaukee bucks"], sport: "NBA", team: "Milwaukee Bucks" },
+  { aliases: ["suns", "phoenix suns"], sport: "NBA", team: "Phoenix Suns" },
+
+  // NFL
+  { aliases: ["chiefs", "kansas city chiefs"], sport: "NFL", team: "Kansas City Chiefs" },
+  { aliases: ["eagles", "philadelphia eagles"], sport: "NFL", team: "Philadelphia Eagles" },
+  { aliases: ["cowboys", "dallas cowboys"], sport: "NFL", team: "Dallas Cowboys" },
+  { aliases: ["niners", "49ers", "san francisco 49ers"], sport: "NFL", team: "San Francisco 49ers" },
+  { aliases: ["patriots", "new england patriots"], sport: "NFL", team: "New England Patriots" },
+  { aliases: ["packers", "green bay packers"], sport: "NFL", team: "Green Bay Packers" },
+  { aliases: ["ravens", "baltimore ravens"], sport: "NFL", team: "Baltimore Ravens" },
+  { aliases: ["bills", "buffalo bills"], sport: "NFL", team: "Buffalo Bills" },
+
+  // MLB
+  { aliases: ["yankees", "new york yankees"], sport: "MLB", team: "New York Yankees" },
+  { aliases: ["dodgers", "la dodgers", "los angeles dodgers"], sport: "MLB", team: "Los Angeles Dodgers" },
+  { aliases: ["red sox", "boston red sox"], sport: "MLB", team: "Boston Red Sox" },
+  { aliases: ["mets", "new york mets"], sport: "MLB", team: "New York Mets" },
+  { aliases: ["cubs", "chicago cubs"], sport: "MLB", team: "Chicago Cubs" },
+
+  // NHL
+  { aliases: ["maple leafs", "leafs", "toronto maple leafs"], sport: "NHL", team: "Toronto Maple Leafs" },
+  { aliases: ["bruins", "boston bruins"], sport: "NHL", team: "Boston Bruins" },
+  { aliases: ["rangers", "new york rangers"], sport: "NHL", team: "New York Rangers" },
+  { aliases: ["oilers", "edmonton oilers"], sport: "NHL", team: "Edmonton Oilers" },
+  { aliases: ["canucks", "vancouver canucks"], sport: "NHL", team: "Vancouver Canucks" },
+];
+
 function buildBaseUrl(req) {
   const protocol = req.headers["x-forwarded-proto"] || "https";
   const host = req.headers.host;
@@ -104,8 +195,29 @@ function getSafeString(value, fallback) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
+function detectTeamAlias(message) {
+  const lowerMessage = String(message || "").toLowerCase();
+
+  for (const entry of TEAM_ALIAS_MAP) {
+    for (const alias of entry.aliases) {
+      const aliasPattern = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+
+      if (aliasPattern.test(lowerMessage)) {
+        return entry;
+      }
+    }
+  }
+
+  return null;
+}
+
 function getSportFromMessage(message, fallbackSport) {
   const lowerMessage = String(message || "").toLowerCase();
+  const teamAlias = detectTeamAlias(message);
+
+  if (teamAlias) {
+    return teamAlias.sport;
+  }
 
   if (lowerMessage.includes("nrl") || lowerMessage.includes("rugby league")) {
     return "NRL";
@@ -116,10 +228,47 @@ function getSportFromMessage(message, fallbackSport) {
   }
 
   if (
+    lowerMessage.includes("epl") ||
+    lowerMessage.includes("premier league") ||
+    lowerMessage.includes("man city") ||
+    lowerMessage.includes("manchester city")
+  ) {
+    return "EPL";
+  }
+
+  if (
+    lowerMessage.includes("champions league") ||
+    lowerMessage.includes("ucl")
+  ) {
+    return "ChampionsLeague";
+  }
+
+  if (
     lowerMessage.includes("nba") ||
     lowerMessage.includes("basketball")
   ) {
-    return "Basketball";
+    return "NBA";
+  }
+
+  if (
+    lowerMessage.includes("nfl") ||
+    lowerMessage.includes("american football")
+  ) {
+    return "NFL";
+  }
+
+  if (
+    lowerMessage.includes("mlb") ||
+    lowerMessage.includes("baseball")
+  ) {
+    return "MLB";
+  }
+
+  if (
+    lowerMessage.includes("nhl") ||
+    lowerMessage.includes("ice hockey")
+  ) {
+    return "NHL";
   }
 
   if (
@@ -133,6 +282,17 @@ function getSportFromMessage(message, fallbackSport) {
 
   if (lowerMessage.includes("cricket")) {
     return "Cricket";
+  }
+
+  if (
+    lowerMessage.includes("ufc") ||
+    lowerMessage.includes("mma")
+  ) {
+    return "UFC";
+  }
+
+  if (lowerMessage.includes("tennis")) {
+    return "Tennis";
   }
 
   return fallbackSport || "AFL";
@@ -149,8 +309,8 @@ function getUserIntent(message) {
     lowerMessage.includes("odds for this week") ||
     lowerMessage.includes("available games") ||
     lowerMessage.includes("upcoming games") ||
-    lowerMessage.includes("give me the") && lowerMessage.includes("odds") ||
-    lowerMessage.includes("show me") && lowerMessage.includes("odds");
+    (lowerMessage.includes("give me") && lowerMessage.includes("odds")) ||
+    (lowerMessage.includes("show me") && lowerMessage.includes("odds"));
 
   const asksForMulti =
     lowerMessage.includes("multi") ||
@@ -199,10 +359,32 @@ function getPrimaryMarketOdds(event) {
   };
 }
 
-function summariseOddsForEdge(oddsData, requestedSport) {
-  const events = oddsData?.events || [];
+function filterEventsByDetectedTeam(events, detectedTeam) {
+  if (!detectedTeam?.team) {
+    return events;
+  }
+
+  const teamLower = detectedTeam.team.toLowerCase();
+
+  const filtered = events.filter((event) => {
+    const homeTeam = String(event.homeTeam || "").toLowerCase();
+    const awayTeam = String(event.awayTeam || "").toLowerCase();
+
+    return homeTeam.includes(teamLower) || awayTeam.includes(teamLower);
+  });
+
+  return filtered.length ? filtered : events;
+}
+
+function summariseOddsForEdge(oddsData, requestedSport, detectedTeam) {
+  const allEvents = oddsData?.events || [];
+  const events = filterEventsByDetectedTeam(allEvents, detectedTeam);
 
   if (!events.length) {
+    if (detectedTeam?.team) {
+      return `No upcoming odds were returned for **${detectedTeam.team}** in **${requestedSport}** right now.`;
+    }
+
     return `No upcoming odds were returned for **${requestedSport}** right now.`;
   }
 
@@ -227,7 +409,7 @@ function summariseOddsForEdge(oddsData, requestedSport) {
     .join("\n\n");
 }
 
-async function fetchOddsContext(req, sport) {
+async function fetchOddsContext(req, sport, detectedTeam) {
   try {
     const baseUrl = buildBaseUrl(req);
     const url = new URL("/api/odds", baseUrl);
@@ -249,7 +431,7 @@ async function fetchOddsContext(req, sport) {
 
     return {
       available: true,
-      summary: summariseOddsForEdge(data, sport),
+      summary: summariseOddsForEdge(data, sport, detectedTeam),
       quota: data.quota,
     };
   } catch (error) {
@@ -262,7 +444,14 @@ async function fetchOddsContext(req, sport) {
   }
 }
 
-function buildUserPrompt({ message, context, oddsContext, userIntent, sport }) {
+function buildUserPrompt({
+  message,
+  context,
+  oddsContext,
+  userIntent,
+  sport,
+  detectedTeam,
+}) {
   const mode = context?.mode || "Not specified";
   const legs = context?.legs || "Not specified";
   const targetOdds = context?.targetOdds || "Not specified";
@@ -276,8 +465,11 @@ ${message}
 Detected user intent:
 ${userIntent}
 
-Requested sport:
+Requested sport or league:
 ${sport}
+
+Detected team:
+${detectedTeam?.team || "None"}
 
 Current Edge settings:
 - Mode: ${mode}
@@ -295,8 +487,9 @@ Respond as Edge.
 Important:
 - Keep the answer short, simple, and user-friendly.
 - Use real odds context if it is relevant to the user request.
-- Only discuss the requested sport: ${sport}.
-- Do not show odds from a different sport.
+- Only discuss the requested sport or league: ${sport}.
+- If a detected team exists, focus on that team where possible.
+- Do not show odds from a different sport or league.
 - Do not explain formulas or odds calculations unless asked.
 - Do not use Markdown headings.
 - Use **bold** markers for important player names, team names, markets, stats, odds, disposals, goals, hit rates, and risk scores.
@@ -352,9 +545,10 @@ export default async function handler(req, res) {
     }
 
     const fallbackSport = getSafeString(context?.sport, "AFL");
+    const detectedTeam = detectTeamAlias(message);
     const sport = getSportFromMessage(message, fallbackSport);
     const userIntent = getUserIntent(message);
-    const oddsContext = await fetchOddsContext(req, sport);
+    const oddsContext = await fetchOddsContext(req, sport, detectedTeam);
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
@@ -371,6 +565,7 @@ export default async function handler(req, res) {
             oddsContext,
             userIntent,
             sport,
+            detectedTeam,
           }),
         },
       ],
@@ -387,6 +582,7 @@ export default async function handler(req, res) {
       oddsConnected: oddsContext.available,
       intent: userIntent,
       sport,
+      detectedTeam: detectedTeam?.team || null,
     });
   } catch (error) {
     console.error("Edge API error:", error);
