@@ -313,7 +313,7 @@ function getDateWindowFromMessage(message) {
     return copiedDate;
   };
 
-  const toIso = (date) => date.toISOString();
+  const toIso = (date) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
 
   if (lowerMessage.includes("tomorrow")) {
     const from = startOfDay(addDays(now, 1));
