@@ -328,6 +328,7 @@ function getDateWindowFromMessage(message) {
 
   if (
     lowerMessage.includes("week after") ||
+    lowerMessage.includes("week after this week") ||
     lowerMessage.includes("next week") ||
     lowerMessage.includes("following week")
   ) {
@@ -370,9 +371,11 @@ function getUserIntent(message) {
     lowerMessage.includes("odds for this week") ||
     lowerMessage.includes("available games") ||
     lowerMessage.includes("upcoming games") ||
+    lowerMessage.includes("what about the week after") ||
+    lowerMessage.includes("week after this week") ||
     (lowerMessage.includes("give me") && lowerMessage.includes("odds")) ||
     (lowerMessage.includes("show me") && lowerMessage.includes("odds")) ||
-    lowerMessage.includes("what about the week after");
+    (lowerMessage.includes("what are") && lowerMessage.includes("odds"));
 
   const asksForMulti =
     lowerMessage.includes("multi") ||
@@ -435,7 +438,7 @@ function filterEventsByDetectedTeam(events, detectedTeam) {
     return homeTeam.includes(teamLower) || awayTeam.includes(teamLower);
   });
 
-  return filtered.length ? filtered : events;
+  return filtered.length ? filtered : [];
 }
 
 function summariseOddsForEdge(oddsData, requestedSport, detectedTeam, dateWindow) {
@@ -513,6 +516,21 @@ async function fetchOddsContext(req, sport, detectedTeam, dateWindow) {
       summary: `Odds data could not be loaded for **${sport}** right now.`,
     };
   }
+}
+
+function buildDirectOddsReply({ sport, detectedTeam, dateWindow, oddsContext }) {
+  const dateLabel = dateWindow?.label || "upcoming games";
+  const targetLabel = detectedTeam?.team
+    ? `**${detectedTeam.team}**`
+    : `**${sport}**`;
+
+  return `Available games:
+
+${oddsContext?.summary || `No odds were returned for ${targetLabel} for **${dateLabel}**.`}
+
+Important:
+
+Odds can change leading up to the games. These are sample odds from available bookmaker data. This is informational only, not betting advice. Always check the latest odds, team news and player availability before making any decisions.`;
 }
 
 function buildUserPrompt({
@@ -632,6 +650,24 @@ export default async function handler(req, res) {
       detectedTeam,
       dateWindow
     );
+
+    if (userIntent === "available_games") {
+      const reply = buildDirectOddsReply({
+        sport,
+        detectedTeam,
+        dateWindow,
+        oddsContext,
+      });
+
+      return res.status(200).json({
+        reply,
+        oddsConnected: oddsContext.available,
+        intent: userIntent,
+        sport,
+        detectedTeam: detectedTeam?.team || null,
+        dateWindow: dateWindow?.label || "upcoming games",
+      });
+    }
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
