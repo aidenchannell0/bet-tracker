@@ -44,7 +44,7 @@ Odds data rules:
 - Do not claim the best pick from odds alone.
 - Do not say a team or market is value unless the user provides enough supporting data.
 - Say that odds can change.
-- If no odds are available for the requested sport or league, say that clearly.
+- If no odds are available for the requested sport, league, team or date window, say that clearly.
 - Do not show odds from another sport unless the user specifically asks.
 
 Intent rules:
@@ -200,7 +200,8 @@ function detectTeamAlias(message) {
 
   for (const entry of TEAM_ALIAS_MAP) {
     for (const alias of entry.aliases) {
-      const aliasPattern = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const aliasPattern = new RegExp(`\\b${escapedAlias}\\b`, "i");
 
       if (aliasPattern.test(lowerMessage)) {
         return entry;
@@ -229,9 +230,7 @@ function getSportFromMessage(message, fallbackSport) {
 
   if (
     lowerMessage.includes("epl") ||
-    lowerMessage.includes("premier league") ||
-    lowerMessage.includes("man city") ||
-    lowerMessage.includes("manchester city")
+    lowerMessage.includes("premier league")
   ) {
     return "EPL";
   }
@@ -298,6 +297,68 @@ function getSportFromMessage(message, fallbackSport) {
   return fallbackSport || "AFL";
 }
 
+function getDateWindowFromMessage(message) {
+  const lowerMessage = String(message || "").toLowerCase();
+  const now = new Date();
+
+  const startOfDay = (date) => {
+    const copiedDate = new Date(date);
+    copiedDate.setHours(0, 0, 0, 0);
+    return copiedDate;
+  };
+
+  const addDays = (date, days) => {
+    const copiedDate = new Date(date);
+    copiedDate.setDate(copiedDate.getDate() + days);
+    return copiedDate;
+  };
+
+  const toIso = (date) => date.toISOString();
+
+  if (lowerMessage.includes("tomorrow")) {
+    const from = startOfDay(addDays(now, 1));
+    const to = startOfDay(addDays(now, 2));
+
+    return {
+      label: "tomorrow",
+      commenceTimeFrom: toIso(from),
+      commenceTimeTo: toIso(to),
+    };
+  }
+
+  if (
+    lowerMessage.includes("week after") ||
+    lowerMessage.includes("next week") ||
+    lowerMessage.includes("following week")
+  ) {
+    const from = startOfDay(addDays(now, 7));
+    const to = startOfDay(addDays(now, 14));
+
+    return {
+      label: "next week",
+      commenceTimeFrom: toIso(from),
+      commenceTimeTo: toIso(to),
+    };
+  }
+
+  if (lowerMessage.includes("this week")) {
+    const from = now;
+    const to = startOfDay(addDays(now, 7));
+
+    return {
+      label: "this week",
+      commenceTimeFrom: toIso(from),
+      commenceTimeTo: toIso(to),
+    };
+  }
+
+  return {
+    label: "upcoming games",
+    commenceTimeFrom: null,
+    commenceTimeTo: null,
+  };
+}
+
 function getUserIntent(message) {
   const lowerMessage = String(message || "").toLowerCase();
 
@@ -310,7 +371,8 @@ function getUserIntent(message) {
     lowerMessage.includes("available games") ||
     lowerMessage.includes("upcoming games") ||
     (lowerMessage.includes("give me") && lowerMessage.includes("odds")) ||
-    (lowerMessage.includes("show me") && lowerMessage.includes("odds"));
+    (lowerMessage.includes("show me") && lowerMessage.includes("odds")) ||
+    lowerMessage.includes("what about the week after");
 
   const asksForMulti =
     lowerMessage.includes("multi") ||
@@ -376,16 +438,17 @@ function filterEventsByDetectedTeam(events, detectedTeam) {
   return filtered.length ? filtered : events;
 }
 
-function summariseOddsForEdge(oddsData, requestedSport, detectedTeam) {
+function summariseOddsForEdge(oddsData, requestedSport, detectedTeam, dateWindow) {
   const allEvents = oddsData?.events || [];
   const events = filterEventsByDetectedTeam(allEvents, detectedTeam);
+  const dateLabel = dateWindow?.label || "upcoming games";
 
   if (!events.length) {
     if (detectedTeam?.team) {
-      return `No upcoming odds were returned for **${detectedTeam.team}** in **${requestedSport}** right now.`;
+      return `No odds were returned for **${detectedTeam.team}** in **${requestedSport}** for **${dateLabel}**.`;
     }
 
-    return `No upcoming odds were returned for **${requestedSport}** right now.`;
+    return `No odds were returned for **${requestedSport}** for **${dateLabel}**.`;
   }
 
   return events
@@ -409,13 +472,21 @@ function summariseOddsForEdge(oddsData, requestedSport, detectedTeam) {
     .join("\n\n");
 }
 
-async function fetchOddsContext(req, sport, detectedTeam) {
+async function fetchOddsContext(req, sport, detectedTeam, dateWindow) {
   try {
     const baseUrl = buildBaseUrl(req);
     const url = new URL("/api/odds", baseUrl);
 
     url.searchParams.set("sport", sport || "AFL");
     url.searchParams.set("markets", "h2h");
+
+    if (dateWindow?.commenceTimeFrom) {
+      url.searchParams.set("commenceTimeFrom", dateWindow.commenceTimeFrom);
+    }
+
+    if (dateWindow?.commenceTimeTo) {
+      url.searchParams.set("commenceTimeTo", dateWindow.commenceTimeTo);
+    }
 
     const response = await fetch(url.toString());
     const data = await response.json();
@@ -431,7 +502,7 @@ async function fetchOddsContext(req, sport, detectedTeam) {
 
     return {
       available: true,
-      summary: summariseOddsForEdge(data, sport, detectedTeam),
+      summary: summariseOddsForEdge(data, sport, detectedTeam, dateWindow),
       quota: data.quota,
     };
   } catch (error) {
@@ -451,6 +522,7 @@ function buildUserPrompt({
   userIntent,
   sport,
   detectedTeam,
+  dateWindow,
 }) {
   const mode = context?.mode || "Not specified";
   const legs = context?.legs || "Not specified";
@@ -467,6 +539,9 @@ ${userIntent}
 
 Requested sport or league:
 ${sport}
+
+Requested date window:
+${dateWindow?.label || "upcoming games"}
 
 Detected team:
 ${detectedTeam?.team || "None"}
@@ -488,8 +563,10 @@ Important:
 - Keep the answer short, simple, and user-friendly.
 - Use real odds context if it is relevant to the user request.
 - Only discuss the requested sport or league: ${sport}.
+- Only discuss the requested date window: ${dateWindow?.label || "upcoming games"}.
 - If a detected team exists, focus on that team where possible.
-- Do not show odds from a different sport or league.
+- Do not show odds from a different sport, league, or date window.
+- If no odds are returned for the requested date window, say that clearly.
 - Do not explain formulas or odds calculations unless asked.
 - Do not use Markdown headings.
 - Use **bold** markers for important player names, team names, markets, stats, odds, disposals, goals, hit rates, and risk scores.
@@ -548,7 +625,13 @@ export default async function handler(req, res) {
     const detectedTeam = detectTeamAlias(message);
     const sport = getSportFromMessage(message, fallbackSport);
     const userIntent = getUserIntent(message);
-    const oddsContext = await fetchOddsContext(req, sport, detectedTeam);
+    const dateWindow = getDateWindowFromMessage(message);
+    const oddsContext = await fetchOddsContext(
+      req,
+      sport,
+      detectedTeam,
+      dateWindow
+    );
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
@@ -566,6 +649,7 @@ export default async function handler(req, res) {
             userIntent,
             sport,
             detectedTeam,
+            dateWindow,
           }),
         },
       ],
@@ -583,6 +667,7 @@ export default async function handler(req, res) {
       intent: userIntent,
       sport,
       detectedTeam: detectedTeam?.team || null,
+      dateWindow: dateWindow?.label || "upcoming games",
     });
   } catch (error) {
     console.error("Edge API error:", error);

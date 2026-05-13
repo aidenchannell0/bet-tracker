@@ -75,12 +75,23 @@ export default async function handler(req, res) {
     const oddsFormat = getSafeString(req.query.oddsFormat, "decimal");
     const dateFormat = getSafeString(req.query.dateFormat, "iso");
 
+    const commenceTimeFrom = req.query.commenceTimeFrom;
+    const commenceTimeTo = req.query.commenceTimeTo;
+
     const url = new URL(`${ODDS_API_BASE_URL}/sports/${sportKey}/odds`);
     url.searchParams.set("apiKey", process.env.ODDS_API_KEY);
     url.searchParams.set("regions", regions);
     url.searchParams.set("markets", markets);
     url.searchParams.set("oddsFormat", oddsFormat);
     url.searchParams.set("dateFormat", dateFormat);
+
+    if (commenceTimeFrom) {
+      url.searchParams.set("commenceTimeFrom", commenceTimeFrom);
+    }
+
+    if (commenceTimeTo) {
+      url.searchParams.set("commenceTimeTo", commenceTimeTo);
+    }
 
     const response = await fetch(url.toString());
 
@@ -108,6 +119,8 @@ export default async function handler(req, res) {
       regions,
       markets,
       oddsFormat,
+      commenceTimeFrom: commenceTimeFrom || null,
+      commenceTimeTo: commenceTimeTo || null,
       events: simplifyOddsData(data),
       quota: {
         requestsRemaining,
