@@ -212,7 +212,7 @@ function detectTeamAlias(message) {
   return null;
 }
 
-function getSportFromMessage(message, fallbackSport) {
+function detectExplicitSportFromMessage(message) {
   const lowerMessage = String(message || "").toLowerCase();
   const teamAlias = detectTeamAlias(message);
 
@@ -228,45 +228,27 @@ function getSportFromMessage(message, fallbackSport) {
     return "AFL";
   }
 
-  if (
-    lowerMessage.includes("epl") ||
-    lowerMessage.includes("premier league")
-  ) {
+  if (lowerMessage.includes("epl") || lowerMessage.includes("premier league")) {
     return "EPL";
   }
 
-  if (
-    lowerMessage.includes("champions league") ||
-    lowerMessage.includes("ucl")
-  ) {
+  if (lowerMessage.includes("champions league") || lowerMessage.includes("ucl")) {
     return "ChampionsLeague";
   }
 
-  if (
-    lowerMessage.includes("nba") ||
-    lowerMessage.includes("basketball")
-  ) {
+  if (lowerMessage.includes("nba") || lowerMessage.includes("basketball")) {
     return "NBA";
   }
 
-  if (
-    lowerMessage.includes("nfl") ||
-    lowerMessage.includes("american football")
-  ) {
+  if (lowerMessage.includes("nfl") || lowerMessage.includes("american football")) {
     return "NFL";
   }
 
-  if (
-    lowerMessage.includes("mlb") ||
-    lowerMessage.includes("baseball")
-  ) {
+  if (lowerMessage.includes("mlb") || lowerMessage.includes("baseball")) {
     return "MLB";
   }
 
-  if (
-    lowerMessage.includes("nhl") ||
-    lowerMessage.includes("ice hockey")
-  ) {
+  if (lowerMessage.includes("nhl") || lowerMessage.includes("ice hockey")) {
     return "NHL";
   }
 
@@ -283,10 +265,7 @@ function getSportFromMessage(message, fallbackSport) {
     return "Cricket";
   }
 
-  if (
-    lowerMessage.includes("ufc") ||
-    lowerMessage.includes("mma")
-  ) {
+  if (lowerMessage.includes("ufc") || lowerMessage.includes("mma")) {
     return "UFC";
   }
 
@@ -294,7 +273,7 @@ function getSportFromMessage(message, fallbackSport) {
     return "Tennis";
   }
 
-  return fallbackSport || "AFL";
+  return null;
 }
 
 function getDateWindowFromMessage(message) {
@@ -652,17 +631,30 @@ export default async function handler(req, res) {
       });
     }
 
-    const fallbackSport = getSafeString(context?.sport, "AFL");
-    const detectedTeam = detectTeamAlias(message);
-    const sport = getSportFromMessage(message, fallbackSport);
+    const previousEdgeContext = context?.previousEdgeContext || null;
+    const explicitSport = detectExplicitSportFromMessage(message);
+    const detectedTeam = detectTeamAlias(message) || previousEdgeContext?.detectedTeam || null;
+
+    const sport =
+      explicitSport ||
+      previousEdgeContext?.sport ||
+      getSafeString(context?.sport, "AFL");
+
     const userIntent = getUserIntent(message);
     const dateWindow = getDateWindowFromMessage(message);
+
     const oddsContext = await fetchOddsContext(
       req,
       sport,
       detectedTeam,
       dateWindow
     );
+
+    const edgeContext = {
+      sport,
+      detectedTeam,
+      dateWindow,
+    };
 
     if (userIntent === "available_games") {
       const reply = buildDirectOddsReply({
@@ -679,6 +671,7 @@ export default async function handler(req, res) {
         sport,
         detectedTeam: detectedTeam?.team || null,
         dateWindow: dateWindow?.label || "upcoming games",
+        edgeContext,
       });
     }
 
@@ -717,6 +710,7 @@ export default async function handler(req, res) {
       sport,
       detectedTeam: detectedTeam?.team || null,
       dateWindow: dateWindow?.label || "upcoming games",
+      edgeContext,
     });
   } catch (error) {
     console.error("Edge API error:", error);

@@ -498,6 +498,7 @@ function EdgePage({ setActivePage }) {
   const [edgeLoading, setEdgeLoading] = useState(false);
   const [showRiskExplanation, setShowRiskExplanation] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
+  const [lastEdgeContext, setLastEdgeContext] = useState(null);
 
   const displayedTargetOdds = targetOdds === "Custom" && customTargetOdds ? "$" + customTargetOdds : targetOdds;
   const displayedLegs = legs === "Custom" && customLegs ? customLegs : legs;
@@ -551,6 +552,7 @@ function EdgePage({ setActivePage }) {
   ];
 
   const resetEdgeChat = () => {
+    setLastEdgeContext(null);
     setChatMessages([
       {
         role: "edge",
@@ -563,6 +565,7 @@ function EdgePage({ setActivePage }) {
   const clearEdgeChat = () => {
     setChatMessages([]);
     setChatInput("");
+    setLastEdgeContext(null);
   };
 
   const useExamplePrompt = (prompt) => {
@@ -590,11 +593,15 @@ function EdgePage({ setActivePage }) {
             targetOdds: displayedTargetOdds,
             riskProfile,
             request,
+            previousEdgeContext: lastEdgeContext,
           },
         }),
       });
 
       const data = await response.json();
+      if (data?.edgeContext) {
+        setLastEdgeContext(data.edgeContext);
+      }
       if (!response.ok) throw new Error(data.error || "Edge request failed");
       setChatMessages((current) => [...current, { role: "edge", text: data.reply }]);
     } catch (error) {
