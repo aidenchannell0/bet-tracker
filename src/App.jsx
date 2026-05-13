@@ -291,6 +291,7 @@ function Footer({ setActivePage }) {
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 md:flex-row md:items-center md:justify-between md:px-8">
         <p>© {new Date().getFullYear()} Bet Tracker. Informational use only.</p>
         <div className="flex flex-wrap gap-4">
+          <a href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F" className="font-medium text-[#11203B] hover:underline">Give feedback</a>
           <button onClick={() => setActivePage("disclaimer")} className="hover:text-[#11203B]">Disclaimer</button>
           <button onClick={() => setActivePage("responsible")} className="hover:text-[#11203B]">Responsible Gambling</button>
           <button onClick={() => setActivePage("privacy")} className="hover:text-[#11203B]">Privacy</button>
@@ -1238,33 +1239,50 @@ export default function BettingTrackerWebsite() {
             </Card>
           ) : null}
 
-          <Card>
-            <div className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-[#11203B]">Dashboard filter</p>
-                <p className="mt-1 text-sm text-slate-600">View your stats, graph and bet history by sport.</p>
+          <div className="grid gap-3 lg:grid-cols-[1.35fr_0.9fr]">
+            <Card>
+              <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-[#11203B]">Dashboard filter</p>
+                  <p className="mt-1 text-xs text-slate-600 md:text-sm">Filter stats, graph and history by sport.</p>
+                </div>
+                <label className="space-y-1 text-sm font-medium md:min-w-52">
+                  Sport
+                  <select
+                    value={selectedSportFilter}
+                    onChange={(event) => {
+                      setSelectedSportFilter(event.target.value);
+                      setShowAllBets(false);
+                    }}
+                    className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-[#11203B] focus:ring-2 focus:ring-slate-200"
+                  >
+                    <option value="All sports">All sports</option>
+                    <option value="AFL">AFL</option>
+                    <option value="NRL">NRL</option>
+                    <option value="Soccer">Soccer</option>
+                    <option value="Basketball">Basketball</option>
+                    <option value="Cricket">Cricket</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </label>
               </div>
-              <label className="space-y-1 text-sm font-medium md:min-w-56">
-                Sport
-                <select
-                  value={selectedSportFilter}
-                  onChange={(event) => {
-                    setSelectedSportFilter(event.target.value);
-                    setShowAllBets(false);
-                  }}
-                  className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-[#11203B] focus:ring-2 focus:ring-slate-200"
+            </Card>
+
+            <Card className="border-[#C49A4A]/40 bg-[#C49A4A]/10">
+              <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-[#11203B]">Quick feedback</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-700 md:text-sm">Got an idea or found something confusing?</p>
+                </div>
+                <a
+                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F"
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-[#11203B] px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 md:w-auto"
                 >
-                  <option value="All sports">All sports</option>
-                  <option value="AFL">AFL</option>
-                  <option value="NRL">NRL</option>
-                  <option value="Soccer">Soccer</option>
-                  <option value="Basketball">Basketball</option>
-                  <option value="Cricket">Cricket</option>
-                  <option value="Other">Other</option>
-                </select>
-              </label>
-            </div>
-          </Card>
+                  Give feedback
+                </a>
+              </div>
+            </Card>
+          </div>
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"} value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
