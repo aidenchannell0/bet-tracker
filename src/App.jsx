@@ -446,7 +446,9 @@ function EdgeMessage({ role, children }) {
         .filter((value) => value !== -1);
       const contentEnd = nextIndexes.length ? Math.min(...nextIndexes) : message.length;
       const content = message.slice(contentStart, contentEnd).trim();
-      sections.push({ label, content });
+      if (content) {
+        sections.push({ label, content });
+      }
     });
     return sections;
   };
