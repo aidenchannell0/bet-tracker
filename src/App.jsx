@@ -547,6 +547,10 @@ function EdgePage({ setActivePage }) {
     setChatInput("");
   };
 
+  const useExamplePrompt = (prompt) => {
+    setChatInput(prompt);
+  };
+
   const sendChatMessage = async () => {
     const trimmed = chatInput.trim();
     if (!trimmed || edgeLoading) return;
@@ -713,6 +717,18 @@ function EdgePage({ setActivePage }) {
                   <span className="rounded-full bg-[#11203B] px-3 py-2 text-xs font-semibold text-white">Preview mode</span>
                 </div>
               </div>
+              {chatMessages.length === 0 ? (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-[#FAF7EF]/70 p-4">
+                  <p className="text-sm font-semibold text-[#11203B]">Try asking Edge</p>
+                  <p className="mt-1 text-sm text-slate-600">Choose a starter prompt or type your own question below.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => useExamplePrompt(`Build a ${displayedLegs}-leg ${sport} example multi around ${displayedTargetOdds}. Keep it simple and explain the risk.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Build example multi</button>
+                    <button type="button" onClick={() => useExamplePrompt(`Make the ${sport} example ${request || "disposals only"} and explain what data you would check.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Use my request</button>
+                    <button type="button" onClick={() => useExamplePrompt(`Explain why this ${sport} build has a 6 out of 10 risk score.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Explain risk score</button>
+                    <button type="button" onClick={() => useExamplePrompt(`What data would you check before choosing players for this ${sport} build?`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">What data to check?</button>
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-5 space-y-3">
                 {chatMessages.map((chatMessage, index) => <EdgeMessage key={index} role={chatMessage.role}>{chatMessage.text}</EdgeMessage>)}
               </div>
