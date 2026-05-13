@@ -1218,7 +1218,19 @@ export default function BettingTrackerWebsite() {
 
           {message ? <Card><div className="p-4 text-sm text-slate-700">{message}</div></Card> : null}
           {loadingBets ? <Card><div className="p-4 text-sm text-slate-700">Loading your saved bets...</div></Card> : null}
-          {riskWarning ? <Card className="border-[#A94442]/30 bg-[#A94442]/10"><div className="p-4 text-sm text-red-800">Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.</div></Card> : null}
+          {riskWarning ? <Card className="border-[#A94442]/30 bg-[#A94442]/10"><div className="p-4 text-sm text-[#A94442]">Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.</div></Card> : null}
+          {!loadingBets && bets.length === 0 ? (
+            <Card className="border-[#C49A4A]/40 bg-[#C49A4A]/15">
+              <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-[#11203B]">Welcome to Bet Tracker</p>
+                  <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#11203B]">Start by adding your first bet.</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Once you add a bet, your dashboard will start showing profit/loss, win rate, ROI, sport history and graph trends.</p>
+                </div>
+                <Button type="button" onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="w-full rounded-2xl px-5 py-3 sm:w-auto">Add first bet</Button>
+              </div>
+            </Card>
+          ) : null}
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Total Profit/Loss" value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
