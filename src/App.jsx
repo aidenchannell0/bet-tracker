@@ -864,6 +864,7 @@ export default function BettingTrackerWebsite() {
   const [loadingBets, setLoadingBets] = useState(false);
   const [editingBetId, setEditingBetId] = useState(null);
   const [showAllBets, setShowAllBets] = useState(false);
+  const [selectedSportFilter, setSelectedSportFilter] = useState("All sports");
   const fileInputRef = useRef(null);
   const formRef = useRef(null);
   const [chartView, setChartView] = useState("weekly");
@@ -966,23 +967,28 @@ export default function BettingTrackerWebsite() {
     setBets([]);
   };
 
+  const filteredBets = useMemo(() => {
+    if (selectedSportFilter === "All sports") return bets;
+    return bets.filter((bet) => (bet.sport || "Other") === selectedSportFilter);
+  }, [bets, selectedSportFilter]);
+
   const stats = useMemo(() => {
-    const totalStaked = bets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
-    const totalReturned = bets.reduce((sum, bet) => sum + Number(bet.returnAmount || 0), 0);
-    const totalProfit = bets.reduce((sum, bet) => sum + Number(bet.profitLoss || 0), 0);
-    const completedBets = bets.filter((bet) => bet.result === "win" || bet.result === "loss");
-    const wins = bets.filter((bet) => bet.result === "win").length;
-    const losses = bets.filter((bet) => bet.result === "loss").length;
+    const totalStaked = filteredBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
+    const totalReturned = filteredBets.reduce((sum, bet) => sum + Number(bet.returnAmount || 0), 0);
+    const totalProfit = filteredBets.reduce((sum, bet) => sum + Number(bet.profitLoss || 0), 0);
+    const completedBets = filteredBets.filter((bet) => bet.result === "win" || bet.result === "loss");
+    const wins = filteredBets.filter((bet) => bet.result === "win").length;
+    const losses = filteredBets.filter((bet) => bet.result === "loss").length;
     const winRate = completedBets.length ? (wins / completedBets.length) * 100 : 0;
     const roi = totalStaked ? (totalProfit / totalStaked) * 100 : 0;
-    const biggestWin = bets.length ? Math.max(...bets.map((bet) => Number(bet.profitLoss || 0))) : 0;
-    const biggestLoss = bets.length ? Math.min(...bets.map((bet) => Number(bet.profitLoss || 0))) : 0;
+    const biggestWin = filteredBets.length ? Math.max(...filteredBets.map((bet) => Number(bet.profitLoss || 0))) : 0;
+    const biggestLoss = filteredBets.length ? Math.min(...filteredBets.map((bet) => Number(bet.profitLoss || 0))) : 0;
     let currentLosingStreak = 0;
     let longestLosingStreak = 0;
     let currentWinningStreak = 0;
     let longestWinningStreak = 0;
 
-    [...bets]
+    [...filteredBets]
       .sort((a, b) => (parseBetDate(a.date)?.getTime() || 0) - (parseBetDate(b.date)?.getTime() || 0))
       .forEach((bet) => {
         if (bet.result === "loss") {
@@ -1000,17 +1006,17 @@ export default function BettingTrackerWebsite() {
       });
 
     return { totalStaked, totalReturned, totalProfit, wins, losses, winRate, roi, biggestWin, biggestLoss, longestLosingStreak, longestWinningStreak };
-  }, [bets]);
+  }, [filteredBets]);
 
   const chartData = useMemo(() => {
-    const grouped = bets.reduce((acc, bet) => {
+    const grouped = filteredBets.reduce((acc, bet) => {
       const periodInfo = getPeriodInfo(bet.date, chartView);
       if (!acc[periodInfo.key]) acc[periodInfo.key] = { sortKey: periodInfo.key, label: periodInfo.label, profitLoss: 0 };
       acc[periodInfo.key].profitLoss += Number(bet.profitLoss || 0);
       return acc;
     }, {});
     return Object.values(grouped).map((item) => ({ ...item, profitLoss: Number(item.profitLoss.toFixed(2)) })).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-  }, [bets, chartView]);
+  }, [filteredBets, chartView]);
 
   const chartTotal = chartData.reduce((sum, item) => sum + Number(item.profitLoss || 0), 0);
   const positiveChartColor = "#2E7D5B";
@@ -1025,7 +1031,7 @@ export default function BettingTrackerWebsite() {
   const chartDescription = chartView === "monthly" ? "Grouped by the month of each bet." : chartView === "yearly" ? "Grouped by the year of each bet." : "Grouped by Monday to Sunday week ranges.";
   const xAxisLabel = chartView === "weekly" ? "Week Range" : chartView === "monthly" ? "Month" : "Year";
 
-  const sortedBets = [...bets].sort((a, b) => {
+  const sortedBets = [...filteredBets].sort((a, b) => {
     const dateA = parseBetDate(a.date)?.getTime() || 0;
     const dateB = parseBetDate(b.date)?.getTime() || 0;
     if (dateB !== dateA) return dateB - dateA;
@@ -1232,11 +1238,39 @@ export default function BettingTrackerWebsite() {
             </Card>
           ) : null}
 
+          <Card>
+            <div className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#11203B]">Dashboard filter</p>
+                <p className="mt-1 text-sm text-slate-600">View your stats, graph and bet history by sport.</p>
+              </div>
+              <label className="space-y-1 text-sm font-medium md:min-w-56">
+                Sport
+                <select
+                  value={selectedSportFilter}
+                  onChange={(event) => {
+                    setSelectedSportFilter(event.target.value);
+                    setShowAllBets(false);
+                  }}
+                  className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-[#11203B] focus:ring-2 focus:ring-slate-200"
+                >
+                  <option value="All sports">All sports</option>
+                  <option value="AFL">AFL</option>
+                  <option value="NRL">NRL</option>
+                  <option value="Soccer">Soccer</option>
+                  <option value="Basketball">Basketball</option>
+                  <option value="Cricket">Cricket</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+            </div>
+          </Card>
+
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Profit/Loss" value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
-            <StatCard title="Win Rate" value={stats.winRate.toFixed(1) + "%"} helper={stats.wins + " wins, " + stats.losses + " losses"} />
-            <StatCard title="ROI" value={stats.roi.toFixed(1) + "%"} helper="Profit compared to total staked" />
-            <StatCard title="Total Staked" value={formatCurrency(stats.totalStaked)} helper={"Returned: " + formatCurrency(stats.totalReturned)} />
+            <StatCard title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"} value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
+            <StatCard title={selectedSportFilter === "All sports" ? "Win Rate" : selectedSportFilter + " Win Rate"} value={stats.winRate.toFixed(1) + "%"} helper={stats.wins + " wins, " + stats.losses + " losses"} />
+            <StatCard title={selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"} value={stats.roi.toFixed(1) + "%"} helper="Profit compared to total staked" />
+            <StatCard title={selectedSportFilter === "All sports" ? "Total Staked" : selectedSportFilter + " Staked"} value={formatCurrency(stats.totalStaked)} helper={"Returned: " + formatCurrency(stats.totalReturned)} />
           </section>
 
           <section className="grid gap-6 lg:grid-cols-5">
@@ -1338,7 +1372,7 @@ export default function BettingTrackerWebsite() {
                   <h2 className="text-xl font-semibold">Bet history</h2>
                   <p className="text-sm text-slate-500">Edit or delete entries if you make a mistake.</p>
                 </div>
-                <p className="text-sm text-slate-500">Showing {visibleBets.length} of {bets.length} bets</p>
+                <p className="text-sm text-slate-500">Showing {visibleBets.length} of {filteredBets.length} bets{selectedSportFilter !== "All sports" ? " for " + selectedSportFilter : ""}</p>
               </div>
 
               <div className="mt-4 space-y-3 md:hidden">
@@ -1376,7 +1410,7 @@ export default function BettingTrackerWebsite() {
                   </tbody>
                 </table>
               </div>
-              {bets.length > 5 ? <div className="mt-5 flex justify-center"><Button type="button" variant="outline" onClick={() => setShowAllBets((current) => !current)}>{showAllBets ? "Show less" : `Show all bets (${bets.length})`}</Button></div> : null}
+              {filteredBets.length > 5 ? <div className="mt-5 flex justify-center"><Button type="button" variant="outline" onClick={() => setShowAllBets((current) => !current)}>{showAllBets ? "Show less" : `Show all bets (${filteredBets.length})`}</Button></div> : null}
             </div>
           </Card>
         </div>
