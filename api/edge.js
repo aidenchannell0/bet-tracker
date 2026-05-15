@@ -751,41 +751,42 @@ function getMarketGroupLabel(marketKey, requestedMarketLabel) {
 
 function formatOutcomeLine(outcome, marketKey, bookmakerTitle) {
   const player = outcome.description || outcome.name || "Selection";
-  const price = outcome.price ? ` at **$${outcome.price}**` : "";
+  const price = outcome.price ? `**$${outcome.price}**` : "Price unavailable";
   const point =
     outcome.point !== null && outcome.point !== undefined
-      ? ` **${outcome.point}**`
-      : "";
+      ? `**${outcome.point}**`
+      : null;
+  const book = bookmakerTitle || "Bookmaker";
 
   if (marketKey.includes("_most")) {
-    return `- **${player}** to record the most${price} (${bookmakerTitle})`;
+    return `- **${player}** — Most points — ${price} — ${book}`;
   }
 
   if (marketKey.includes("_over") || outcome.name === "Over") {
-    return `- **${player}** over${point}${price} (${bookmakerTitle})`;
+    return `- **${player}** — Over ${point || "line unavailable"} — ${price} — ${book}`;
   }
 
   if (marketKey.includes("first")) {
-    return `- **${player}** first scorer${price} (${bookmakerTitle})`;
+    return `- **${player}** — First scorer — ${price} — ${book}`;
   }
 
   if (marketKey.includes("last")) {
-    return `- **${player}** last scorer${price} (${bookmakerTitle})`;
+    return `- **${player}** — Last scorer — ${price} — ${book}`;
   }
 
   if (marketKey.includes("anytime")) {
-    return `- **${player}** anytime scorer${price} (${bookmakerTitle})`;
+    return `- **${player}** — Anytime scorer — ${price} — ${book}`;
   }
 
   if (outcome.point !== null && outcome.point !== undefined) {
-    return `- **${player}** ${outcome.name} **${outcome.point}**${price} (${bookmakerTitle})`;
+    return `- **${player}** — ${outcome.name || "Market"} ${point} — ${price} — ${book}`;
   }
 
   if (outcome.name === "Yes") {
-    return `- **${player}** yes${price} (${bookmakerTitle})`;
+    return `- **${player}** — Yes — ${price} — ${book}`;
   }
 
-  return `- **${player}** ${outcome.name ? `- ${outcome.name}` : ""}${price} (${bookmakerTitle})`;
+  return `- **${player}**${outcome.name ? ` — ${outcome.name}` : ""} — ${price} — ${book}`;
 }
 
 function summariseEventMarkets(event, requestedMarket) {
@@ -816,18 +817,49 @@ function summariseEventMarkets(event, requestedMarket) {
           formatOutcomeLine(outcome, market.key, bookmaker.title)
         );
 
-        if (groupedLines[groupLabel].length >= 8) break;
+        if (groupedLines[groupLabel].length >= 6) break;
       }
     }
   }
 
-  const groupEntries = Object.entries(groupedLines)
-    .filter(([, lines]) => lines.length)
-    .map(([label, lines]) => `**${label}:**\n\n${lines.slice(0, 8).join("\n")}`);
+  const preferredOrder = [
+    "Fantasy points over markets",
+    "Most fantasy points markets",
+    "Disposals over markets",
+    "Most disposals markets",
+    "Goals over markets",
+    "Anytime goalscorer markets",
+    "First goalscorer markets",
+    "Last goalscorer markets",
+    "Marks over markets",
+    "Most marks markets",
+    "Tackles over markets",
+    "Most tackles markets",
+    "Clearances over markets",
+    "Kicks over markets",
+    "Handballs over markets",
+  ];
 
-  if (!groupEntries.length) {
+  const sortedEntries = Object.entries(groupedLines)
+    .filter(([, lines]) => lines.length)
+    .sort(([a], [b]) => {
+      const aIndex = preferredOrder.indexOf(a);
+      const bIndex = preferredOrder.indexOf(b);
+
+      if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+
+      return aIndex - bIndex;
+    });
+
+  if (!sortedEntries.length) {
     return `No **${requestedMarket.label}** markets were returned for this event right now.`;
   }
+
+  const groupEntries = sortedEntries.map(
+    ([label, lines]) => `**${label}:**\n\n${lines.slice(0, 6).join("\n")}`
+  );
 
   return `**${event.homeTeam} vs ${event.awayTeam}**
 
