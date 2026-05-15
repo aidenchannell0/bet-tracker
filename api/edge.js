@@ -555,8 +555,9 @@ function scoreEventMatch(event, message, detectedTeams) {
     }
   }
 
-  const teamWords = [...home.split(" "), ...away.split(" ")]
-    .filter((word) => word.length >= 4 && !["football", "club"].includes(word));
+  const teamWords = [...home.split(" "), ...away.split(" ")].filter(
+    (word) => word.length >= 4 && !["football", "club"].includes(word)
+  );
 
   for (const word of teamWords) {
     if (normalisedMessage.includes(word)) {
@@ -711,10 +712,54 @@ async function fetchEventOddsContext(req, sport, eventId, requestedMarket) {
   }
 }
 
+function getMarketGroupLabel(marketKey, requestedMarketLabel) {
+  const labels = {
+    player_disposals_over: "Disposals over markets",
+    player_disposals: "Most disposals markets",
+
+    player_afl_fantasy_points_over: "Fantasy points over markets",
+    player_afl_fantasy_points: "Fantasy points markets",
+    player_afl_fantasy_points_most: "Most fantasy points markets",
+
+    player_goals_scored_over: "Goals over markets",
+    player_goal_scorer_anytime: "Anytime goalscorer markets",
+    player_goal_scorer_first: "First goalscorer markets",
+    player_goal_scorer_last: "Last goalscorer markets",
+
+    player_marks_over: "Marks over markets",
+    player_marks_most: "Most marks markets",
+
+    player_tackles_over: "Tackles over markets",
+    player_tackles_most: "Most tackles markets",
+
+    player_clearances_over: "Clearances over markets",
+    player_kicks_over: "Kicks over markets",
+    player_handballs_over: "Handballs over markets",
+
+    player_try_scorer_anytime: "Anytime tryscorer markets",
+    player_try_scorer_first: "First tryscorer markets",
+    player_try_scorer_last: "Last tryscorer markets",
+    player_try_scorer_over: "Tries over markets",
+
+    h2h: "Head-to-head markets",
+    spreads: "Handicap / line markets",
+    totals: "Total markets",
+  };
+
+  return labels[marketKey] || `${requestedMarketLabel} markets`;
+}
+
 function formatOutcomeLine(outcome, marketKey, bookmakerTitle) {
   const player = outcome.description || outcome.name || "Selection";
   const price = outcome.price ? ` at **$${outcome.price}**` : "";
-  const point = outcome.point !== null && outcome.point !== undefined ? ` **${outcome.point}**` : "";
+  const point =
+    outcome.point !== null && outcome.point !== undefined
+      ? ` **${outcome.point}**`
+      : "";
+
+  if (marketKey.includes("_most")) {
+    return `- **${player}** to record the most${price} (${bookmakerTitle})`;
+  }
 
   if (marketKey.includes("_over") || outcome.name === "Over") {
     return `- **${player}** over${point}${price} (${bookmakerTitle})`;
@@ -736,6 +781,10 @@ function formatOutcomeLine(outcome, marketKey, bookmakerTitle) {
     return `- **${player}** ${outcome.name} **${outcome.point}**${price} (${bookmakerTitle})`;
   }
 
+  if (outcome.name === "Yes") {
+    return `- **${player}** yes${price} (${bookmakerTitle})`;
+  }
+
   return `- **${player}** ${outcome.name ? `- ${outcome.name}` : ""}${price} (${bookmakerTitle})`;
 }
 
@@ -744,12 +793,18 @@ function summariseEventMarkets(event, requestedMarket) {
     return "No event market data was returned.";
   }
 
-  const matchingLines = [];
+  const groupedLines = {};
   const seen = new Set();
 
   for (const bookmaker of event.bookmakers || []) {
     for (const market of bookmaker.markets || []) {
       if (!requestedMarket.markets.includes(market.key)) continue;
+
+      const groupLabel = getMarketGroupLabel(market.key, requestedMarket.label);
+
+      if (!groupedLines[groupLabel]) {
+        groupedLines[groupLabel] = [];
+      }
 
       for (const outcome of market.outcomes || []) {
         const key = `${market.key}-${outcome.description || outcome.name}-${outcome.point}-${outcome.price}`;
@@ -757,24 +812,26 @@ function summariseEventMarkets(event, requestedMarket) {
         if (seen.has(key)) continue;
         seen.add(key);
 
-        matchingLines.push(formatOutcomeLine(outcome, market.key, bookmaker.title));
+        groupedLines[groupLabel].push(
+          formatOutcomeLine(outcome, market.key, bookmaker.title)
+        );
 
-        if (matchingLines.length >= 16) break;
+        if (groupedLines[groupLabel].length >= 8) break;
       }
-
-      if (matchingLines.length >= 16) break;
     }
-
-    if (matchingLines.length >= 16) break;
   }
 
-  if (!matchingLines.length) {
+  const groupEntries = Object.entries(groupedLines)
+    .filter(([, lines]) => lines.length)
+    .map(([label, lines]) => `**${label}:**\n\n${lines.slice(0, 8).join("\n")}`);
+
+  if (!groupEntries.length) {
     return `No **${requestedMarket.label}** markets were returned for this event right now.`;
   }
 
   return `**${event.homeTeam} vs ${event.awayTeam}**
 
-${matchingLines.join("\n")}`;
+${groupEntries.join("\n\n")}`;
 }
 
 function buildDirectOddsReply({ sport, detectedTeam, dateWindow, oddsContext }) {
