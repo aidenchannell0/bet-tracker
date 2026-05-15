@@ -33,10 +33,11 @@ Very important safety rules:
 Current data status:
 - Real match odds data may be available when included in the prompt.
 - Real event-level market data may be available when included in the prompt.
-- Live historical player statistics are not connected yet.
-- Current injuries, team news, lineups and player form are not connected yet.
+- Historical player statistics may be available when player stats data is provided in the prompt.
+- Current injuries, team news, lineups and live player form are not connected yet.
 - Do not invent player stats, injuries, lineups, or player hit rates.
-- If the user asks for player-market analysis, explain that market lines may be available but averages and hit rates still need a stats source.
+- If player stats are provided, use the exact averages, hit rates, source and freshness labels.
+- If player stats are missing, say that clearly.
 
 Odds and market data rules:
 - If odds data is provided, use it to mention real upcoming games and approximate available prices.
@@ -712,6 +713,171 @@ async function fetchEventOddsContext(req, sport, eventId, requestedMarket) {
   }
 }
 
+function detectPlayerStatsIntent(message) {
+  const lowerMessage = String(message || "").toLowerCase();
+
+  return (
+    lowerMessage.includes("stats") ||
+    lowerMessage.includes("average") ||
+    lowerMessage.includes("averages") ||
+    lowerMessage.includes("hit rate") ||
+    lowerMessage.includes("hit rates") ||
+    lowerMessage.includes("last 5") ||
+    lowerMessage.includes("last 10") ||
+    lowerMessage.includes("last 20") ||
+    lowerMessage.includes("compare") ||
+    lowerMessage.includes("comparison")
+  );
+}
+
+function detectStatsMetric(message, requestedMarket) {
+  const lowerMessage = String(message || "").toLowerCase();
+
+  if (lowerMessage.includes("fantasy")) return "fantasy_points";
+  if (lowerMessage.includes("disposal")) return "disposals";
+  if (lowerMessage.includes("clearance")) return "clearances";
+  if (lowerMessage.includes("tackle")) return "tackles";
+  if (lowerMessage.includes("mark")) return "marks";
+  if (lowerMessage.includes("goal")) return "goals";
+  if (lowerMessage.includes("kick")) return "kicks";
+  if (lowerMessage.includes("handball")) return "handballs";
+
+  if (requestedMarket?.label === "fantasy points") return "fantasy_points";
+  if (requestedMarket?.label === "disposals") return "disposals";
+  if (requestedMarket?.label === "clearances") return "clearances";
+  if (requestedMarket?.label === "tackles") return "tackles";
+  if (requestedMarket?.label === "marks") return "marks";
+  if (requestedMarket?.label === "goals") return "goals";
+  if (requestedMarket?.label === "kicks") return "kicks";
+  if (requestedMarket?.label === "handballs") return "handballs";
+
+  return "fantasy_points";
+}
+
+function extractRequestedPlayers(message) {
+  const text = String(message || "");
+
+  if (text.toLowerCase().includes("test player")) {
+    return ["Test Player"];
+  }
+
+  return [];
+}
+
+async function fetchPlayerStatsContext(req, sport, metric, players = []) {
+  try {
+    const baseUrl = buildBaseUrl(req);
+    const url = new URL("/api/player-stats", baseUrl);
+
+    url.searchParams.set("sport", sport || "AFL");
+    url.searchParams.set("metric", metric || "fantasy_points");
+
+    if (players.length) {
+      url.searchParams.set("players", players.join(","));
+    }
+
+    const response = await fetch(url.toString());
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        available: false,
+        metric,
+        players: [],
+        summary: `Player stats could not be loaded. Error: ${data?.error || "Unknown error"}`,
+      };
+    }
+
+    return {
+      available: Boolean(data.players?.length),
+      metric: data.metric,
+      requestedPlayers: data.requestedPlayers || [],
+      players: data.players || [],
+      source: data.source || "Player stats source",
+    };
+  } catch (error) {
+    console.error("Edge player stats context error:", error);
+
+    return {
+      available: false,
+      metric,
+      players: [],
+      summary: "Player stats could not be loaded right now.",
+    };
+  }
+}
+
+function formatNumber(value) {
+  if (value === null || value === undefined || value === "") return "Not available";
+  const number = Number(value);
+  return Number.isNaN(number) ? String(value) : String(Number(number.toFixed(2)));
+}
+
+function formatLineComparison(stat) {
+  const average = Number(stat.recent_average);
+  const line = Number(stat.line);
+
+  if (Number.isNaN(average) || Number.isNaN(line)) {
+    return "Line comparison: **Not available**";
+  }
+
+  const difference = Number((average - line).toFixed(2));
+
+  if (difference > 0) {
+    return `Line comparison: recent average is **${difference}** above the listed line`;
+  }
+
+  if (difference < 0) {
+    return `Line comparison: recent average is **${Math.abs(difference)}** below the listed line`;
+  }
+
+  return "Line comparison: recent average is exactly equal to the listed line";
+}
+
+function buildDirectPlayerStatsReply({ sport, metric, playerStatsContext }) {
+  if (!playerStatsContext?.available || !playerStatsContext.players?.length) {
+    return `Simple view:
+
+I could not find any saved **${metric}** stats for **${sport}** yet.
+
+What I would check:
+
+Add player stats into the **player_stats** table first, including recent average, last 5 hit rate, last 10 hit rate, last 20 hit rate, source and data freshness.
+
+Important:
+
+I will not invent player averages or hit rates. This is informational only, not betting advice.`;
+  }
+
+  const lines = playerStatsContext.players
+    .slice(0, 6)
+    .map((stat) => {
+      return `**${stat.player_name}**
+
+Team: **${stat.team || "Not available"}**
+Metric: **${stat.metric}**
+Line: **${formatNumber(stat.line)}**
+Recent average: **${formatNumber(stat.recent_average)}**
+Last 5 hit rate: **${stat.last_5_hit_rate || "Not available"}**
+Last 10 hit rate: **${stat.last_10_hit_rate || "Not available"}**
+Last 20 hit rate: **${stat.last_20_hit_rate || "Not available"}**
+${formatLineComparison(stat)}
+Source: **${stat.source || "Not available"}**
+Freshness: **${stat.data_freshness || "Not available"}**`;
+    })
+    .join("\n\n");
+
+  return `Simple view:
+
+Here is the saved **${metric}** stat context I found for **${sport}**:
+
+${lines}
+
+Important:
+
+This is historical stat context only. It does not guarantee what will happen next, and it is not betting advice. Injuries, team news and live form are still not connected.`;
+}
+
 function getMarketGroupLabel(marketKey, requestedMarketLabel) {
   const labels = {
     player_disposals_over: "Disposals over markets",
@@ -1057,6 +1223,37 @@ export default async function handler(req, res) {
       detectedTeam,
       dateWindow,
     };
+
+    const playerStatsIntent = detectPlayerStatsIntent(message);
+    const statsMetric = detectStatsMetric(message, requestedMarket);
+    const requestedPlayers = extractRequestedPlayers(message);
+
+    if (playerStatsIntent) {
+      const playerStatsContext = await fetchPlayerStatsContext(
+        req,
+        sport,
+        statsMetric,
+        requestedPlayers
+      );
+
+      return res.status(200).json({
+        reply: buildDirectPlayerStatsReply({
+          sport,
+          metric: statsMetric,
+          playerStatsContext,
+        }),
+        playerStatsConnected: Boolean(playerStatsContext?.available),
+        intent: "player_stats",
+        sport,
+        detectedTeam: detectedTeam?.team || null,
+        dateWindow: dateWindow?.label || "upcoming games",
+        statsMetric,
+        edgeContext: {
+          ...edgeContext,
+          statsMetric,
+        },
+      });
+    }
 
     if (userIntent === "event_markets" && requestedMarket) {
       const matchedEvent = findMatchingEvent(
