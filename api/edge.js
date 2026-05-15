@@ -32,23 +32,26 @@ Very important safety rules:
 
 Current data status:
 - Real match odds data may be available when included in the prompt.
-- Live player statistics are not connected yet.
+- Real event-level market data may be available when included in the prompt.
+- Live historical player statistics are not connected yet.
 - Current injuries, team news, lineups and player form are not connected yet.
 - Do not invent player stats, injuries, lineups, or player hit rates.
-- If the user asks for player-market analysis, explain that odds are available but player stats still need to be connected.
+- If the user asks for player-market analysis, explain that market lines may be available but averages and hit rates still need a stats source.
 
-Odds data rules:
+Odds and market data rules:
 - If odds data is provided, use it to mention real upcoming games and approximate available prices.
-- Keep odds summaries simple.
+- If event market data is provided, use it to mention available market lines.
+- Keep odds and market summaries simple.
 - Do not list every bookmaker unless the user asks.
 - Do not claim the best pick from odds alone.
-- Do not say a team or market is value unless the user provides enough supporting data.
-- Say that odds can change.
-- If no odds are available for the requested sport, league, team or date window, say that clearly.
+- Do not say a team, player or market is value unless the user provides enough supporting data.
+- Say that odds and markets can change.
+- If no odds or markets are available for the requested sport, league, team, date window or market type, say that clearly.
 - Do not show odds from another sport unless the user specifically asks.
 
 Intent rules:
 - If the user only asks what games or odds are available, only list the available games and sample odds. Do not build a multi.
+- If the user asks for player markets, list available market lines only. Do not pretend they are recommendations.
 - Only provide an example multi if the user asks for a multi, bet build, legs, selections, or example structure.
 - Only provide a risk score if the user asks about risk, a multi, or a build.
 - Only provide the full section structure when it fits the user request.
@@ -57,7 +60,7 @@ Intent rules:
 Placeholder example rule:
 - If the user asks for an example multi and player stats are not available, provide a generic placeholder structure.
 - Use placeholders like Player A, Player B, Team A, Team B, Midfielder A, Forward B.
-- Do not use real player names unless the user provides player data.
+- Do not use real player names unless the user provides player data or real market data includes those player names.
 - Do not pretend placeholder picks are real tips.
 - Clearly label placeholder multis as example structures only.
 
@@ -195,6 +198,14 @@ function getSafeString(value, fallback) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
+function normaliseText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function detectTeamAlias(message) {
   const lowerMessage = String(message || "").toLowerCase();
 
@@ -212,45 +223,38 @@ function detectTeamAlias(message) {
   return null;
 }
 
+function detectAllTeamAliases(message) {
+  const lowerMessage = String(message || "").toLowerCase();
+  const matches = [];
+
+  for (const entry of TEAM_ALIAS_MAP) {
+    for (const alias of entry.aliases) {
+      const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const aliasPattern = new RegExp(`\\b${escapedAlias}\\b`, "i");
+
+      if (aliasPattern.test(lowerMessage)) {
+        matches.push(entry);
+        break;
+      }
+    }
+  }
+
+  return matches;
+}
+
 function detectExplicitSportFromMessage(message) {
   const lowerMessage = String(message || "").toLowerCase();
   const teamAlias = detectTeamAlias(message);
 
-  if (teamAlias) {
-    return teamAlias.sport;
-  }
-
-  if (lowerMessage.includes("nrl") || lowerMessage.includes("rugby league")) {
-    return "NRL";
-  }
-
-  if (lowerMessage.includes("afl") || lowerMessage.includes("aussie rules")) {
-    return "AFL";
-  }
-
-  if (lowerMessage.includes("epl") || lowerMessage.includes("premier league")) {
-    return "EPL";
-  }
-
-  if (lowerMessage.includes("champions league") || lowerMessage.includes("ucl")) {
-    return "ChampionsLeague";
-  }
-
-  if (lowerMessage.includes("nba") || lowerMessage.includes("basketball")) {
-    return "NBA";
-  }
-
-  if (lowerMessage.includes("nfl") || lowerMessage.includes("american football")) {
-    return "NFL";
-  }
-
-  if (lowerMessage.includes("mlb") || lowerMessage.includes("baseball")) {
-    return "MLB";
-  }
-
-  if (lowerMessage.includes("nhl") || lowerMessage.includes("ice hockey")) {
-    return "NHL";
-  }
+  if (teamAlias) return teamAlias.sport;
+  if (lowerMessage.includes("nrl") || lowerMessage.includes("rugby league")) return "NRL";
+  if (lowerMessage.includes("afl") || lowerMessage.includes("aussie rules")) return "AFL";
+  if (lowerMessage.includes("epl") || lowerMessage.includes("premier league")) return "EPL";
+  if (lowerMessage.includes("champions league") || lowerMessage.includes("ucl")) return "ChampionsLeague";
+  if (lowerMessage.includes("nba") || lowerMessage.includes("basketball")) return "NBA";
+  if (lowerMessage.includes("nfl") || lowerMessage.includes("american football")) return "NFL";
+  if (lowerMessage.includes("mlb") || lowerMessage.includes("baseball")) return "MLB";
+  if (lowerMessage.includes("nhl") || lowerMessage.includes("ice hockey")) return "NHL";
 
   if (
     lowerMessage.includes("soccer") ||
@@ -261,17 +265,9 @@ function detectExplicitSportFromMessage(message) {
     return "Soccer";
   }
 
-  if (lowerMessage.includes("cricket")) {
-    return "Cricket";
-  }
-
-  if (lowerMessage.includes("ufc") || lowerMessage.includes("mma")) {
-    return "UFC";
-  }
-
-  if (lowerMessage.includes("tennis")) {
-    return "Tennis";
-  }
+  if (lowerMessage.includes("cricket")) return "Cricket";
+  if (lowerMessage.includes("ufc") || lowerMessage.includes("mma")) return "UFC";
+  if (lowerMessage.includes("tennis")) return "Tennis";
 
   return null;
 }
@@ -339,8 +335,145 @@ function getDateWindowFromMessage(message) {
   };
 }
 
-function getUserIntent(message) {
+function detectRequestedMarket(message, sport) {
   const lowerMessage = String(message || "").toLowerCase();
+
+  if (sport === "AFL") {
+    if (lowerMessage.includes("fantasy")) {
+      return {
+        label: "fantasy points",
+        markets: [
+          "player_afl_fantasy_points_over",
+          "player_afl_fantasy_points",
+          "player_afl_fantasy_points_most",
+        ],
+      };
+    }
+
+    if (lowerMessage.includes("disposal")) {
+      return {
+        label: "disposals",
+        markets: ["player_disposals_over", "player_disposals"],
+      };
+    }
+
+    if (lowerMessage.includes("clearance")) {
+      return {
+        label: "clearances",
+        markets: ["player_clearances_over"],
+      };
+    }
+
+    if (lowerMessage.includes("tackle")) {
+      return {
+        label: "tackles",
+        markets: ["player_tackles_over", "player_tackles_most"],
+      };
+    }
+
+    if (lowerMessage.includes("mark")) {
+      return {
+        label: "marks",
+        markets: ["player_marks_over", "player_marks_most"],
+      };
+    }
+
+    if (lowerMessage.includes("first goal")) {
+      return {
+        label: "first goalscorer",
+        markets: ["player_goal_scorer_first"],
+      };
+    }
+
+    if (lowerMessage.includes("last goal")) {
+      return {
+        label: "last goalscorer",
+        markets: ["player_goal_scorer_last"],
+      };
+    }
+
+    if (lowerMessage.includes("goalscorer") || lowerMessage.includes("goal scorer")) {
+      return {
+        label: "goalscorer",
+        markets: ["player_goal_scorer_anytime", "player_goal_scorer_first", "player_goal_scorer_last"],
+      };
+    }
+
+    if (lowerMessage.includes("goal")) {
+      return {
+        label: "goals",
+        markets: ["player_goals_scored_over", "player_goal_scorer_anytime"],
+      };
+    }
+
+    if (lowerMessage.includes("kick")) {
+      return {
+        label: "kicks",
+        markets: ["player_kicks_over"],
+      };
+    }
+
+    if (lowerMessage.includes("handball")) {
+      return {
+        label: "handballs",
+        markets: ["player_handballs_over"],
+      };
+    }
+  }
+
+  if (sport === "NRL") {
+    if (lowerMessage.includes("first try")) {
+      return {
+        label: "first tryscorer",
+        markets: ["player_try_scorer_first"],
+      };
+    }
+
+    if (lowerMessage.includes("last try")) {
+      return {
+        label: "last tryscorer",
+        markets: ["player_try_scorer_last"],
+      };
+    }
+
+    if (lowerMessage.includes("anytime") || lowerMessage.includes("try scorer") || lowerMessage.includes("tryscorer")) {
+      return {
+        label: "anytime tryscorer",
+        markets: ["player_try_scorer_anytime"],
+      };
+    }
+
+    if (lowerMessage.includes("try")) {
+      return {
+        label: "tryscorer",
+        markets: ["player_try_scorer_anytime", "player_try_scorer_first", "player_try_scorer_last", "player_try_scorer_over"],
+      };
+    }
+  }
+
+  if (lowerMessage.includes("handicap") || lowerMessage.includes("line") || lowerMessage.includes("spread")) {
+    return {
+      label: "handicap",
+      markets: ["spreads"],
+    };
+  }
+
+  if (lowerMessage.includes("total") || lowerMessage.includes("over under") || lowerMessage.includes("over/under")) {
+    return {
+      label: "totals",
+      markets: ["totals"],
+    };
+  }
+
+  return null;
+}
+
+function getUserIntent(message, requestedMarket) {
+  const lowerMessage = String(message || "").toLowerCase();
+
+  if (requestedMarket) {
+    return "event_markets";
+  }
 
   const asksForGames =
     lowerMessage.includes("what games") ||
@@ -369,17 +502,9 @@ function getUserIntent(message) {
     lowerMessage.includes("safer") ||
     lowerMessage.includes("confidence");
 
-  if (asksForGames && !asksForMulti && !asksForRisk) {
-    return "available_games";
-  }
-
-  if (asksForMulti) {
-    return "multi";
-  }
-
-  if (asksForRisk) {
-    return "risk";
-  }
+  if (asksForGames && !asksForMulti && !asksForRisk) return "available_games";
+  if (asksForMulti) return "multi";
+  if (asksForRisk) return "risk";
 
   return "general";
 }
@@ -390,9 +515,7 @@ function getPrimaryMarketOdds(event) {
     bookmaker?.markets?.find((item) => item.key === "h2h") ||
     bookmaker?.markets?.[0];
 
-  if (!bookmaker || !market?.outcomes?.length) {
-    return null;
-  }
+  if (!bookmaker || !market?.outcomes?.length) return null;
 
   return {
     bookmaker: bookmaker.title,
@@ -404,9 +527,7 @@ function getPrimaryMarketOdds(event) {
 }
 
 function filterEventsByDetectedTeam(events, detectedTeam) {
-  if (!detectedTeam?.team) {
-    return events;
-  }
+  if (!detectedTeam?.team) return events;
 
   const teamLower = detectedTeam.team.toLowerCase();
 
@@ -418,6 +539,63 @@ function filterEventsByDetectedTeam(events, detectedTeam) {
   });
 
   return filtered.length ? filtered : [];
+}
+
+function scoreEventMatch(event, message, detectedTeams) {
+  const normalisedMessage = normaliseText(message);
+  const home = normaliseText(event.homeTeam);
+  const away = normaliseText(event.awayTeam);
+  let score = 0;
+
+  for (const detectedTeam of detectedTeams || []) {
+    const team = normaliseText(detectedTeam.team);
+
+    if (home.includes(team) || away.includes(team)) {
+      score += 8;
+    }
+  }
+
+  const teamWords = [...home.split(" "), ...away.split(" ")]
+    .filter((word) => word.length >= 4 && !["football", "club"].includes(word));
+
+  for (const word of teamWords) {
+    if (normalisedMessage.includes(word)) {
+      score += 1;
+    }
+  }
+
+  if (normalisedMessage.includes(home)) score += 5;
+  if (normalisedMessage.includes(away)) score += 5;
+
+  return score;
+}
+
+function findMatchingEvent(events, message, detectedTeams) {
+  if (!events?.length) return null;
+
+  const scored = events
+    .map((event) => ({
+      event,
+      score: scoreEventMatch(event, message, detectedTeams),
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  if (scored[0]?.score > 0) {
+    return scored[0].event;
+  }
+
+  return null;
+}
+
+function listAvailableEventOptions(events) {
+  if (!events?.length) {
+    return "No upcoming games were returned for this sport right now.";
+  }
+
+  return events
+    .slice(0, 6)
+    .map((event, index) => `${index + 1}. **${event.homeTeam} vs ${event.awayTeam}**`)
+    .join("\n");
 }
 
 function summariseOddsForEdge(oddsData, requestedSport, detectedTeam, dateWindow) {
@@ -437,9 +615,7 @@ function summariseOddsForEdge(oddsData, requestedSport, detectedTeam, dateWindow
     .slice(0, 6)
     .map((event, index) => {
       const market = getPrimaryMarketOdds(event);
-      const teams = `${event.homeTeam || "Home team"} vs ${
-        event.awayTeam || "Away team"
-      }`;
+      const teams = `${event.homeTeam || "Home team"} vs ${event.awayTeam || "Away team"}`;
 
       if (!market) {
         return `${index + 1}. **${teams}**\nNo clear head-to-head odds returned.`;
@@ -476,14 +652,14 @@ async function fetchOddsContext(req, sport, detectedTeam, dateWindow) {
     if (!response.ok) {
       return {
         available: false,
-        summary: `Odds data could not be loaded for **${sport}** right now. Error: ${
-          data?.error || "Unknown error"
-        }`,
+        events: [],
+        summary: `Odds data could not be loaded for **${sport}** right now. Error: ${data?.error || "Unknown error"}`,
       };
     }
 
     return {
       available: true,
+      events: data.events || [],
       summary: summariseOddsForEdge(data, sport, detectedTeam, dateWindow),
       quota: data.quota,
     };
@@ -492,16 +668,118 @@ async function fetchOddsContext(req, sport, detectedTeam, dateWindow) {
 
     return {
       available: false,
+      events: [],
       summary: `Odds data could not be loaded for **${sport}** right now.`,
     };
   }
 }
 
+async function fetchEventOddsContext(req, sport, eventId, requestedMarket) {
+  try {
+    const baseUrl = buildBaseUrl(req);
+    const url = new URL("/api/event-odds", baseUrl);
+
+    url.searchParams.set("sport", sport || "AFL");
+    url.searchParams.set("eventId", eventId);
+    url.searchParams.set("markets", requestedMarket.markets.join(","));
+
+    const response = await fetch(url.toString());
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        available: false,
+        event: null,
+        summary: `Event markets could not be loaded. Error: ${data?.error || "Unknown error"}`,
+      };
+    }
+
+    return {
+      available: true,
+      event: data.event,
+      summary: summariseEventMarkets(data.event, requestedMarket),
+      quota: data.quota,
+    };
+  } catch (error) {
+    console.error("Edge event markets error:", error);
+
+    return {
+      available: false,
+      event: null,
+      summary: "Event markets could not be loaded right now.",
+    };
+  }
+}
+
+function formatOutcomeLine(outcome, marketKey, bookmakerTitle) {
+  const player = outcome.description || outcome.name || "Selection";
+  const price = outcome.price ? ` at **$${outcome.price}**` : "";
+  const point = outcome.point !== null && outcome.point !== undefined ? ` **${outcome.point}**` : "";
+
+  if (marketKey.includes("_over") || outcome.name === "Over") {
+    return `- **${player}** over${point}${price} (${bookmakerTitle})`;
+  }
+
+  if (marketKey.includes("first")) {
+    return `- **${player}** first scorer${price} (${bookmakerTitle})`;
+  }
+
+  if (marketKey.includes("last")) {
+    return `- **${player}** last scorer${price} (${bookmakerTitle})`;
+  }
+
+  if (marketKey.includes("anytime")) {
+    return `- **${player}** anytime scorer${price} (${bookmakerTitle})`;
+  }
+
+  if (outcome.point !== null && outcome.point !== undefined) {
+    return `- **${player}** ${outcome.name} **${outcome.point}**${price} (${bookmakerTitle})`;
+  }
+
+  return `- **${player}** ${outcome.name ? `- ${outcome.name}` : ""}${price} (${bookmakerTitle})`;
+}
+
+function summariseEventMarkets(event, requestedMarket) {
+  if (!event) {
+    return "No event market data was returned.";
+  }
+
+  const matchingLines = [];
+  const seen = new Set();
+
+  for (const bookmaker of event.bookmakers || []) {
+    for (const market of bookmaker.markets || []) {
+      if (!requestedMarket.markets.includes(market.key)) continue;
+
+      for (const outcome of market.outcomes || []) {
+        const key = `${market.key}-${outcome.description || outcome.name}-${outcome.point}-${outcome.price}`;
+
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        matchingLines.push(formatOutcomeLine(outcome, market.key, bookmaker.title));
+
+        if (matchingLines.length >= 16) break;
+      }
+
+      if (matchingLines.length >= 16) break;
+    }
+
+    if (matchingLines.length >= 16) break;
+  }
+
+  if (!matchingLines.length) {
+    return `No **${requestedMarket.label}** markets were returned for this event right now.`;
+  }
+
+  return `**${event.homeTeam} vs ${event.awayTeam}**
+
+${matchingLines.join("\n")}`;
+}
+
 function buildDirectOddsReply({ sport, detectedTeam, dateWindow, oddsContext }) {
   const dateLabel = dateWindow?.label || "upcoming games";
-  const targetLabel = detectedTeam?.team
-    ? `**${detectedTeam.team}**`
-    : `**${sport}**`;
+  const targetLabel = detectedTeam?.team ? `**${detectedTeam.team}**` : `**${sport}**`;
 
   const summary =
     oddsContext?.summary ||
@@ -519,6 +797,45 @@ function buildDirectOddsReply({ sport, detectedTeam, dateWindow, oddsContext }) 
   return `Available games:
 
 ${summary}
+
+Important:
+
+${importantMessage}`;
+}
+
+function buildDirectEventMarketReply({
+  sport,
+  requestedMarket,
+  matchedEvent,
+  eventMarketContext,
+  availableEvents,
+}) {
+  if (!matchedEvent) {
+    return `Available games:
+
+I could not tell which **${sport}** match you meant. Please ask again with one of these games:
+
+${listAvailableEventOptions(availableEvents)}
+
+Important:
+
+I need a specific game before I can show **${requestedMarket.label}** markets. Markets can change and this is informational only, not betting advice.`;
+  }
+
+  const hasNoMarkets =
+    !eventMarketContext?.available ||
+    eventMarketContext.summary.toLowerCase().includes("no ") ||
+    eventMarketContext.summary.toLowerCase().includes("could not be loaded");
+
+  const importantMessage = hasNoMarkets
+    ? "These markets may not be available for this game yet, or they may not be included by the bookmaker/API right now. Check again closer to the game. This is informational only, not betting advice."
+    : "These are market lines only. Historical averages, hit rates, injuries and team news are not connected yet. This is informational only, not betting advice.";
+
+  return `Available games:
+
+Available **${requestedMarket.label}** markets for **${matchedEvent.homeTeam} vs ${matchedEvent.awayTeam}**:
+
+${eventMarketContext?.summary || `No **${requestedMarket.label}** markets were returned for this game.`}
 
 Important:
 
@@ -581,19 +898,9 @@ Important:
 - Do not use Markdown headings.
 - Use **bold** markers for important player names, team names, markets, stats, odds, disposals, goals, hit rates, and risk scores.
 - Do not invent player stats, injuries, lineups, odds, or player data.
-- If Detected user intent is "available_games", only list available games and simple sample odds. Do not create an example multi.
-- If Detected user intent is "multi", you may give an example structure.
 - If the user asks for a multi, give a placeholder example structure unless the required real market/player data is available.
 - Do not use real player names unless the user gives you the data.
 - Make clear that this is informational analysis only, not betting advice.
-
-For available_games intent, use this structure:
-
-Simple view:
-
-Available games:
-
-Important:
 
 For multi intent, use this structure when useful:
 
@@ -633,15 +940,21 @@ export default async function handler(req, res) {
 
     const previousEdgeContext = context?.previousEdgeContext || null;
     const explicitSport = detectExplicitSportFromMessage(message);
-    const detectedTeam = detectTeamAlias(message) || previousEdgeContext?.detectedTeam || null;
+
+    const detectedTeamsFromMessage = detectAllTeamAliases(message);
+    const detectedTeam =
+      detectedTeamsFromMessage[0] ||
+      previousEdgeContext?.detectedTeam ||
+      null;
 
     const sport =
       explicitSport ||
       previousEdgeContext?.sport ||
       getSafeString(context?.sport, "AFL");
 
-    const userIntent = getUserIntent(message);
     const dateWindow = getDateWindowFromMessage(message);
+    const requestedMarket = detectRequestedMarket(message, sport);
+    const userIntent = getUserIntent(message, requestedMarket);
 
     const oddsContext = await fetchOddsContext(
       req,
@@ -655,6 +968,43 @@ export default async function handler(req, res) {
       detectedTeam,
       dateWindow,
     };
+
+    if (userIntent === "event_markets" && requestedMarket) {
+      const matchedEvent = findMatchingEvent(
+        oddsContext.events,
+        message,
+        detectedTeamsFromMessage.length
+          ? detectedTeamsFromMessage
+          : detectedTeam
+          ? [detectedTeam]
+          : []
+      );
+
+      const eventMarketContext = matchedEvent
+        ? await fetchEventOddsContext(req, sport, matchedEvent.id, requestedMarket)
+        : null;
+
+      const reply = buildDirectEventMarketReply({
+        sport,
+        requestedMarket,
+        matchedEvent,
+        eventMarketContext,
+        availableEvents: oddsContext.events,
+      });
+
+      return res.status(200).json({
+        reply,
+        oddsConnected: oddsContext.available,
+        eventMarketsConnected: Boolean(eventMarketContext?.available),
+        intent: userIntent,
+        sport,
+        detectedTeam: detectedTeam?.team || null,
+        dateWindow: dateWindow?.label || "upcoming games",
+        requestedMarket: requestedMarket.label,
+        matchedEventId: matchedEvent?.id || null,
+        edgeContext,
+      });
+    }
 
     if (userIntent === "available_games") {
       const reply = buildDirectOddsReply({
