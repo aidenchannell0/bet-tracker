@@ -58,68 +58,19 @@ Intent rules:
 - Only provide the full section structure when it fits the user request.
 - Do not force every response into every section if the user asked a simple question.
 
-Placeholder example rule:
-- If the user asks for an example multi and player stats are not available, provide a generic placeholder structure.
-- Use placeholders like Player A, Player B, Team A, Team B, Midfielder A, Forward B.
-- Do not use real player names unless the user provides player data or real market data includes those player names.
-- Do not pretend placeholder picks are real tips.
-- Clearly label placeholder multis as example structures only.
-
 Formatting rules:
 - Keep responses simple and easy for everyday users to understand.
 - Do not show equations, formulas, or odds multiplication unless the user specifically asks.
 - Do not over-explain the maths.
 - Do not use Markdown headings like ###.
-- You may use bold markers like **text** only for important player names, team names, markets, stats, odds, disposals, goals, hit rates, and risk scores.
-- When mentioning important player names, team names, markets, stats, odds, disposals, goals, hit rates, or risk scores, wrap them in **bold** markers so they are easier to scan.
+- Use **bold** markers for important player names, team names, markets, stats, odds, disposals, goals, hit rates, and risk scores.
 - Never put the whole answer in one paragraph.
 - Use blank lines between each section.
 - Keep most responses under 260 words.
 - Prioritise clarity over detail.
-- Use simple section labels like these when useful:
-
-Simple view:
-
-Available games:
-
-Example structure:
-
-What I would check:
-
-Risk level:
-
-Important:
-
-Edge analysis rules:
-- Do not make vague claims like "consistent", "strong recently", or "in form" unless exact supporting numbers are provided.
-- For example multis, describe the structure, risk factors, and data required in simple terms.
-- If the user asks for a multi, frame it as an example construction only.
-- Explain risk using a 1 to 10 scale when relevant.
-- If the user asks for disposals-only, goals-only, points-only, etc., respect that filter in the example structure.
-- Keep the answer focused on what the user asked.
 `;
 
 const TEAM_ALIAS_MAP = [
-  // NRL
-  { aliases: ["dragons", "st george", "st george illawarra"], sport: "NRL", team: "St George Illawarra Dragons" },
-  { aliases: ["broncos", "brisbane broncos"], sport: "NRL", team: "Brisbane Broncos" },
-  { aliases: ["storm", "melbourne storm"], sport: "NRL", team: "Melbourne Storm" },
-  { aliases: ["panthers", "penrith", "penrith panthers"], sport: "NRL", team: "Penrith Panthers" },
-  { aliases: ["roosters", "sydney roosters"], sport: "NRL", team: "Sydney Roosters" },
-  { aliases: ["rabbitohs", "souths", "south sydney"], sport: "NRL", team: "South Sydney Rabbitohs" },
-  { aliases: ["eels", "parramatta"], sport: "NRL", team: "Parramatta Eels" },
-  { aliases: ["bulldogs", "canterbury", "canterbury bulldogs"], sport: "NRL", team: "Canterbury-Bankstown Bulldogs" },
-  { aliases: ["sharks", "cronulla", "cronulla sharks"], sport: "NRL", team: "Cronulla Sharks" },
-  { aliases: ["sea eagles", "manly", "manly sea eagles"], sport: "NRL", team: "Manly Sea Eagles" },
-  { aliases: ["cowboys", "north queensland"], sport: "NRL", team: "North Queensland Cowboys" },
-  { aliases: ["dolphins"], sport: "NRL", team: "Dolphins" },
-  { aliases: ["titans", "gold coast titans"], sport: "NRL", team: "Gold Coast Titans" },
-  { aliases: ["raiders", "canberra raiders"], sport: "NRL", team: "Canberra Raiders" },
-  { aliases: ["knights", "newcastle knights"], sport: "NRL", team: "Newcastle Knights" },
-  { aliases: ["warriors", "nz warriors", "new zealand warriors"], sport: "NRL", team: "New Zealand Warriors" },
-  { aliases: ["tigers", "wests tigers"], sport: "NRL", team: "Wests Tigers" },
-
-  // AFL
   { aliases: ["pies", "magpies", "collingwood", "collingwood magpies"], sport: "AFL", team: "Collingwood Magpies" },
   { aliases: ["swans", "sydney swans"], sport: "AFL", team: "Sydney Swans" },
   { aliases: ["cats", "geelong", "geelong cats"], sport: "AFL", team: "Geelong Cats" },
@@ -139,54 +90,23 @@ const TEAM_ALIAS_MAP = [
   { aliases: ["saints", "st kilda", "st kilda saints"], sport: "AFL", team: "St Kilda Saints" },
   { aliases: ["kangaroos", "north melbourne"], sport: "AFL", team: "North Melbourne Kangaroos" },
 
-  // EPL
-  { aliases: ["man city", "manchester city"], sport: "EPL", team: "Manchester City" },
-  { aliases: ["man united", "man utd", "manchester united"], sport: "EPL", team: "Manchester United" },
-  { aliases: ["arsenal"], sport: "EPL", team: "Arsenal" },
-  { aliases: ["chelsea"], sport: "EPL", team: "Chelsea" },
-  { aliases: ["liverpool"], sport: "EPL", team: "Liverpool" },
-  { aliases: ["spurs", "tottenham", "tottenham hotspur"], sport: "EPL", team: "Tottenham Hotspur" },
-  { aliases: ["newcastle", "newcastle united"], sport: "EPL", team: "Newcastle United" },
-  { aliases: ["aston villa", "villa"], sport: "EPL", team: "Aston Villa" },
-  { aliases: ["west ham"], sport: "EPL", team: "West Ham United" },
-  { aliases: ["everton"], sport: "EPL", team: "Everton" },
-  { aliases: ["leeds", "leeds united"], sport: "EPL", team: "Leeds United" },
-
-  // NBA
-  { aliases: ["lakers", "la lakers", "los angeles lakers"], sport: "NBA", team: "Los Angeles Lakers" },
-  { aliases: ["warriors", "golden state warriors"], sport: "NBA", team: "Golden State Warriors" },
-  { aliases: ["celtics", "boston celtics"], sport: "NBA", team: "Boston Celtics" },
-  { aliases: ["bulls", "chicago bulls"], sport: "NBA", team: "Chicago Bulls" },
-  { aliases: ["knicks", "new york knicks"], sport: "NBA", team: "New York Knicks" },
-  { aliases: ["heat", "miami heat"], sport: "NBA", team: "Miami Heat" },
-  { aliases: ["nuggets", "denver nuggets"], sport: "NBA", team: "Denver Nuggets" },
-  { aliases: ["mavericks", "mavs", "dallas mavericks"], sport: "NBA", team: "Dallas Mavericks" },
-  { aliases: ["bucks", "milwaukee bucks"], sport: "NBA", team: "Milwaukee Bucks" },
-  { aliases: ["suns", "phoenix suns"], sport: "NBA", team: "Phoenix Suns" },
-
-  // NFL
-  { aliases: ["chiefs", "kansas city chiefs"], sport: "NFL", team: "Kansas City Chiefs" },
-  { aliases: ["eagles", "philadelphia eagles"], sport: "NFL", team: "Philadelphia Eagles" },
-  { aliases: ["cowboys", "dallas cowboys"], sport: "NFL", team: "Dallas Cowboys" },
-  { aliases: ["niners", "49ers", "san francisco 49ers"], sport: "NFL", team: "San Francisco 49ers" },
-  { aliases: ["patriots", "new england patriots"], sport: "NFL", team: "New England Patriots" },
-  { aliases: ["packers", "green bay packers"], sport: "NFL", team: "Green Bay Packers" },
-  { aliases: ["ravens", "baltimore ravens"], sport: "NFL", team: "Baltimore Ravens" },
-  { aliases: ["bills", "buffalo bills"], sport: "NFL", team: "Buffalo Bills" },
-
-  // MLB
-  { aliases: ["yankees", "new york yankees"], sport: "MLB", team: "New York Yankees" },
-  { aliases: ["dodgers", "la dodgers", "los angeles dodgers"], sport: "MLB", team: "Los Angeles Dodgers" },
-  { aliases: ["red sox", "boston red sox"], sport: "MLB", team: "Boston Red Sox" },
-  { aliases: ["mets", "new york mets"], sport: "MLB", team: "New York Mets" },
-  { aliases: ["cubs", "chicago cubs"], sport: "MLB", team: "Chicago Cubs" },
-
-  // NHL
-  { aliases: ["maple leafs", "leafs", "toronto maple leafs"], sport: "NHL", team: "Toronto Maple Leafs" },
-  { aliases: ["bruins", "boston bruins"], sport: "NHL", team: "Boston Bruins" },
-  { aliases: ["rangers", "new york rangers"], sport: "NHL", team: "New York Rangers" },
-  { aliases: ["oilers", "edmonton oilers"], sport: "NHL", team: "Edmonton Oilers" },
-  { aliases: ["canucks", "vancouver canucks"], sport: "NHL", team: "Vancouver Canucks" },
+  { aliases: ["dragons", "st george", "st george illawarra"], sport: "NRL", team: "St George Illawarra Dragons" },
+  { aliases: ["broncos", "brisbane broncos"], sport: "NRL", team: "Brisbane Broncos" },
+  { aliases: ["storm", "melbourne storm"], sport: "NRL", team: "Melbourne Storm" },
+  { aliases: ["panthers", "penrith", "penrith panthers"], sport: "NRL", team: "Penrith Panthers" },
+  { aliases: ["roosters", "sydney roosters"], sport: "NRL", team: "Sydney Roosters" },
+  { aliases: ["rabbitohs", "souths", "south sydney"], sport: "NRL", team: "South Sydney Rabbitohs" },
+  { aliases: ["eels", "parramatta"], sport: "NRL", team: "Parramatta Eels" },
+  { aliases: ["bulldogs", "canterbury", "canterbury bulldogs"], sport: "NRL", team: "Canterbury-Bankstown Bulldogs" },
+  { aliases: ["sharks", "cronulla", "cronulla sharks"], sport: "NRL", team: "Cronulla Sharks" },
+  { aliases: ["sea eagles", "manly", "manly sea eagles"], sport: "NRL", team: "Manly Sea Eagles" },
+  { aliases: ["cowboys", "north queensland"], sport: "NRL", team: "North Queensland Cowboys" },
+  { aliases: ["dolphins"], sport: "NRL", team: "Dolphins" },
+  { aliases: ["titans", "gold coast titans"], sport: "NRL", team: "Gold Coast Titans" },
+  { aliases: ["raiders", "canberra raiders"], sport: "NRL", team: "Canberra Raiders" },
+  { aliases: ["knights", "newcastle knights"], sport: "NRL", team: "Newcastle Knights" },
+  { aliases: ["warriors", "nz warriors", "new zealand warriors"], sport: "NRL", team: "New Zealand Warriors" },
+  { aliases: ["tigers", "wests tigers"], sport: "NRL", team: "Wests Tigers" },
 ];
 
 function buildBaseUrl(req) {
@@ -205,23 +125,6 @@ function normaliseText(value) {
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function detectTeamAlias(message) {
-  const lowerMessage = String(message || "").toLowerCase();
-
-  for (const entry of TEAM_ALIAS_MAP) {
-    for (const alias of entry.aliases) {
-      const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const aliasPattern = new RegExp(`\\b${escapedAlias}\\b`, "i");
-
-      if (aliasPattern.test(lowerMessage)) {
-        return entry;
-      }
-    }
-  }
-
-  return null;
 }
 
 function detectAllTeamAliases(message) {
@@ -245,30 +148,13 @@ function detectAllTeamAliases(message) {
 
 function detectExplicitSportFromMessage(message) {
   const lowerMessage = String(message || "").toLowerCase();
-  const teamAlias = detectTeamAlias(message);
+  const teams = detectAllTeamAliases(message);
 
-  if (teamAlias) return teamAlias.sport;
+  if (teams[0]) return teams[0].sport;
   if (lowerMessage.includes("nrl") || lowerMessage.includes("rugby league")) return "NRL";
   if (lowerMessage.includes("afl") || lowerMessage.includes("aussie rules")) return "AFL";
-  if (lowerMessage.includes("epl") || lowerMessage.includes("premier league")) return "EPL";
-  if (lowerMessage.includes("champions league") || lowerMessage.includes("ucl")) return "ChampionsLeague";
   if (lowerMessage.includes("nba") || lowerMessage.includes("basketball")) return "NBA";
-  if (lowerMessage.includes("nfl") || lowerMessage.includes("american football")) return "NFL";
-  if (lowerMessage.includes("mlb") || lowerMessage.includes("baseball")) return "MLB";
-  if (lowerMessage.includes("nhl") || lowerMessage.includes("ice hockey")) return "NHL";
-
-  if (
-    lowerMessage.includes("soccer") ||
-    lowerMessage.includes("football") ||
-    lowerMessage.includes("a-league") ||
-    lowerMessage.includes("aleague")
-  ) {
-    return "Soccer";
-  }
-
-  if (lowerMessage.includes("cricket")) return "Cricket";
-  if (lowerMessage.includes("ufc") || lowerMessage.includes("mma")) return "UFC";
-  if (lowerMessage.includes("tennis")) return "Tennis";
+  if (lowerMessage.includes("soccer") || lowerMessage.includes("football")) return "Soccer";
 
   return null;
 }
@@ -292,40 +178,26 @@ function getDateWindowFromMessage(message) {
   const toIso = (date) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
 
   if (lowerMessage.includes("tomorrow")) {
-    const from = startOfDay(addDays(now, 1));
-    const to = startOfDay(addDays(now, 2));
-
     return {
       label: "tomorrow",
-      commenceTimeFrom: toIso(from),
-      commenceTimeTo: toIso(to),
+      commenceTimeFrom: toIso(startOfDay(addDays(now, 1))),
+      commenceTimeTo: toIso(startOfDay(addDays(now, 2))),
     };
   }
 
-  if (
-    lowerMessage.includes("week after") ||
-    lowerMessage.includes("week after this week") ||
-    lowerMessage.includes("next week") ||
-    lowerMessage.includes("following week")
-  ) {
-    const from = startOfDay(addDays(now, 7));
-    const to = startOfDay(addDays(now, 14));
-
+  if (lowerMessage.includes("next week") || lowerMessage.includes("week after")) {
     return {
       label: "next week",
-      commenceTimeFrom: toIso(from),
-      commenceTimeTo: toIso(to),
+      commenceTimeFrom: toIso(startOfDay(addDays(now, 7))),
+      commenceTimeTo: toIso(startOfDay(addDays(now, 14))),
     };
   }
 
   if (lowerMessage.includes("this week")) {
-    const from = now;
-    const to = startOfDay(addDays(now, 7));
-
     return {
       label: "this week",
-      commenceTimeFrom: toIso(from),
-      commenceTimeTo: toIso(to),
+      commenceTimeFrom: toIso(now),
+      commenceTimeTo: toIso(startOfDay(addDays(now, 7))),
     };
   }
 
@@ -343,6 +215,7 @@ function detectRequestedMarket(message, sport) {
     if (lowerMessage.includes("fantasy")) {
       return {
         label: "fantasy points",
+        metric: "fantasy_points",
         markets: [
           "player_afl_fantasy_points_over",
           "player_afl_fantasy_points",
@@ -354,6 +227,7 @@ function detectRequestedMarket(message, sport) {
     if (lowerMessage.includes("disposal")) {
       return {
         label: "disposals",
+        metric: "disposals",
         markets: ["player_disposals_over", "player_disposals"],
       };
     }
@@ -361,6 +235,7 @@ function detectRequestedMarket(message, sport) {
     if (lowerMessage.includes("clearance")) {
       return {
         label: "clearances",
+        metric: "clearances",
         markets: ["player_clearances_over"],
       };
     }
@@ -368,6 +243,7 @@ function detectRequestedMarket(message, sport) {
     if (lowerMessage.includes("tackle")) {
       return {
         label: "tackles",
+        metric: "tackles",
         markets: ["player_tackles_over", "player_tackles_most"],
       };
     }
@@ -375,41 +251,15 @@ function detectRequestedMarket(message, sport) {
     if (lowerMessage.includes("mark")) {
       return {
         label: "marks",
+        metric: "marks",
         markets: ["player_marks_over", "player_marks_most"],
-      };
-    }
-
-    if (lowerMessage.includes("first goal")) {
-      return {
-        label: "first goalscorer",
-        markets: ["player_goal_scorer_first"],
-      };
-    }
-
-    if (lowerMessage.includes("last goal")) {
-      return {
-        label: "last goalscorer",
-        markets: ["player_goal_scorer_last"],
-      };
-    }
-
-    if (lowerMessage.includes("goalscorer") || lowerMessage.includes("goal scorer")) {
-      return {
-        label: "goalscorer",
-        markets: ["player_goal_scorer_anytime", "player_goal_scorer_first", "player_goal_scorer_last"],
-      };
-    }
-
-    if (lowerMessage.includes("goal")) {
-      return {
-        label: "goals",
-        markets: ["player_goals_scored_over", "player_goal_scorer_anytime"],
       };
     }
 
     if (lowerMessage.includes("kick")) {
       return {
         label: "kicks",
+        metric: "kicks",
         markets: ["player_kicks_over"],
       };
     }
@@ -417,37 +267,21 @@ function detectRequestedMarket(message, sport) {
     if (lowerMessage.includes("handball")) {
       return {
         label: "handballs",
+        metric: "handballs",
         markets: ["player_handballs_over"],
       };
     }
-  }
 
-  if (sport === "NRL") {
-    if (lowerMessage.includes("first try")) {
+    if (lowerMessage.includes("goal")) {
       return {
-        label: "first tryscorer",
-        markets: ["player_try_scorer_first"],
-      };
-    }
-
-    if (lowerMessage.includes("last try")) {
-      return {
-        label: "last tryscorer",
-        markets: ["player_try_scorer_last"],
-      };
-    }
-
-    if (lowerMessage.includes("anytime") || lowerMessage.includes("try scorer") || lowerMessage.includes("tryscorer")) {
-      return {
-        label: "anytime tryscorer",
-        markets: ["player_try_scorer_anytime"],
-      };
-    }
-
-    if (lowerMessage.includes("try")) {
-      return {
-        label: "tryscorer",
-        markets: ["player_try_scorer_anytime", "player_try_scorer_first", "player_try_scorer_last", "player_try_scorer_over"],
+        label: "goals",
+        metric: "goals",
+        markets: [
+          "player_goals_scored_over",
+          "player_goal_scorer_anytime",
+          "player_goal_scorer_first",
+          "player_goal_scorer_last",
+        ],
       };
     }
   }
@@ -455,6 +289,7 @@ function detectRequestedMarket(message, sport) {
   if (lowerMessage.includes("handicap") || lowerMessage.includes("line") || lowerMessage.includes("spread")) {
     return {
       label: "handicap",
+      metric: null,
       markets: ["spreads"],
     };
   }
@@ -462,6 +297,7 @@ function detectRequestedMarket(message, sport) {
   if (lowerMessage.includes("total") || lowerMessage.includes("over under") || lowerMessage.includes("over/under")) {
     return {
       label: "totals",
+      metric: null,
       markets: ["totals"],
     };
   }
@@ -472,23 +308,29 @@ function detectRequestedMarket(message, sport) {
 function getUserIntent(message, requestedMarket) {
   const lowerMessage = String(message || "").toLowerCase();
 
-  if (requestedMarket) {
-    return "event_markets";
-  }
+  const asksForStats =
+    lowerMessage.includes("stats") ||
+    lowerMessage.includes("average") ||
+    lowerMessage.includes("averages") ||
+    lowerMessage.includes("hit rate") ||
+    lowerMessage.includes("hit rates") ||
+    lowerMessage.includes("last 5") ||
+    lowerMessage.includes("last 10") ||
+    lowerMessage.includes("last 20") ||
+    lowerMessage.includes("compare") ||
+    lowerMessage.includes("comparison");
+
+  if (requestedMarket && asksForStats) return "market_stats_comparison";
+  if (requestedMarket) return "event_markets";
 
   const asksForGames =
     lowerMessage.includes("what games") ||
     lowerMessage.includes("which games") ||
-    lowerMessage.includes("games can you see") ||
-    lowerMessage.includes("odds for right now") ||
-    lowerMessage.includes("odds for this week") ||
     lowerMessage.includes("available games") ||
     lowerMessage.includes("upcoming games") ||
-    lowerMessage.includes("what about the week after") ||
-    lowerMessage.includes("week after this week") ||
-    (lowerMessage.includes("give me") && lowerMessage.includes("odds")) ||
-    (lowerMessage.includes("show me") && lowerMessage.includes("odds")) ||
-    (lowerMessage.includes("what are") && lowerMessage.includes("odds"));
+    lowerMessage.includes("show me odds") ||
+    lowerMessage.includes("give me odds") ||
+    lowerMessage.includes("what are the odds");
 
   const asksForMulti =
     lowerMessage.includes("multi") ||
@@ -498,14 +340,9 @@ function getUserIntent(message, requestedMarket) {
     lowerMessage.includes("selection") ||
     lowerMessage.includes("example bet");
 
-  const asksForRisk =
-    lowerMessage.includes("risk") ||
-    lowerMessage.includes("safer") ||
-    lowerMessage.includes("confidence");
-
-  if (asksForGames && !asksForMulti && !asksForRisk) return "available_games";
+  if (asksForGames && !asksForMulti) return "available_games";
   if (asksForMulti) return "multi";
-  if (asksForRisk) return "risk";
+  if (asksForStats) return "player_stats";
 
   return "general";
 }
@@ -532,14 +369,12 @@ function filterEventsByDetectedTeam(events, detectedTeam) {
 
   const teamLower = detectedTeam.team.toLowerCase();
 
-  const filtered = events.filter((event) => {
+  return events.filter((event) => {
     const homeTeam = String(event.homeTeam || "").toLowerCase();
     const awayTeam = String(event.awayTeam || "").toLowerCase();
 
     return homeTeam.includes(teamLower) || awayTeam.includes(teamLower);
   });
-
-  return filtered.length ? filtered : [];
 }
 
 function scoreEventMatch(event, message, detectedTeams) {
@@ -566,9 +401,6 @@ function scoreEventMatch(event, message, detectedTeams) {
     }
   }
 
-  if (normalisedMessage.includes(home)) score += 5;
-  if (normalisedMessage.includes(away)) score += 5;
-
   return score;
 }
 
@@ -582,11 +414,7 @@ function findMatchingEvent(events, message, detectedTeams) {
     }))
     .sort((a, b) => b.score - a.score);
 
-  if (scored[0]?.score > 0) {
-    return scored[0].event;
-  }
-
-  return null;
+  return scored[0]?.score > 0 ? scored[0].event : null;
 }
 
 function listAvailableEventOptions(events) {
@@ -713,23 +541,6 @@ async function fetchEventOddsContext(req, sport, eventId, requestedMarket) {
   }
 }
 
-function detectPlayerStatsIntent(message) {
-  const lowerMessage = String(message || "").toLowerCase();
-
-  return (
-    lowerMessage.includes("stats") ||
-    lowerMessage.includes("average") ||
-    lowerMessage.includes("averages") ||
-    lowerMessage.includes("hit rate") ||
-    lowerMessage.includes("hit rates") ||
-    lowerMessage.includes("last 5") ||
-    lowerMessage.includes("last 10") ||
-    lowerMessage.includes("last 20") ||
-    lowerMessage.includes("compare") ||
-    lowerMessage.includes("comparison")
-  );
-}
-
 function detectStatsMetric(message, requestedMarket) {
   const lowerMessage = String(message || "").toLowerCase();
 
@@ -742,16 +553,7 @@ function detectStatsMetric(message, requestedMarket) {
   if (lowerMessage.includes("kick")) return "kicks";
   if (lowerMessage.includes("handball")) return "handballs";
 
-  if (requestedMarket?.label === "fantasy points") return "fantasy_points";
-  if (requestedMarket?.label === "disposals") return "disposals";
-  if (requestedMarket?.label === "clearances") return "clearances";
-  if (requestedMarket?.label === "tackles") return "tackles";
-  if (requestedMarket?.label === "marks") return "marks";
-  if (requestedMarket?.label === "goals") return "goals";
-  if (requestedMarket?.label === "kicks") return "kicks";
-  if (requestedMarket?.label === "handballs") return "handballs";
-
-  return "fantasy_points";
+  return requestedMarket?.metric || "fantasy_points";
 }
 
 function extractRequestedPlayers(message) {
@@ -813,9 +615,9 @@ function formatNumber(value) {
   return Number.isNaN(number) ? String(value) : String(Number(number.toFixed(2)));
 }
 
-function formatLineComparison(stat) {
-  const average = Number(stat.recent_average);
-  const line = Number(stat.line);
+function formatLineComparisonFromValues(averageValue, lineValue) {
+  const average = Number(averageValue);
+  const line = Number(lineValue);
 
   if (Number.isNaN(average) || Number.isNaN(line)) {
     return "Line comparison: **Not available**";
@@ -832,6 +634,47 @@ function formatLineComparison(stat) {
   }
 
   return "Line comparison: recent average is exactly equal to the listed line";
+}
+
+function normalisePlayerName(value) {
+  return normaliseText(value);
+}
+
+function extractComparableMarketLines(event, requestedMarket) {
+  const lines = [];
+  const seen = new Set();
+
+  for (const bookmaker of event?.bookmakers || []) {
+    for (const market of bookmaker.markets || []) {
+      if (!requestedMarket.markets.includes(market.key)) continue;
+
+      for (const outcome of market.outcomes || []) {
+        const player = outcome.description || outcome.name;
+        const isOverMarket = market.key.includes("_over") || outcome.name === "Over";
+
+        if (!player || !isOverMarket) continue;
+
+        const key = `${player}-${outcome.point}-${market.key}`;
+
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        lines.push({
+          playerName: player,
+          marketKey: market.key,
+          marketLabel: requestedMarket.label,
+          metric: requestedMarket.metric,
+          line: outcome.point ?? null,
+          price: outcome.price ?? null,
+          bookmaker: bookmaker.title || "Bookmaker",
+        });
+
+        if (lines.length >= 12) return lines;
+      }
+    }
+  }
+
+  return lines;
 }
 
 function buildDirectPlayerStatsReply({ sport, metric, playerStatsContext }) {
@@ -861,7 +704,7 @@ Recent average: **${formatNumber(stat.recent_average)}**
 Last 5 hit rate: **${stat.last_5_hit_rate || "Not available"}**
 Last 10 hit rate: **${stat.last_10_hit_rate || "Not available"}**
 Last 20 hit rate: **${stat.last_20_hit_rate || "Not available"}**
-${formatLineComparison(stat)}
+${formatLineComparisonFromValues(stat.recent_average, stat.line)}
 Source: **${stat.source || "Not available"}**
 Freshness: **${stat.data_freshness || "Not available"}**`;
     })
@@ -878,35 +721,96 @@ Important:
 This is historical stat context only. It does not guarantee what will happen next, and it is not betting advice. Injuries, team news and live form are still not connected.`;
 }
 
+function buildMarketStatsComparisonReply({
+  sport,
+  requestedMarket,
+  matchedEvent,
+  eventMarketContext,
+  playerStatsContext,
+  marketLines,
+  availableEvents,
+}) {
+  if (!matchedEvent) {
+    return `Available games:
+
+I could not tell which **${sport}** match you meant. Please ask again with one of these games:
+
+${listAvailableEventOptions(availableEvents)}
+
+Important:
+
+I need a specific game before I can compare **${requestedMarket.label}** market lines with saved stats.`;
+  }
+
+  if (!eventMarketContext?.available || !marketLines.length) {
+    return `Simple view:
+
+I could not find comparable **${requestedMarket.label}** over-market lines for **${matchedEvent.homeTeam} vs ${matchedEvent.awayTeam}** right now.
+
+Important:
+
+Some markets may not be available yet, or they may not include over/under player lines. This is informational only, not betting advice.`;
+  }
+
+  const statsByPlayer = new Map();
+
+  for (const stat of playerStatsContext?.players || []) {
+    statsByPlayer.set(normalisePlayerName(stat.player_name), stat);
+  }
+
+  const comparisonLines = marketLines.slice(0, 8).map((line) => {
+    const stat = statsByPlayer.get(normalisePlayerName(line.playerName));
+
+    if (!stat) {
+      return `**${line.playerName}**
+
+Market line: Over **${formatNumber(line.line)} ${requestedMarket.label}**
+Odds: **$${line.price}** — ${line.bookmaker}
+Saved stats: **Not available yet**`;
+    }
+
+    return `**${line.playerName}**
+
+Market line: Over **${formatNumber(line.line)} ${requestedMarket.label}**
+Odds: **$${line.price}** — ${line.bookmaker}
+Recent average: **${formatNumber(stat.recent_average)}**
+Last 5 hit rate: **${stat.last_5_hit_rate || "Not available"}**
+Last 10 hit rate: **${stat.last_10_hit_rate || "Not available"}**
+Last 20 hit rate: **${stat.last_20_hit_rate || "Not available"}**
+${formatLineComparisonFromValues(stat.recent_average, line.line)}
+Source: **${stat.source || "Not available"}**
+Freshness: **${stat.data_freshness || "Not available"}**`;
+  });
+
+  return `Simple view:
+
+**${requestedMarket.label}** comparison for **${matchedEvent.homeTeam} vs ${matchedEvent.awayTeam}**:
+
+${comparisonLines.join("\n\n")}
+
+Important:
+
+This compares available market lines against saved historical stats only. It does not guarantee the outcome. Injuries, role changes, late team news and live form are still not connected. This is informational only, not betting advice.`;
+}
+
 function getMarketGroupLabel(marketKey, requestedMarketLabel) {
   const labels = {
     player_disposals_over: "Disposals over markets",
     player_disposals: "Most disposals markets",
-
     player_afl_fantasy_points_over: "Fantasy points over markets",
     player_afl_fantasy_points: "Fantasy points markets",
     player_afl_fantasy_points_most: "Most fantasy points markets",
-
     player_goals_scored_over: "Goals over markets",
     player_goal_scorer_anytime: "Anytime goalscorer markets",
     player_goal_scorer_first: "First goalscorer markets",
     player_goal_scorer_last: "Last goalscorer markets",
-
     player_marks_over: "Marks over markets",
     player_marks_most: "Most marks markets",
-
     player_tackles_over: "Tackles over markets",
     player_tackles_most: "Most tackles markets",
-
     player_clearances_over: "Clearances over markets",
     player_kicks_over: "Kicks over markets",
     player_handballs_over: "Handballs over markets",
-
-    player_try_scorer_anytime: "Anytime tryscorer markets",
-    player_try_scorer_first: "First tryscorer markets",
-    player_try_scorer_last: "Last tryscorer markets",
-    player_try_scorer_over: "Tries over markets",
-
     h2h: "Head-to-head markets",
     spreads: "Handicap / line markets",
     totals: "Total markets",
@@ -925,7 +829,7 @@ function formatOutcomeLine(outcome, marketKey, bookmakerTitle) {
   const book = bookmakerTitle || "Bookmaker";
 
   if (marketKey.includes("_most")) {
-    return `- **${player}** — Most points — ${price} — ${book}`;
+    return `- **${player}** — Most — ${price} — ${book}`;
   }
 
   if (marketKey.includes("_over") || outcome.name === "Over") {
@@ -946,10 +850,6 @@ function formatOutcomeLine(outcome, marketKey, bookmakerTitle) {
 
   if (outcome.point !== null && outcome.point !== undefined) {
     return `- **${player}** — ${outcome.name || "Market"} ${point} — ${price} — ${book}`;
-  }
-
-  if (outcome.name === "Yes") {
-    return `- **${player}** — Yes — ${price} — ${book}`;
   }
 
   return `- **${player}**${outcome.name ? ` — ${outcome.name}` : ""} — ${price} — ${book}`;
@@ -988,44 +888,13 @@ function summariseEventMarkets(event, requestedMarket) {
     }
   }
 
-  const preferredOrder = [
-    "Fantasy points over markets",
-    "Most fantasy points markets",
-    "Disposals over markets",
-    "Most disposals markets",
-    "Goals over markets",
-    "Anytime goalscorer markets",
-    "First goalscorer markets",
-    "Last goalscorer markets",
-    "Marks over markets",
-    "Most marks markets",
-    "Tackles over markets",
-    "Most tackles markets",
-    "Clearances over markets",
-    "Kicks over markets",
-    "Handballs over markets",
-  ];
-
-  const sortedEntries = Object.entries(groupedLines)
+  const groupEntries = Object.entries(groupedLines)
     .filter(([, lines]) => lines.length)
-    .sort(([a], [b]) => {
-      const aIndex = preferredOrder.indexOf(a);
-      const bIndex = preferredOrder.indexOf(b);
+    .map(([label, lines]) => `**${label}:**\n\n${lines.slice(0, 6).join("\n")}`);
 
-      if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
-      if (aIndex === -1) return 1;
-      if (bIndex === -1) return -1;
-
-      return aIndex - bIndex;
-    });
-
-  if (!sortedEntries.length) {
+  if (!groupEntries.length) {
     return `No **${requestedMarket.label}** markets were returned for this event right now.`;
   }
-
-  const groupEntries = sortedEntries.map(
-    ([label, lines]) => `**${label}:**\n\n${lines.slice(0, 6).join("\n")}`
-  );
 
   return `**${event.homeTeam} vs ${event.awayTeam}**
 
@@ -1033,21 +902,9 @@ ${groupEntries.join("\n\n")}`;
 }
 
 function buildDirectOddsReply({ sport, detectedTeam, dateWindow, oddsContext }) {
-  const dateLabel = dateWindow?.label || "upcoming games";
-  const targetLabel = detectedTeam?.team ? `**${detectedTeam.team}**` : `**${sport}**`;
-
   const summary =
     oddsContext?.summary ||
-    `No odds were returned for ${targetLabel} for **${dateLabel}**.`;
-
-  const hasNoOdds =
-    summary.toLowerCase().includes("no odds were returned") ||
-    summary.toLowerCase().includes("no upcoming odds were returned") ||
-    summary.toLowerCase().includes("could not be loaded");
-
-  const importantMessage = hasNoOdds
-    ? "Odds may not be available that far ahead yet. Check again closer to the game dates. This is informational only, not betting advice."
-    : "Odds can change leading up to the games. These are sample odds from available bookmaker data. This is informational only, not betting advice. Always check the latest odds, team news and player availability before making any decisions.";
+    `No odds were returned for **${sport}** for **${dateWindow?.label || "upcoming games"}**.`;
 
   return `Available games:
 
@@ -1055,7 +912,7 @@ ${summary}
 
 Important:
 
-${importantMessage}`;
+Odds can change leading up to the games. These are sample odds from available bookmaker data. This is informational only, not betting advice.`;
 }
 
 function buildDirectEventMarketReply({
@@ -1077,15 +934,6 @@ Important:
 I need a specific game before I can show **${requestedMarket.label}** markets. Markets can change and this is informational only, not betting advice.`;
   }
 
-  const hasNoMarkets =
-    !eventMarketContext?.available ||
-    eventMarketContext.summary.toLowerCase().includes("no ") ||
-    eventMarketContext.summary.toLowerCase().includes("could not be loaded");
-
-  const importantMessage = hasNoMarkets
-    ? "These markets may not be available for this game yet, or they may not be included by the bookmaker/API right now. Check again closer to the game. This is informational only, not betting advice."
-    : "These are market lines only. Historical averages, hit rates, injuries and team news are not connected yet. This is informational only, not betting advice.";
-
   return `Available games:
 
 Available **${requestedMarket.label}** markets for **${matchedEvent.homeTeam} vs ${matchedEvent.awayTeam}**:
@@ -1094,7 +942,7 @@ ${eventMarketContext?.summary || `No **${requestedMarket.label}** markets were r
 
 Important:
 
-${importantMessage}`;
+These are market lines only. Historical averages and hit rates are only shown when saved stats are available. This is informational only, not betting advice.`;
 }
 
 function buildUserPrompt({
@@ -1106,12 +954,6 @@ function buildUserPrompt({
   detectedTeam,
   dateWindow,
 }) {
-  const mode = context?.mode || "Not specified";
-  const legs = context?.legs || "Not specified";
-  const targetOdds = context?.targetOdds || "Not specified";
-  const riskProfile = context?.riskProfile || "Not specified";
-  const optionalRequest = context?.request || "None";
-
   return `
 User request:
 ${message}
@@ -1128,14 +970,6 @@ ${dateWindow?.label || "upcoming games"}
 Detected team:
 ${detectedTeam?.team || "None"}
 
-Current Edge settings:
-- Mode: ${mode}
-- Sport: ${sport}
-- Number of legs: ${legs}
-- Target odds: ${targetOdds}
-- Risk profile: ${riskProfile}
-- Optional request: ${optionalRequest}
-
 Available odds context:
 ${oddsContext?.summary || "No odds context available."}
 
@@ -1143,31 +977,9 @@ Respond as Edge.
 
 Important:
 - Keep the answer short, simple, and user-friendly.
-- Use real odds context if it is relevant to the user request.
-- Only discuss the requested sport or league: ${sport}.
-- Only discuss the requested date window: ${dateWindow?.label || "upcoming games"}.
-- If a detected team exists, focus on that team where possible.
-- Do not show odds from a different sport, league, or date window.
-- If no odds are returned for the requested date window, say that clearly.
-- Do not explain formulas or odds calculations unless asked.
-- Do not use Markdown headings.
-- Use **bold** markers for important player names, team names, markets, stats, odds, disposals, goals, hit rates, and risk scores.
+- Use **bold** markers for important names, teams, markets, stats, odds, hit rates and risk scores.
 - Do not invent player stats, injuries, lineups, odds, or player data.
-- If the user asks for a multi, give a placeholder example structure unless the required real market/player data is available.
-- Do not use real player names unless the user gives you the data.
 - Make clear that this is informational analysis only, not betting advice.
-
-For multi intent, use this structure when useful:
-
-Simple view:
-
-Example structure:
-
-What I would check:
-
-Risk level:
-
-Important:
 `;
 }
 
@@ -1195,8 +1007,8 @@ export default async function handler(req, res) {
 
     const previousEdgeContext = context?.previousEdgeContext || null;
     const explicitSport = detectExplicitSportFromMessage(message);
-
     const detectedTeamsFromMessage = detectAllTeamAliases(message);
+
     const detectedTeam =
       detectedTeamsFromMessage[0] ||
       previousEdgeContext?.detectedTeam ||
@@ -1210,6 +1022,8 @@ export default async function handler(req, res) {
     const dateWindow = getDateWindowFromMessage(message);
     const requestedMarket = detectRequestedMarket(message, sport);
     const userIntent = getUserIntent(message, requestedMarket);
+    const statsMetric = detectStatsMetric(message, requestedMarket);
+    const requestedPlayers = extractRequestedPlayers(message);
 
     const oddsContext = await fetchOddsContext(
       req,
@@ -1224,11 +1038,65 @@ export default async function handler(req, res) {
       dateWindow,
     };
 
-    const playerStatsIntent = detectPlayerStatsIntent(message);
-    const statsMetric = detectStatsMetric(message, requestedMarket);
-    const requestedPlayers = extractRequestedPlayers(message);
+    if (userIntent === "market_stats_comparison" && requestedMarket?.metric) {
+      const matchedEvent = findMatchingEvent(
+        oddsContext.events,
+        message,
+        detectedTeamsFromMessage.length
+          ? detectedTeamsFromMessage
+          : detectedTeam
+          ? [detectedTeam]
+          : []
+      );
 
-    if (playerStatsIntent) {
+      const eventMarketContext = matchedEvent
+        ? await fetchEventOddsContext(req, sport, matchedEvent.id, requestedMarket)
+        : null;
+
+      const marketLines = extractComparableMarketLines(
+        eventMarketContext?.event,
+        requestedMarket
+      );
+
+      const playerNames = marketLines.map((line) => line.playerName);
+
+      const playerStatsContext = await fetchPlayerStatsContext(
+        req,
+        sport,
+        requestedMarket.metric,
+        playerNames
+      );
+
+      const reply = buildMarketStatsComparisonReply({
+        sport,
+        requestedMarket,
+        matchedEvent,
+        eventMarketContext,
+        playerStatsContext,
+        marketLines,
+        availableEvents: oddsContext.events,
+      });
+
+      return res.status(200).json({
+        reply,
+        oddsConnected: oddsContext.available,
+        eventMarketsConnected: Boolean(eventMarketContext?.available),
+        playerStatsConnected: Boolean(playerStatsContext?.available),
+        intent: userIntent,
+        sport,
+        detectedTeam: detectedTeam?.team || null,
+        dateWindow: dateWindow?.label || "upcoming games",
+        requestedMarket: requestedMarket.label,
+        statsMetric: requestedMarket.metric,
+        matchedEventId: matchedEvent?.id || null,
+        edgeContext: {
+          ...edgeContext,
+          statsMetric: requestedMarket.metric,
+        },
+      });
+    }
+
+    if (userIntent === "player_stats") {
       const playerStatsContext = await fetchPlayerStatsContext(
         req,
         sport,
