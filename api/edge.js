@@ -248,14 +248,6 @@ function detectRequestedMarket(message, sport) {
       };
     }
 
-    if (lowerMessage.includes("mark")) {
-      return {
-        label: "marks",
-        metric: "marks",
-        markets: ["player_marks_over", "player_marks_most"],
-      };
-    }
-
     if (lowerMessage.includes("kick")) {
       return {
         label: "kicks",
@@ -272,6 +264,8 @@ function detectRequestedMarket(message, sport) {
       };
     }
 
+    // Important: goals must be checked before marks,
+    // because the word "markets" contains "mark".
     if (lowerMessage.includes("goal")) {
       return {
         label: "goals",
@@ -282,6 +276,19 @@ function detectRequestedMarket(message, sport) {
           "player_goal_scorer_first",
           "player_goal_scorer_last",
         ],
+      };
+    }
+
+    const asksForMarks =
+      /\bmarks?\b/.test(lowerMessage) ||
+      lowerMessage.includes("mark line") ||
+      lowerMessage.includes("mark markets");
+
+    if (asksForMarks) {
+      return {
+        label: "marks",
+        metric: "marks",
+        markets: ["player_marks_over", "player_marks_most"],
       };
     }
   }
@@ -548,10 +555,10 @@ function detectStatsMetric(message, requestedMarket) {
   if (lowerMessage.includes("disposal")) return "disposals";
   if (lowerMessage.includes("clearance")) return "clearances";
   if (lowerMessage.includes("tackle")) return "tackles";
-  if (lowerMessage.includes("mark")) return "marks";
   if (lowerMessage.includes("goal")) return "goals";
   if (lowerMessage.includes("kick")) return "kicks";
   if (lowerMessage.includes("handball")) return "handballs";
+  if (/\bmarks?\b/.test(lowerMessage)) return "marks";
 
   return requestedMarket?.metric || "fantasy_points";
 }
