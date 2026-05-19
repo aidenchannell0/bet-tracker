@@ -184,7 +184,7 @@ function Card({ children, className = "" }) {
 }
 
 function Button({ children, className = "", variant = "primary", ...props }) {
-  const base = "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
+    const base = "inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
   const styles =
     variant === "outline"
       ? "border border-slate-300 bg-[#FAF7EF] text-slate-900 hover:bg-[#E8E2D4]"
@@ -200,16 +200,16 @@ function Button({ children, className = "", variant = "primary", ...props }) {
 }
 
 function Input({ className = "", ...props }) {
-  return <input className={"w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-[#E8E2D4] " + className} {...props} />;
+  return <input className={"w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-[#E8E2D4] md:text-sm " + className} {...props} />;
 }
 
 function StatCard({ title, value, helper }) {
   return (
     <Card>
-      <div className="p-5">
-        <p className="text-sm text-slate-500">{title}</p>
-        <p className="mt-1 text-2xl font-semibold text-[#11203B]">{value}</p>
-        {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
+      <div className="p-4 md:p-5">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">{title}</p>
+        <p className="mt-1 text-xl font-semibold text-[#11203B] md:text-2xl">{value}</p>
+        {helper ? <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p> : null}
       </div>
     </Card>
   );
@@ -1355,7 +1355,9 @@ export default function BettingTrackerWebsite() {
                   </div>
                   <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
                   <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
-                  <Button type="submit" className="w-full">{editingBetId ? "Update Bet" : "Add Bet"}</Button>
+                  <Button type="submit" className="w-full py-3 text-base font-semibold shadow-sm">
+                  {editingBetId ? "Update Bet" : "Add Bet"}
+                  </Button>
                 </form>
               </div>
             </Card>
@@ -1369,7 +1371,7 @@ export default function BettingTrackerWebsite() {
                     <select value={chartType} onChange={(event) => setChartType(event.target.value)} className="rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="bar">Bar graph</option><option value="line">Line graph</option><option value="area">Area graph</option></select>
                   </div>
                 </div>
-                <div className="mt-4 h-80">
+                <div className="mt-4 h-64 md:h-80">
                   {chartData.length ? (
                     <ResponsiveContainer width="100%" height="100%">
                       {chartType === "line" ? (
