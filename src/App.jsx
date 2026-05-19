@@ -184,7 +184,7 @@ function Card({ children, className = "" }) {
 }
 
 function Button({ children, className = "", variant = "primary", ...props }) {
-  const base = "inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
+  const base = "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
   const styles =
     variant === "outline"
       ? "border border-slate-300 bg-[#FAF7EF] text-slate-900 hover:bg-[#E8E2D4]"
@@ -200,7 +200,7 @@ function Button({ children, className = "", variant = "primary", ...props }) {
 }
 
 function Input({ className = "", ...props }) {
-  return <input className={"w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-[#E8E2D4] md:text-sm " + className} {...props} />;
+  return <input className={"w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-[#E8E2D4] " + className} {...props} />;
 }
 
 function StatCard({ title, value, helper }) {
@@ -304,7 +304,7 @@ function Footer({ setActivePage }) {
 
 function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup }) {
   return (
-    <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
+    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-3xl space-y-6">
           <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
@@ -431,23 +431,14 @@ function renderEdgeText(text) {
 function EdgeMessage({ role, children }) {
   const isEdge = role === "edge";
   const text = String(children || "");
-  const sectionLabels = [
-    "Simple view",
-    "Available games",
-    "Example structure",
-    "What I would check",
-    "Risk level",
-    "Important",
-  ];
+  const sectionLabels = ["Simple view", "Available games", "Example structure", "What I would check", "Risk level", "Important"];
 
   const parseSections = (message) => {
     const sections = [];
-
     sectionLabels.forEach((label, index) => {
       const startToken = label + ":";
       const startIndex = message.indexOf(startToken);
       if (startIndex === -1) return;
-
       const contentStart = startIndex + startToken.length;
       const nextIndexes = sectionLabels
         .slice(index + 1)
@@ -455,10 +446,10 @@ function EdgeMessage({ role, children }) {
         .filter((value) => value !== -1);
       const contentEnd = nextIndexes.length ? Math.min(...nextIndexes) : message.length;
       const content = message.slice(contentStart, contentEnd).trim();
-
-      if (content) sections.push({ label, content });
+      if (content) {
+        sections.push({ label, content });
+      }
     });
-
     return sections;
   };
 
@@ -467,9 +458,7 @@ function EdgeMessage({ role, children }) {
   if (!isEdge) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[86%] whitespace-pre-line rounded-2xl rounded-br-md bg-[#11203B] px-4 py-3 text-sm leading-6 text-white shadow-sm md:max-w-[72%]">
-          {children}
-        </div>
+        <div className="max-w-[88%] whitespace-pre-line rounded-2xl bg-[#11203B] px-4 py-3 text-sm leading-6 text-white">{children}</div>
       </div>
     );
   }
@@ -477,116 +466,89 @@ function EdgeMessage({ role, children }) {
   if (!sections.length) {
     return (
       <div className="flex justify-start">
-        <div className="max-w-[92%] whitespace-pre-line rounded-2xl rounded-bl-md border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm leading-6 text-slate-800 shadow-sm md:max-w-[78%]">
-          {renderEdgeText(children)}
-        </div>
+        <div className="max-w-[88%] whitespace-pre-line rounded-2xl bg-[#E8E2D4] px-4 py-3 text-sm leading-6 text-slate-800">{renderEdgeText(children)}</div>
       </div>
     );
   }
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[94%] space-y-2 md:max-w-[82%]">
-        {sections.map((section) => {
-          const isImportant = section.label === "Important";
-
-          return (
-            <div
-              key={section.label}
-              className={
-                "rounded-2xl border p-4 text-sm leading-6 shadow-sm " +
-                (isImportant
-                  ? "border-[#C49A4A]/40 bg-[#C49A4A]/10 text-slate-700"
-                  : "border-slate-200 bg-[#FAF7EF] text-slate-800")
-              }
-            >
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {section.label}
-              </p>
-              <p className="whitespace-pre-line">{renderEdgeText(section.content)}</p>
-            </div>
-          );
-        })}
+      <div className="max-w-[92%] space-y-3">
+        {sections.map((section) => (
+          <div key={section.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{section.label}</p>
+            <p className="whitespace-pre-line">{renderEdgeText(section.content)}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function EdgeInfoCard() {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Card>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center justify-between gap-3 p-4 text-left"
-      >
-        <div>
-          <p className="text-sm font-semibold text-[#11203B]">What Edge can do right now</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">Market lines, odds, example multis, and saved stats comparisons.</p>
-        </div>
-        <span className="rounded-full bg-[#E8E2D4] px-3 py-1 text-lg leading-none text-slate-600">{open ? "−" : "+"}</span>
-      </button>
-
-      {open ? (
-        <div className="border-t border-slate-200 px-4 pb-4 pt-3 text-sm leading-6 text-slate-600">
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl bg-[#E8E2D4]/70 p-3">
-              <p className="font-semibold text-[#11203B]">Connected now</p>
-              <ul className="mt-2 space-y-1">
-                <li>• AFL/NRL odds and available games</li>
-                <li>• Event-level player markets</li>
-                <li>• Saved player stats from Supabase</li>
-                <li>• Market line vs saved stat comparison</li>
-              </ul>
-            </div>
-            <div className="rounded-2xl bg-[#E8E2D4]/70 p-3">
-              <p className="font-semibold text-[#11203B]">Not connected yet</p>
-              <ul className="mt-2 space-y-1">
-                <li>• Live injuries and team news</li>
-                <li>• Full AFL stats provider</li>
-                <li>• Automated player form updates</li>
-                <li>• Player prop auto-settlement</li>
-              </ul>
-            </div>
-          </div>
-          <p className="mt-3 text-xs leading-5 text-slate-500">Edge is informational only. It does not give betting advice or guarantee outcomes.</p>
-        </div>
-      ) : null}
-    </Card>
-  );
-}
-
-function EdgeQuickPrompt({ children, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-semibold text-[#11203B] shadow-sm transition hover:bg-white md:text-sm"
-    >
-      {children}
-    </button>
-  );
-}
-
 function EdgePage({ setActivePage }) {
+  const [mode, setMode] = useState("multi");
   const [sport, setSport] = useState("AFL");
   const [legs, setLegs] = useState("3");
   const [targetOdds, setTargetOdds] = useState("$2.00");
+  const [customTargetOdds, setCustomTargetOdds] = useState("2.20");
+  const [customLegs, setCustomLegs] = useState("6");
   const [riskProfile, setRiskProfile] = useState("Balanced");
   const [request, setRequest] = useState("Disposals only");
   const [chatInput, setChatInput] = useState("");
   const [edgeLoading, setEdgeLoading] = useState(false);
+  const [showRiskExplanation, setShowRiskExplanation] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [lastEdgeContext, setLastEdgeContext] = useState(null);
 
-  const edgeStarterPrompts = [
-    { label: "Show AFL games", prompt: "What AFL games are available?" },
-    { label: "Fantasy markets", prompt: "Show me fantasy points markets for Swans vs Collingwood" },
-    { label: "Compare disposals", prompt: "Compare disposal markets for Swans vs Collingwood" },
-    { label: "Compare goals", prompt: "Compare goals markets for Giants vs Eagles" },
-    { label: "Example multi", prompt: "Build a 3-leg AFL example multi around $2.00 using disposals only. Keep it simple and explain the risk." },
+  const displayedTargetOdds = targetOdds === "Custom" && customTargetOdds ? "$" + customTargetOdds : targetOdds;
+  const displayedLegs = legs === "Custom" && customLegs ? customLegs : legs;
+
+  const exampleLegs = [
+    {
+      name: "Player A 25+ disposals",
+      confidence: "78%",
+      reason: "Example data: cleared 25+ in 7 of the last 8 games, averaging 29.4 disposals across that span.",
+      details: [
+        { label: "Last 8 hit rate", value: "7/8" },
+        { label: "Last 8 average", value: "29.4" },
+        { label: "Season average", value: "27.8" },
+        { label: "Lowest in last 8", value: "23" },
+        { label: "Highest in last 8", value: "36" },
+        { label: "Role note", value: "Primary mid" },
+      ],
+      trend: "Recent disposal counts: 31, 28, 34, 26, 30, 23, 36, 27. He has only missed the 25+ line once in this sample.",
+      extraReason: "This leg is included because the recent hit rate is strong, the average sits above the line, and the player role supports repeat disposal volume.",
+    },
+    {
+      name: "Player B 25+ disposals",
+      confidence: "74%",
+      reason: "Example data: cleared 25+ in 8 of the last 10 games, averaging 28.1 disposals across that span.",
+      details: [
+        { label: "Last 10 hit rate", value: "8/10" },
+        { label: "Last 10 average", value: "28.1" },
+        { label: "Season average", value: "26.9" },
+        { label: "Lowest in last 10", value: "21" },
+        { label: "Highest in last 10", value: "35" },
+        { label: "Role note", value: "Inside/outside mid" },
+      ],
+      trend: "Recent disposal counts: 29, 31, 27, 24, 30, 28, 35, 21, 26, 30. The two misses were close to the line rather than major role drops.",
+      extraReason: "This leg is included because the player has shown a stable disposal floor and has cleared the selected line in most recent matches.",
+    },
+    {
+      name: "Player C 20+ disposals",
+      confidence: "71%",
+      reason: "Example data: cleared 20+ in 6 of the last 8 games, with a stable midfield role in recent matches.",
+      details: [
+        { label: "Last 8 hit rate", value: "6/8" },
+        { label: "Last 8 average", value: "23.6" },
+        { label: "Season average", value: "22.4" },
+        { label: "Lowest in last 8", value: "17" },
+        { label: "Highest in last 8", value: "30" },
+        { label: "Role note", value: "Mid rotation" },
+      ],
+      trend: "Recent disposal counts: 24, 22, 19, 26, 30, 17, 25, 23. This is a lower line, but the role is slightly less secure than the first two legs.",
+      extraReason: "This leg is included because the lower line helps keep the overall multi near the target odds while still being supported by recent form.",
+    },
   ];
 
   const resetEdgeChat = () => {
@@ -594,7 +556,7 @@ function EdgePage({ setActivePage }) {
     setChatMessages([
       {
         role: "edge",
-        text: "Simple view:\n\nNew Edge chat started. Ask me for available games, player markets, market comparisons, or an example multi.\n\nWhat I would check:\n\nI will use connected odds and market data where available, and I will clearly say when saved player stats are missing.\n\nImportant:\n\nThis is informational only, not betting advice.",
+        text: "Simple view:\n\nNew Edge chat started. Ask me for an example multi, a game analysis structure, or what data I would check before building a selection.\n\nExample structure:\n\nYou can ask things like: Build a 3-leg AFL example around $2.00 using disposals only.\n\nWhat I would check:\n\nI will explain the key data needed without pretending live stats are connected yet.\n\nRisk level:\n\nI can explain the risk on a 1 to 10 scale.\n\nImportant:\n\nThis is informational only, not betting advice.",
       },
     ]);
     setChatInput("");
@@ -606,8 +568,12 @@ function EdgePage({ setActivePage }) {
     setLastEdgeContext(null);
   };
 
-  const sendChatMessage = async (overrideMessage) => {
-    const trimmed = String(overrideMessage || chatInput).trim();
+  const useExamplePrompt = (prompt) => {
+    setChatInput(prompt);
+  };
+
+  const sendChatMessage = async () => {
+    const trimmed = chatInput.trim();
     if (!trimmed || edgeLoading) return;
 
     setChatMessages((current) => [...current, { role: "user", text: trimmed }]);
@@ -621,10 +587,10 @@ function EdgePage({ setActivePage }) {
         body: JSON.stringify({
           message: trimmed,
           context: {
-            mode: "chat",
+            mode,
             sport,
-            legs,
-            targetOdds,
+            legs: displayedLegs,
+            targetOdds: displayedTargetOdds,
             riskProfile,
             request,
             previousEdgeContext: lastEdgeContext,
@@ -633,7 +599,9 @@ function EdgePage({ setActivePage }) {
       });
 
       const data = await response.json();
-      if (data?.edgeContext) setLastEdgeContext(data.edgeContext);
+      if (data?.edgeContext) {
+        setLastEdgeContext(data.edgeContext);
+      }
       if (!response.ok) throw new Error(data.error || "Edge request failed");
       setChatMessages((current) => [...current, { role: "edge", text: data.reply }]);
     } catch (error) {
@@ -641,7 +609,7 @@ function EdgePage({ setActivePage }) {
         ...current,
         {
           role: "edge",
-          text: "Simple view:\n\nEdge could not respond right now.\n\nWhat I would check:\n\nConfirm the Vercel function is deployed and the required API keys are set correctly.\n\nImportant:\n\nTry again shortly after checking the setup.",
+          text: "Simple view:\n\nEdge could not respond right now.\n\nExample structure:\n\nThis usually means the backend API, OpenAI key, or deployment needs to be checked.\n\nWhat I would check:\n\nConfirm the Vercel function is deployed and the OPENAI_API_KEY is set correctly.\n\nRisk level:\n\nTechnical issue only.\n\nImportant:\n\nTry again shortly after checking the setup.",
         },
       ]);
     } finally {
@@ -650,100 +618,151 @@ function EdgePage({ setActivePage }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
+    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
-        <div className="mx-auto max-w-5xl space-y-5">
-          <header className="space-y-4">
-            <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
-
-            <div className="rounded-3xl border border-slate-200 bg-[#FAF7EF] p-5 shadow-sm md:p-7">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <header className="grid gap-6 lg:grid-cols-[1.35fr_0.75fr] lg:items-start">
+            <div>
+              <button onClick={() => setActivePage("app")} className="mb-3 text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium text-slate-500">AI analyst preview</p>
-                <span className="rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">Edge Beta</span>
+                <span className="rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">Beta preview</span>
               </div>
-              <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-5xl">Ask Edge</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">
-                Explore available markets, compare saved player stats, and understand risk in plain English.
-              </p>
+              <h1 className="mt-2 text-4xl font-bold tracking-tight md:text-6xl">Edge</h1>
+              <p className="mt-2 max-w-2xl text-slate-600">A smarter way to explore example multis, game analysis and risk, built around clear data instead of vague tips.</p>
+              <div className="mt-3 inline-flex max-w-xl items-center rounded-2xl border border-[#C49A4A]/50 bg-[#C49A4A]/15 px-4 py-3 text-sm leading-6 text-[#11203B] shadow-sm">
+                <span className="mr-2">✨</span><span><span className="font-semibold">Live data coming soon:</span> odds, player stats and team news.</span>
+              </div>
+              <div className="mt-3 max-w-3xl rounded-2xl border border-slate-300 bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700">
+                <p className="font-semibold text-[#11203B]">What is Edge?</p>
+                <p className="mt-1">Edge is your AI analysis assistant inside Bet Tracker. It helps explain example multis, risk levels, market types and what data should be checked before making decisions. Edge is designed to be educational and data-focused, not a betting tips service.</p>
+              </div>
+            </div>
+            <div className="space-y-4 lg:pt-10">
+              <div className="rounded-2xl border border-[#C49A4A]/40 bg-[#C49A4A]/15 p-4 text-sm leading-6 text-[#11203B] shadow-sm">
+                <span className="font-semibold">Important:</span> Edge is for informational analysis only. It is not betting advice, financial advice, or a guarantee of results. Always make your own decision and gamble responsibly.
+              </div>
+              <div className="flex flex-col items-start gap-3 lg:items-end">
+                <div className="rounded-2xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm text-slate-600 shadow-sm">
+                  <span className="font-semibold text-[#11203B]">Preview mode</span><br />Live sports data coming soon
+                </div>
+              </div>
             </div>
           </header>
 
-          <EdgeInfoCard />
+          <section className="grid items-start gap-6 lg:grid-cols-[380px_1fr]">
+            <Card className="h-fit">
+              <div className="p-5">
+                <div className="grid gap-2 rounded-2xl bg-[#E8E2D4] p-1 sm:grid-cols-2">
+                  <button onClick={() => setMode("multi")} className={"rounded-xl px-4 py-3 text-sm font-semibold transition " + (mode === "multi" ? "bg-[#FAF7EF] text-[#11203B] shadow-sm" : "text-slate-600 hover:text-[#11203B]")}>Example Multi</button>
+                  <button onClick={() => setMode("analysis")} className={"rounded-xl px-4 py-3 text-sm font-semibold transition " + (mode === "analysis" ? "bg-[#FAF7EF] text-[#11203B] shadow-sm" : "text-slate-600 hover:text-[#11203B]")}>Game Analysis</button>
+                </div>
 
-          <Card>
-            <div className="p-4 md:p-5">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Quick prompts</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">Tap one to test Edge quickly, or type your own question below.</p>
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-                  {edgeStarterPrompts.map((item) => (
-                    <EdgeQuickPrompt key={item.label} onClick={() => sendChatMessage(item.prompt)}>
-                      {item.label}
-                    </EdgeQuickPrompt>
-                  ))}
-                </div>
+                {mode === "multi" ? (
+                  <div className="mt-6 space-y-5">
+                    <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
+                    <EdgeSelectField label="Games" value="Tonight's games" onChange={() => {}} options={["Tonight's games", "Selected game only", "This weekend"]} />
+                    <EdgeSelectField label="Number of legs" value={legs} onChange={setLegs} options={["Any", "2", "3", "4", "5", "Custom"]} />
+                    {legs === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom number of legs<Input type="number" min="1" step="1" value={customLegs} onChange={(event) => setCustomLegs(event.target.value)} placeholder="e.g. 6" /></label> : null}
+                    <EdgeSelectField label="Target odds" value={targetOdds} onChange={setTargetOdds} options={["$1.50", "$2.00", "$3.00", "$5.00", "Custom"]} />
+                    {targetOdds === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom target odds<Input type="number" min="1" step="0.01" value={customTargetOdds} onChange={(event) => setCustomTargetOdds(event.target.value)} placeholder="e.g. 2.20" /></label> : null}
+                    <EdgeSelectField label="Risk profile" value={riskProfile} onChange={setRiskProfile} options={["Safer", "Balanced", "Aggressive"]} />
+                    <label className="space-y-1 text-sm font-medium">Optional request<Input value={request} onChange={(event) => setRequest(event.target.value)} placeholder="e.g. Disposals only, no same-game legs" /></label>
+                    <div className="pt-2"><Button className="w-full rounded-2xl py-3 text-base">Preview example multi</Button></div>
+                  </div>
+                ) : (
+                  <div className="mt-6 space-y-5">
+                    <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
+                    <EdgeSelectField label="Game" value="Select upcoming game" onChange={() => {}} options={["Select upcoming game", "Team A vs Team B", "Team C vs Team D"]} />
+                    <label className="space-y-1 text-sm font-medium">Focus area<Input value="Recent form, injuries and head-to-head" readOnly /></label>
+                    <div className="pt-2"><Button className="w-full rounded-2xl py-3 text-base">Preview game analysis</Button></div>
+                  </div>
+                )}
               </div>
+            </Card>
+
+            <div className="space-y-6">
+              <Card>
+                <div className="p-5 md:p-6">
+                  <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">Edge output</p>
+                      <h2 className="mt-1 text-2xl font-semibold">Example {displayedLegs}-leg {sport} multi</h2>
+                      <p className="mt-2 text-sm text-slate-600">This is placeholder preview data only. The live version will use current odds, market availability and sport-specific statistics before producing outputs.</p>
+                    </div>
+                    <div className="rounded-2xl bg-[#11203B] px-4 py-3 text-white">
+                      <p className="text-xs uppercase tracking-wide text-slate-300">Target odds</p>
+                      <p className="text-2xl font-semibold">{displayedTargetOdds}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid gap-4 md:grid-cols-3">
+                    {exampleLegs.map((leg, index) => (
+                      <div key={leg.name} className="rounded-2xl border border-slate-200 p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Leg {index + 1}</p>
+                        <h3 className="mt-1 font-semibold">{leg.name}</h3>
+                        <p className="mt-2 text-sm text-slate-600">{leg.reason}</p>
+                        <p className="mt-3 text-sm font-medium text-[#11203B]">Confidence: {leg.confidence}</p>
+                        <EdgeDetailToggle leg={leg} />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 rounded-2xl bg-slate-50 p-4">
+                    <EdgeRiskMeter score={6} />
+                    <button
+                      type="button"
+                      onClick={() => setShowRiskExplanation((current) => !current)}
+                      className="mt-4 flex w-full max-w-sm items-center justify-between rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-2.5 text-left text-sm font-semibold text-slate-900 transition hover:bg-white/70"
+                    >
+                      <span>Why this risk score?</span>
+                      <span className="text-lg text-slate-500">{showRiskExplanation ? "−" : "+"}</span>
+                    </button>
+                    {showRiskExplanation ? (
+                      <div className="mt-3 rounded-2xl bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700">
+                        A 6/10 preview score reflects a balanced multi with multiple legs and player-market variance. The live version will calculate this from odds, markets, leg count and data confidence.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </Card>
             </div>
-          </Card>
+          </section>
 
           <Card>
-            <div className="p-4 md:p-5">
-              <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="p-5 md:p-6">
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                 <div>
                   <p className="text-sm font-medium text-slate-500">Chat with Edge</p>
-                  <h2 className="text-xl font-semibold">Ask a market or stats question</h2>
+                  <h2 className="text-xl font-semibold">Refine the build naturally</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="outline" onClick={resetEdgeChat}>New chat</Button>
-                  <Button type="button" variant="ghost" onClick={clearEdgeChat}>Clear</Button>
+                  <Button type="button" variant="ghost" onClick={clearEdgeChat}>Clear chat</Button>
+                  <span className="rounded-full bg-[#11203B] px-3 py-2 text-xs font-semibold text-white">Preview mode</span>
                 </div>
               </div>
-
               {chatMessages.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-[#E8E2D4]/70 p-4 text-sm leading-6 text-slate-600">
-                  <p className="font-semibold text-[#11203B]">Start with a simple question.</p>
-                  <p className="mt-1">Examples: “show AFL games”, “compare disposal markets for Swans vs Collingwood”, or “build an example multi around $2”.</p>
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-[#FAF7EF]/70 p-4">
+                  <p className="text-sm font-semibold text-[#11203B]">Try asking Edge</p>
+                  <p className="mt-1 text-sm text-slate-600">Choose a starter prompt or type your own question below.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => useExamplePrompt(`Build a ${displayedLegs}-leg ${sport} example multi around ${displayedTargetOdds}. Keep it simple and explain the risk.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Build example multi</button>
+                    <button type="button" onClick={() => useExamplePrompt(`Make the ${sport} example ${request || "disposals only"} and explain what data you would check.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Use my request</button>
+                    <button type="button" onClick={() => useExamplePrompt(`Explain why this ${sport} build has a 6 out of 10 risk score.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Explain risk score</button>
+                    <button type="button" onClick={() => useExamplePrompt(`What data would you check before choosing players for this ${sport} build?`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">What data to check?</button>
+                  </div>
                 </div>
               ) : null}
-
-              <div className="mt-4 max-h-[60vh] space-y-3 overflow-y-auto rounded-2xl bg-[#E8E2D4]/45 p-3 md:max-h-[560px] md:p-4">
-                {chatMessages.map((chatMessage, index) => (
-                  <EdgeMessage key={index} role={chatMessage.role}>{chatMessage.text}</EdgeMessage>
-                ))}
-                {edgeLoading ? (
-                  <div className="flex justify-start">
-                    <div className="rounded-2xl rounded-bl-md border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm text-slate-500 shadow-sm">
-                      Edge is thinking…
-                    </div>
-                  </div>
-                ) : null}
+              <div className="mt-5 space-y-3">
+                {chatMessages.map((chatMessage, index) => <EdgeMessage key={index} role={chatMessage.role}>{chatMessage.text}</EdgeMessage>)}
               </div>
-
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-[#FAF7EF] p-2 shadow-sm">
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    value={chatInput}
-                    onChange={(event) => setChatInput(event.target.value)}
-                    placeholder="Ask Edge about games, markets, stats or an example multi..."
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") sendChatMessage();
-                    }}
-                    disabled={edgeLoading}
-                    className="border-0 bg-transparent focus:ring-0"
-                  />
-                  <Button onClick={() => sendChatMessage()} className="sm:px-6" disabled={edgeLoading}>
-                    {edgeLoading ? "Thinking..." : "Send"}
-                  </Button>
-                </div>
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                <Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Edge a follow-up..." onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} />
+                <Button onClick={sendChatMessage} className="sm:px-6" disabled={edgeLoading}>{edgeLoading ? "Thinking..." : "Send"}</Button>
               </div>
             </div>
           </Card>
-
-          <div className="rounded-2xl border border-[#C49A4A]/40 bg-[#C49A4A]/10 p-4 text-xs leading-5 text-slate-600">
-            <span className="font-semibold text-[#11203B]">Important:</span> Edge is for informational analysis only. It is not betting advice, financial advice, or a guarantee of results.
-          </div>
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
@@ -873,6 +892,71 @@ function LegalPage({ page, setActivePage }) {
   );
 }
 
+
+function MobileBottomNav({ activePage, setActivePage, formRef }) {
+  const navButtonClass =
+    "flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-xs font-semibold transition";
+
+  const inactiveClass = "text-slate-500 hover:bg-[#E8E2D4] hover:text-[#11203B]";
+  const activeClass = "bg-[#11203B] text-white shadow-sm";
+
+  const goToDashboard = () => {
+    setActivePage("app");
+    window.setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 50);
+  };
+
+  const goToAddBet = () => {
+    setActivePage("app");
+    window.setTimeout(() => {
+      formRef?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  };
+
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-[#FAF7EF]/95 px-3 pb-[env(safe-area-inset-bottom)] pt-2 shadow-[0_-8px_25px_rgba(15,23,42,0.12)] backdrop-blur md:hidden">
+      <div className="mx-auto flex max-w-xl gap-2 rounded-3xl">
+        <button
+          type="button"
+          onClick={goToDashboard}
+          className={`${navButtonClass} ${activePage === "app" ? activeClass : inactiveClass}`}
+        >
+          <span className="text-lg">⌂</span>
+          <span>Home</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={goToAddBet}
+          className={`${navButtonClass} bg-[#C49A4A]/20 text-[#11203B] hover:bg-[#C49A4A]/30`}
+        >
+          <span className="text-lg">＋</span>
+          <span>Add</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActivePage("edge")}
+          className={`${navButtonClass} ${activePage === "edge" ? activeClass : inactiveClass}`}
+        >
+          <span className="text-lg">◇</span>
+          <span>Edge</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActivePage("settings")}
+          className={`${navButtonClass} ${activePage === "settings" ? activeClass : inactiveClass}`}
+        >
+          <span className="text-lg">⚙</span>
+          <span>Settings</span>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 export default function BettingTrackerWebsite() {
   const [session, setSession] = useState(null);
   const [authMode, setAuthMode] = useState("login");
@@ -893,7 +977,6 @@ export default function BettingTrackerWebsite() {
   const [chartView, setChartView] = useState("weekly");
   const [chartType, setChartType] = useState("bar");
   const [form, setForm] = useState({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
-  const [showAddBetForm, setShowAddBetForm] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -1067,11 +1150,9 @@ export default function BettingTrackerWebsite() {
   const resetBetForm = () => {
     setEditingBetId(null);
     setForm({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
-    setShowAddBetForm(false);
   };
 
   const startEditingBet = (bet) => {
-    setShowAddBetForm(true);
     setEditingBetId(bet.id);
     setForm({
       date: bet.date,
@@ -1225,22 +1306,26 @@ export default function BettingTrackerWebsite() {
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
 
   return (
-    <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
+    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
-        <div className="mx-auto max-w-7xl space-y-5 md:space-y-6">
+        <div className="mx-auto max-w-7xl space-y-6">
           <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
               <p className="text-sm font-medium text-slate-500">Online account version</p>
               <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Bet Tracker</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">Track stakes, returns, profit/loss, win rate, ROI and weekly performance.</p>
-              <p className="mt-1 text-xs text-slate-500 md:text-sm">Logged in as {session.user.email}</p>
+              <p className="mt-2 max-w-2xl text-slate-600">Track stakes, returns, profit/loss, win rate, ROI and weekly performance. Your data is saved online with Supabase.</p>
+              <p className="mt-1 text-sm text-slate-500">Logged in as {session.user.email}</p>
             </div>
-            <div className="hidden flex-col gap-3 md:flex md:items-end">
+            <div className="flex flex-col gap-3 sm:items-end">
               <div className="relative max-w-sm rounded-2xl border border-slate-300 bg-[#FAF7EF] px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm">
                 Hi, I’m Edge. I can help you explore example multis, player markets, and game analysis.
                 <span className="absolute -bottom-2 left-[28%] h-4 w-4 rotate-45 border-b border-r border-slate-300 bg-[#FAF7EF]" />
               </div>
-              <Button onClick={() => setActivePage("edge")} className="rounded-2xl px-6 py-4 text-base font-semibold shadow-lg shadow-slate-300">Ask Edge</Button>
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                <Button onClick={() => setActivePage("edge")} className="col-span-2 w-full rounded-2xl px-6 py-4 text-base font-semibold shadow-lg shadow-slate-300 sm:col-span-1 sm:w-auto">Ask Edge</Button>
+                <Button onClick={() => setActivePage("settings")} variant="outline" className="w-full sm:w-auto">Settings</Button>
+                <Button onClick={handleLogout} variant="outline" className="col-span-2 w-full sm:col-span-1 sm:w-auto">Log out</Button>
+              </div>
             </div>
           </header>
 
@@ -1255,19 +1340,19 @@ export default function BettingTrackerWebsite() {
                   <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#11203B]">Start by adding your first bet.</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Once you add a bet, your dashboard will start showing profit/loss, win rate, ROI, sport history and graph trends.</p>
                 </div>
-                <Button type="button" onClick={() => { setShowAddBetForm(true); window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} className="w-full rounded-2xl px-5 py-3 sm:w-auto">Add first bet</Button>
+                <Button type="button" onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="w-full rounded-2xl px-5 py-3 sm:w-auto">Add first bet</Button>
               </div>
             </Card>
           ) : null}
 
-          <Card>
-            <div className="p-4 md:p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid gap-3 lg:grid-cols-[1.35fr_0.9fr]">
+            <Card>
+              <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Performance summary</p>
-                  <p className="mt-1 text-xs text-slate-600 md:text-sm">Profit/loss, ROI and win rate at a glance.</p>
+                  <p className="text-sm font-semibold text-[#11203B]">Dashboard filter</p>
+                  <p className="mt-1 text-xs text-slate-600 md:text-sm">Filter stats, graph and history by sport.</p>
                 </div>
-                <label className="space-y-1 text-sm font-medium sm:min-w-52">
+                <label className="space-y-1 text-sm font-medium md:min-w-52">
                   Sport
                   <select
                     value={selectedSportFilter}
@@ -1275,7 +1360,7 @@ export default function BettingTrackerWebsite() {
                       setSelectedSportFilter(event.target.value);
                       setShowAllBets(false);
                     }}
-                    className="w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-[#11203B] focus:ring-2 focus:ring-slate-200 md:text-sm"
+                    className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-[#11203B] focus:ring-2 focus:ring-slate-200"
                   >
                     <option value="All sports">All sports</option>
                     <option value="AFL">AFL</option>
@@ -1287,124 +1372,46 @@ export default function BettingTrackerWebsite() {
                   </select>
                 </label>
               </div>
+            </Card>
 
-              <div className="mt-4 grid grid-cols-3 gap-2 md:gap-4">
-                <div className="rounded-2xl bg-[#E8E2D4] p-3 md:p-4">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">Profit/Loss</p>
-                  <p className={("mt-1 text-lg font-bold md:text-2xl " + (stats.totalProfit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"))}>{formatCurrency(stats.totalProfit)}</p>
-                </div>
-                <div className="rounded-2xl bg-[#E8E2D4] p-3 md:p-4">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">ROI</p>
-                  <p className="mt-1 text-lg font-bold text-[#11203B] md:text-2xl">{stats.roi.toFixed(1)}%</p>
-                </div>
-                <div className="rounded-2xl bg-[#E8E2D4] p-3 md:p-4">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">Win Rate</p>
-                  <p className="mt-1 text-lg font-bold text-[#11203B] md:text-2xl">{stats.winRate.toFixed(1)}%</p>
-                </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4 md:gap-3">
-                <div className="rounded-xl border border-slate-200 bg-[#FAF7EF] p-3"><p className="text-xs text-slate-500">Staked</p><p className="font-semibold text-[#11203B]">{formatCurrency(stats.totalStaked)}</p></div>
-                <div className="rounded-xl border border-slate-200 bg-[#FAF7EF] p-3"><p className="text-xs text-slate-500">Returned</p><p className="font-semibold text-[#11203B]">{formatCurrency(stats.totalReturned)}</p></div>
-                <div className="rounded-xl border border-[#2E7D5B]/25 bg-[#2E7D5B]/10 p-3"><p className="text-xs text-slate-500">Wins</p><p className="font-semibold text-[#2E7D5B]">{stats.wins}</p></div>
-                <div className="rounded-xl border border-[#A94442]/25 bg-[#A94442]/10 p-3"><p className="text-xs text-slate-500">Losses</p><p className="font-semibold text-[#A94442]">{stats.losses}</p></div>
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="p-4 md:p-5">
-              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                <div><h2 className="text-xl font-semibold">{chartTitle}</h2><p className="text-sm text-slate-500">{chartDescription}</p></div>
-                <div className="grid grid-cols-2 gap-2 sm:flex">
-                  <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
-                  <select value={chartType} onChange={(event) => setChartType(event.target.value)} className="min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="bar">Bar graph</option><option value="line">Line graph</option><option value="area">Area graph</option></select>
-                </div>
-              </div>
-              <div className="mt-4 h-64 md:h-80">
-                {chartData.length ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    {chartType === "line" ? (
-                      <LineChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} width={45} />
-                        <Tooltip formatter={(value) => formatCurrency(value)} />
-                        <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                        <Line type="monotone" dataKey="profitLoss" stroke={chartColor} strokeWidth={3} dot={(props) => <circle cx={props.cx} cy={props.cy} r={4} fill={props.payload.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />} activeDot={{ r: 6 }} />
-                      </LineChart>
-                    ) : chartType === "area" ? (
-                      <AreaChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} width={45} />
-                        <Tooltip formatter={(value) => formatCurrency(value)} />
-                        <defs>
-                          <linearGradient id="profitLossGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={positiveChartColor} stopOpacity={0.22} />
-                            <stop offset={zeroOffset + "%"} stopColor={positiveChartColor} stopOpacity={0.16} />
-                            <stop offset={zeroOffset + "%"} stopColor={negativeChartColor} stopOpacity={0.16} />
-                            <stop offset="100%" stopColor={negativeChartColor} stopOpacity={0.24} />
-                          </linearGradient>
-                        </defs>
-                        <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                        <Area type="monotone" dataKey="profitLoss" stroke={chartColor} fill="url(#profitLossGradient)" strokeWidth={3} />
-                      </AreaChart>
-                    ) : (
-                      <BarChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} width={45} />
-                        <Tooltip formatter={(value) => formatCurrency(value)} />
-                        <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                        <Bar dataKey="profitLoss" radius={[10, 10, 0, 0]}>
-                          {chartData.map((entry) => <Cell key={entry.sortKey} fill={entry.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />)}
-                        </Bar>
-                      </BarChart>
-                    )}
-                  </ResponsiveContainer>
-                ) : <div className="flex h-full items-center justify-center rounded-2xl bg-[#E8E2D4] text-sm text-slate-500">Add your first bet to see the graph.</div>}
-              </div>
-            </div>
-          </Card>
-
-          <Card className="border-[#11203B]/15 bg-[#FAF7EF]">
-            <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-5">
-              <div>
-                <p className="text-sm font-semibold text-slate-500">Edge AI Analyst</p>
-                <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#11203B]">Ask Edge before your next one.</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Explore available markets, compare saved stats, and build informational examples with clear risk notes.</p>
-              </div>
-              <Button onClick={() => setActivePage("edge")} className="w-full rounded-2xl py-3 text-base font-semibold shadow-sm md:w-auto md:px-6">Open Edge</Button>
-            </div>
-          </Card>
-
-          <Card>
-            <div ref={formRef} className="p-4 md:p-5">
-              <div className="flex items-center justify-between gap-3">
+            <Card className="border-[#C49A4A]/40 bg-[#C49A4A]/10">
+              <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Quick log</p>
-                  <p className="mt-1 text-sm text-slate-500">Add a bet when you need it.</p>
+                  <p className="text-sm font-semibold text-[#11203B]">Quick feedback</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-700 md:text-sm">Got an idea or found something confusing?</p>
                 </div>
-                {showAddBetForm || editingBetId ? (
-                  <Button type="button" variant="outline" onClick={resetBetForm} className="min-h-10 px-3 py-2 text-sm">Cancel</Button>
-                ) : (
-                  <Button type="button" onClick={() => setShowAddBetForm(true)} className="min-h-10 px-4 py-2 text-sm shadow-sm">Add Bet</Button>
-                )}
+                <a
+                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F"
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-[#11203B] px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 md:w-auto"
+                >
+                  Give feedback
+                </a>
               </div>
+            </Card>
+          </div>
 
-              {showAddBetForm || editingBetId ? (
-                <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
-                      {editingBetId ? <p className="mt-1 text-sm text-slate-500">Update the details below, then save your changes.</p> : <p className="mt-1 text-sm text-slate-500">Log the stake, odds, result and return.</p>}
-                    </div>
+          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"} value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
+            <StatCard title={selectedSportFilter === "All sports" ? "Win Rate" : selectedSportFilter + " Win Rate"} value={stats.winRate.toFixed(1) + "%"} helper={stats.wins + " wins, " + stats.losses + " losses"} />
+            <StatCard title={selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"} value={stats.roi.toFixed(1) + "%"} helper="Profit compared to total staked" />
+            <StatCard title={selectedSportFilter === "All sports" ? "Total Staked" : selectedSportFilter + " Staked"} value={formatCurrency(stats.totalStaked)} helper={"Returned: " + formatCurrency(stats.totalReturned)} />
+          </section>
+
+          <section className="grid gap-6 lg:grid-cols-5">
+            <Card className="lg:col-span-2">
+              <div ref={formRef} className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
+                    {editingBetId ? <p className="mt-1 text-sm text-slate-500">Update the details below, then save your changes.</p> : null}
                   </div>
+                  {editingBetId ? <Button type="button" variant="outline" onClick={resetBetForm}>Cancel</Button> : null}
+                </div>
+                <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
                   <div className="grid gap-4 sm:grid-cols-3">
                     <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
-                    <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
-                    <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
+                    <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
+                    <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
@@ -1413,36 +1420,83 @@ export default function BettingTrackerWebsite() {
                   </div>
                   <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
                   <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
-                  <Button type="submit" className="w-full py-3 text-base font-semibold shadow-sm">{editingBetId ? "Update Bet" : "Save Bet"}</Button>
+                  <Button type="submit" className="w-full">{editingBetId ? "Update Bet" : "Add Bet"}</Button>
                 </form>
-              ) : null}
-            </div>
-          </Card>
+              </div>
+            </Card>
 
-          <section className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-            <Card className="border-[#2E7D5B]/25 bg-[#2E7D5B]/10">
-              <div className="p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Biggest Win</p>
-                <p className="mt-1 text-xl font-bold text-[#2E7D5B]">{formatCurrency(stats.biggestWin)}</p>
+            <Card className="lg:col-span-3">
+              <div className="p-5">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                  <div><h2 className="text-xl font-semibold">{chartTitle}</h2><p className="text-sm text-slate-500">{chartDescription}</p></div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+                    <select value={chartType} onChange={(event) => setChartType(event.target.value)} className="rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="bar">Bar graph</option><option value="line">Line graph</option><option value="area">Area graph</option></select>
+                  </div>
+                </div>
+                <div className="mt-4 h-80">
+                  {chartData.length ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      {chartType === "line" ? (
+                        <LineChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
+                          <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
+                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                          <Line type="monotone" dataKey="profitLoss" stroke={chartColor} strokeWidth={3} dot={(props) => <circle cx={props.cx} cy={props.cy} r={4} fill={props.payload.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />} activeDot={{ r: 6 }} />
+                        </LineChart>
+                      ) : chartType === "area" ? (
+                        <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
+                          <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
+                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <defs>
+                            <linearGradient id="profitLossGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={positiveChartColor} stopOpacity={0.22} />
+                              <stop offset={zeroOffset + "%"} stopColor={positiveChartColor} stopOpacity={0.16} />
+                              <stop offset={zeroOffset + "%"} stopColor={negativeChartColor} stopOpacity={0.16} />
+                              <stop offset="100%" stopColor={negativeChartColor} stopOpacity={0.24} />
+                            </linearGradient>
+                          </defs>
+                          <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                          <Area type="monotone" dataKey="profitLoss" stroke={chartColor} fill="url(#profitLossGradient)" strokeWidth={3} />
+                        </AreaChart>
+                      ) : (
+                        <BarChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
+                          <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
+                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                          <Bar dataKey="profitLoss" radius={[10, 10, 0, 0]}>
+                            {chartData.map((entry) => <Cell key={entry.sortKey} fill={entry.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />)}
+                          </Bar>
+                        </BarChart>
+                      )}
+                    </ResponsiveContainer>
+                  ) : <div className="flex h-full items-center justify-center rounded-2xl bg-[#E8E2D4] text-sm text-slate-500">Add your first bet to see the graph.</div>}
+                </div>
               </div>
             </Card>
-            <Card className="border-[#A94442]/25 bg-[#A94442]/10">
-              <div className="p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Biggest Loss</p>
-                <p className="mt-1 text-xl font-bold text-[#A94442]">{formatCurrency(stats.biggestLoss)}</p>
-              </div>
-            </Card>
-            <StatCard title="Winning Streak" value={String(stats.longestWinningStreak) + " bets"} />
-            <StatCard title="Losing Streak" value={String(stats.longestLosingStreak) + " bets"} />
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard title="Biggest Win" value={formatCurrency(stats.biggestWin)} />
+            <StatCard title="Biggest Loss" value={formatCurrency(stats.biggestLoss)} />
+            <StatCard title="Longest Winning Streak" value={String(stats.longestWinningStreak) + " bets"} />
+            <StatCard title="Longest Losing Streak" value={String(stats.longestLosingStreak) + " bets"} />
           </section>
 
           <Card>
-            <div className="p-4 md:p-5">
+            <div className="p-5">
               <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
                 <div>
-                  <h2 className="text-xl font-semibold">Recent bets</h2>
-                  <p className="text-sm text-slate-500">Showing {visibleBets.length} of {filteredBets.length} bets{selectedSportFilter !== "All sports" ? " for " + selectedSportFilter : ""}</p>
+                  <h2 className="text-xl font-semibold">Bet history</h2>
+                  <p className="text-sm text-slate-500">Edit or delete entries if you make a mistake.</p>
                 </div>
+                <p className="text-sm text-slate-500">Showing {visibleBets.length} of {filteredBets.length} bets{selectedSportFilter !== "All sports" ? " for " + selectedSportFilter : ""}</p>
               </div>
 
               <div className="mt-4 space-y-3 md:hidden">
@@ -1450,8 +1504,8 @@ export default function BettingTrackerWebsite() {
                   <div key={bet.id} className={"rounded-2xl border border-slate-200 p-4 " + (editingBetId === bet.id ? "bg-slate-50" : "bg-[#FAF7EF]")}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#11203B]">{bet.sport || "Other"}</p>
-                        <p className="mt-1 text-xs capitalize text-slate-500">{bet.date} · {bet.result} · Odds {bet.odds || "-"}</p>
+                        <p className="text-sm font-semibold text-[#11203B]">{bet.date}</p>
+                        <p className="mt-1 text-xs capitalize text-slate-500">{bet.sport || "Other"} · {bet.result} · Odds {bet.odds || "-"}</p>
                       </div>
                       <p className={"text-base font-semibold " + (bet.profitLoss >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(bet.profitLoss)}</p>
                     </div>
@@ -1483,29 +1537,13 @@ export default function BettingTrackerWebsite() {
               {filteredBets.length > 5 ? <div className="mt-5 flex justify-center"><Button type="button" variant="outline" onClick={() => setShowAllBets((current) => !current)}>{showAllBets ? "Show less" : `Show all bets (${filteredBets.length})`}</Button></div> : null}
             </div>
           </Card>
-
-          <Card>
-            <div className="space-y-3 p-4 md:p-5">
-              <p className="text-sm font-semibold text-[#11203B]">Account and feedback</p>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <a
-                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F"
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-[#FAF7EF] px-4 py-2.5 text-sm font-medium text-[#11203B] transition hover:bg-[#E8E2D4]"
-                >
-                  Give feedback
-                </a>
-                <Button type="button" variant="outline" onClick={() => setActivePage("settings")} className="w-full">Settings</Button>
-                <Button type="button" variant="outline" onClick={handleLogout} className="w-full border-red-300 bg-red-100 text-red-900 hover:bg-red-100">Log out</Button>
-              </div>
-            </div>
-          </Card>
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
+      <MobileBottomNav activePage={activePage} setActivePage={setActivePage} formRef={formRef} />
       <Analytics />
     </div>
   );
-
 }
 
 runBasicTests();
