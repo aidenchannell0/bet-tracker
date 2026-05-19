@@ -912,6 +912,7 @@ export default function BettingTrackerWebsite() {
   const [chartView, setChartView] = useState("weekly");
   const [chartType, setChartType] = useState("bar");
   const [form, setForm] = useState({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
+  const [showAddBetForm, setShowAddBetForm] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -1085,9 +1086,11 @@ export default function BettingTrackerWebsite() {
   const resetBetForm = () => {
     setEditingBetId(null);
     setForm({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
+    setShowAddBetForm(false);
   };
 
   const startEditingBet = (bet) => {
+    setShowAddBetForm(true);
     setEditingBetId(bet.id);
     setForm({
       date: bet.date,
@@ -1271,7 +1274,7 @@ export default function BettingTrackerWebsite() {
                   <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#11203B]">Start by adding your first bet.</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Once you add a bet, your dashboard will start showing profit/loss, win rate, ROI, sport history and graph trends.</p>
                 </div>
-                <Button type="button" onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="w-full rounded-2xl px-5 py-3 sm:w-auto">Add first bet</Button>
+                <Button type="button" onClick={() => { setShowAddBetForm(true); window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} className="w-full rounded-2xl px-5 py-3 sm:w-auto">Add first bet</Button>
               </div>
             </Card>
           ) : null}
@@ -1322,8 +1325,8 @@ export default function BettingTrackerWebsite() {
               <div className="mt-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4 md:gap-3">
                 <div className="rounded-xl border border-slate-200 bg-[#FAF7EF] p-3"><p className="text-xs text-slate-500">Staked</p><p className="font-semibold text-[#11203B]">{formatCurrency(stats.totalStaked)}</p></div>
                 <div className="rounded-xl border border-slate-200 bg-[#FAF7EF] p-3"><p className="text-xs text-slate-500">Returned</p><p className="font-semibold text-[#11203B]">{formatCurrency(stats.totalReturned)}</p></div>
-                <div className="rounded-xl border border-slate-200 bg-[#FAF7EF] p-3"><p className="text-xs text-slate-500">Wins</p><p className="font-semibold text-[#11203B]">{stats.wins}</p></div>
-                <div className="rounded-xl border border-slate-200 bg-[#FAF7EF] p-3"><p className="text-xs text-slate-500">Losses</p><p className="font-semibold text-[#11203B]">{stats.losses}</p></div>
+                <div className="rounded-xl border border-[#2E7D5B]/25 bg-[#2E7D5B]/10 p-3"><p className="text-xs text-slate-500">Wins</p><p className="font-semibold text-[#2E7D5B]">{stats.wins}</p></div>
+                <div className="rounded-xl border border-[#A94442]/25 bg-[#A94442]/10 p-3"><p className="text-xs text-slate-500">Losses</p><p className="font-semibold text-[#A94442]">{stats.losses}</p></div>
               </div>
             </div>
           </Card>
@@ -1396,6 +1399,63 @@ export default function BettingTrackerWebsite() {
           </Card>
 
           <Card>
+            <div ref={formRef} className="p-4 md:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-[#11203B]">Quick log</p>
+                  <p className="mt-1 text-sm text-slate-500">Add a bet when you need it.</p>
+                </div>
+                {showAddBetForm || editingBetId ? (
+                  <Button type="button" variant="outline" onClick={resetBetForm} className="min-h-10 px-3 py-2 text-sm">Cancel</Button>
+                ) : (
+                  <Button type="button" onClick={() => setShowAddBetForm(true)} className="min-h-10 px-4 py-2 text-sm shadow-sm">Add Bet</Button>
+                )}
+              </div>
+
+              {showAddBetForm || editingBetId ? (
+                <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
+                      {editingBetId ? <p className="mt-1 text-sm text-slate-500">Update the details below, then save your changes.</p> : <p className="mt-1 text-sm text-slate-500">Log the stake, odds, result and return.</p>}
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
+                    <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
+                    <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
+                    <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
+                    <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
+                  </div>
+                  <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
+                  <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
+                  <Button type="submit" className="w-full py-3 text-base font-semibold shadow-sm">{editingBetId ? "Update Bet" : "Save Bet"}</Button>
+                </form>
+              ) : null}
+            </div>
+          </Card>
+
+          <section className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+            <Card className="border-[#2E7D5B]/25 bg-[#2E7D5B]/10">
+              <div className="p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Biggest Win</p>
+                <p className="mt-1 text-xl font-bold text-[#2E7D5B]">{formatCurrency(stats.biggestWin)}</p>
+              </div>
+            </Card>
+            <Card className="border-[#A94442]/25 bg-[#A94442]/10">
+              <div className="p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Biggest Loss</p>
+                <p className="mt-1 text-xl font-bold text-[#A94442]">{formatCurrency(stats.biggestLoss)}</p>
+              </div>
+            </Card>
+            <StatCard title="Winning Streak" value={String(stats.longestWinningStreak) + " bets"} />
+            <StatCard title="Losing Streak" value={String(stats.longestLosingStreak) + " bets"} />
+          </section>
+
+          <Card>
             <div className="p-4 md:p-5">
               <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
                 <div>
@@ -1442,40 +1502,6 @@ export default function BettingTrackerWebsite() {
               {filteredBets.length > 5 ? <div className="mt-5 flex justify-center"><Button type="button" variant="outline" onClick={() => setShowAllBets((current) => !current)}>{showAllBets ? "Show less" : `Show all bets (${filteredBets.length})`}</Button></div> : null}
             </div>
           </Card>
-
-          <Card>
-            <div ref={formRef} className="p-4 md:p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
-                  {editingBetId ? <p className="mt-1 text-sm text-slate-500">Update the details below, then save your changes.</p> : <p className="mt-1 text-sm text-slate-500">Log the stake, odds, result and return.</p>}
-                </div>
-                {editingBetId ? <Button type="button" variant="outline" onClick={resetBetForm}>Cancel</Button> : null}
-              </div>
-              <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
-                  <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
-                  <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
-                  <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
-                  <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
-                </div>
-                <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
-                <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
-                <Button type="submit" className="w-full py-3 text-base font-semibold shadow-sm">{editingBetId ? "Update Bet" : "Add Bet"}</Button>
-              </form>
-            </div>
-          </Card>
-
-          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Biggest Win" value={formatCurrency(stats.biggestWin)} />
-            <StatCard title="Biggest Loss" value={formatCurrency(stats.biggestLoss)} />
-            <StatCard title="Longest Winning Streak" value={String(stats.longestWinningStreak) + " bets"} />
-            <StatCard title="Longest Losing Streak" value={String(stats.longestLosingStreak) + " bets"} />
-          </section>
 
           <Card>
             <div className="space-y-3 p-4 md:p-5">
