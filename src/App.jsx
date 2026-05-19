@@ -203,21 +203,13 @@ function Input({ className = "", ...props }) {
   return <input className={"w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-[#E8E2D4] " + className} {...props} />;
 }
 
-function StatCard({
-  title,
-  value,
-  helper,
-  valueClassName = "text-[#11203B]",
-  cardClassName = "",
-  titleClassName = "text-slate-500",
-  helperClassName = "text-slate-500",
-}) {
+function StatCard({ title, value, helper }) {
   return (
-    <Card className={cardClassName}>
+    <Card>
       <div className="p-5">
-        <p className={"text-sm font-medium " + titleClassName}>{title}</p>
-        <p className={"mt-1 text-2xl font-semibold " + valueClassName}>{value}</p>
-        {helper ? <p className={"mt-1 text-xs " + helperClassName}>{helper}</p> : null}
+        <p className="text-sm text-slate-500">{title}</p>
+        <p className="mt-1 text-2xl font-semibold text-[#11203B]">{value}</p>
+        {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
       </div>
     </Card>
   );
@@ -341,7 +333,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-[#A94442]/30 bg-[#A94442]/10 p-4">
+                <div className="rounded-2xl border border-[#D9A39B] bg-[#F3DDD7] p-4">
                   <h2 className="text-lg font-semibold text-red-900">Danger zone</h2>
                   <p className="mt-1 text-sm leading-6 text-red-800">Delete all saved bets from this account. This does not delete your account, but the bet entries will be removed.</p>
                   <div className="mt-4">
@@ -627,125 +619,107 @@ function EdgePage({ setActivePage }) {
 
   return (
     <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
-      <main className="bg-[#E8E2D4] p-3 md:p-8">
-        <div className="mx-auto max-w-7xl space-y-4 md:space-y-6">
-          <header className="grid gap-4 md:gap-6 lg:grid-cols-[1.35fr_0.75fr] lg:items-start">
+      <main className="bg-[#E8E2D4] p-4 md:p-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <header className="grid gap-6 lg:grid-cols-[1.35fr_0.75fr] lg:items-start">
             <div>
               <button onClick={() => setActivePage("app")} className="mb-3 text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">AI analyst preview</p>
-                <span className="rounded-full bg-[#11203B] px-2.5 py-1 text-xs font-semibold text-white">Beta</span>
+                <p className="text-sm font-medium text-slate-500">AI analyst preview</p>
+                <span className="rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">Beta preview</span>
               </div>
-              <h1 className="mt-1 text-3xl font-bold tracking-tight md:mt-2 md:text-6xl">Edge</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">Explore example multis, player markets, game analysis and risk in a clearer way.</p>
-              <div className="mt-3 rounded-2xl border border-[#C49A4A]/50 bg-[#C49A4A]/15 px-3 py-2.5 text-xs leading-5 text-[#11203B] shadow-sm md:inline-flex md:max-w-xl md:px-4 md:py-3 md:text-sm md:leading-6">
-                <span className="font-semibold">Live data note:</span> odds and player markets are partly connected. Full stats, team news and injuries are still being built.
+              <h1 className="mt-2 text-4xl font-bold tracking-tight md:text-6xl">Edge</h1>
+              <p className="mt-2 max-w-2xl text-slate-600">A smarter way to explore example multis, game analysis and risk, built around clear data instead of vague tips.</p>
+              <div className="mt-3 inline-flex max-w-xl items-center rounded-2xl border border-[#C49A4A]/50 bg-[#C49A4A]/15 px-4 py-3 text-sm leading-6 text-[#11203B] shadow-sm">
+                <span className="mr-2">✨</span><span><span className="font-semibold">Live data coming soon:</span> odds, player stats and team news.</span>
               </div>
-              <div className="mt-3 hidden max-w-3xl rounded-2xl border border-slate-300 bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700 md:block">
+              <div className="mt-3 max-w-3xl rounded-2xl border border-slate-300 bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700">
                 <p className="font-semibold text-[#11203B]">What is Edge?</p>
                 <p className="mt-1">Edge is your AI analysis assistant inside Bet Tracker. It helps explain example multis, risk levels, market types and what data should be checked before making decisions. Edge is designed to be educational and data-focused, not a betting tips service.</p>
               </div>
             </div>
-            <div className="hidden space-y-4 lg:block lg:pt-10">
+            <div className="space-y-4 lg:pt-10">
               <div className="rounded-2xl border border-[#C49A4A]/40 bg-[#C49A4A]/15 p-4 text-sm leading-6 text-[#11203B] shadow-sm">
                 <span className="font-semibold">Important:</span> Edge is for informational analysis only. It is not betting advice, financial advice, or a guarantee of results. Always make your own decision and gamble responsibly.
               </div>
               <div className="flex flex-col items-start gap-3 lg:items-end">
                 <div className="rounded-2xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm text-slate-600 shadow-sm">
-                  <span className="font-semibold text-[#11203B]">Preview mode</span><br />Live sports data still being improved
+                  <span className="font-semibold text-[#11203B]">Preview mode</span><br />Live sports data coming soon
                 </div>
               </div>
             </div>
           </header>
 
-          <section className="grid items-start gap-4 md:gap-6 lg:grid-cols-[380px_1fr]">
+          <section className="grid items-start gap-6 lg:grid-cols-[380px_1fr]">
             <Card className="h-fit">
-              <div className="p-4 md:p-5">
+              <div className="p-5">
                 <div className="grid gap-2 rounded-2xl bg-[#E8E2D4] p-1 sm:grid-cols-2">
-                  <button onClick={() => setMode("multi")} className={"rounded-xl px-3 py-2.5 text-sm font-semibold transition md:px-4 md:py-3 " + (mode === "multi" ? "bg-[#FAF7EF] text-[#11203B] shadow-sm" : "text-slate-600 hover:text-[#11203B]")}>Example Multi</button>
-                  <button onClick={() => setMode("analysis")} className={"rounded-xl px-3 py-2.5 text-sm font-semibold transition md:px-4 md:py-3 " + (mode === "analysis" ? "bg-[#FAF7EF] text-[#11203B] shadow-sm" : "text-slate-600 hover:text-[#11203B]")}>Game Analysis</button>
-                </div>
-
-                <div className="mt-4 rounded-2xl bg-[#E8E2D4]/70 p-3 text-xs leading-5 text-slate-600 md:hidden">
-                  <span className="font-semibold text-[#11203B]">Quick setup:</span> choose the sport, leg count, target odds and risk level. Then use chat to refine it.
+                  <button onClick={() => setMode("multi")} className={"rounded-xl px-4 py-3 text-sm font-semibold transition " + (mode === "multi" ? "bg-[#FAF7EF] text-[#11203B] shadow-sm" : "text-slate-600 hover:text-[#11203B]")}>Example Multi</button>
+                  <button onClick={() => setMode("analysis")} className={"rounded-xl px-4 py-3 text-sm font-semibold transition " + (mode === "analysis" ? "bg-[#FAF7EF] text-[#11203B] shadow-sm" : "text-slate-600 hover:text-[#11203B]")}>Game Analysis</button>
                 </div>
 
                 {mode === "multi" ? (
-                  <div className="mt-4 space-y-4 md:mt-6 md:space-y-5">
-                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-                      <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
-                      <EdgeSelectField label="Games" value="Tonight's games" onChange={() => {}} options={["Tonight's games", "Selected game only", "This weekend"]} />
-                      <EdgeSelectField label="Legs" value={legs} onChange={setLegs} options={["Any", "2", "3", "4", "5", "Custom"]} />
-                      <EdgeSelectField label="Target odds" value={targetOdds} onChange={setTargetOdds} options={["$1.50", "$2.00", "$3.00", "$5.00", "Custom"]} />
-                      <EdgeSelectField label="Risk" value={riskProfile} onChange={setRiskProfile} options={["Safer", "Balanced", "Aggressive"]} />
-                    </div>
+                  <div className="mt-6 space-y-5">
+                    <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
+                    <EdgeSelectField label="Games" value="Tonight's games" onChange={() => {}} options={["Tonight's games", "Selected game only", "This weekend"]} />
+                    <EdgeSelectField label="Number of legs" value={legs} onChange={setLegs} options={["Any", "2", "3", "4", "5", "Custom"]} />
                     {legs === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom number of legs<Input type="number" min="1" step="1" value={customLegs} onChange={(event) => setCustomLegs(event.target.value)} placeholder="e.g. 6" /></label> : null}
+                    <EdgeSelectField label="Target odds" value={targetOdds} onChange={setTargetOdds} options={["$1.50", "$2.00", "$3.00", "$5.00", "Custom"]} />
                     {targetOdds === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom target odds<Input type="number" min="1" step="0.01" value={customTargetOdds} onChange={(event) => setCustomTargetOdds(event.target.value)} placeholder="e.g. 2.20" /></label> : null}
+                    <EdgeSelectField label="Risk profile" value={riskProfile} onChange={setRiskProfile} options={["Safer", "Balanced", "Aggressive"]} />
                     <label className="space-y-1 text-sm font-medium">Optional request<Input value={request} onChange={(event) => setRequest(event.target.value)} placeholder="e.g. Disposals only, no same-game legs" /></label>
-                    <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#E8E2D4]/70 p-3 text-xs text-slate-600">
-                      <div><p className="font-semibold text-[#11203B]">Legs</p><p>{displayedLegs}</p></div>
-                      <div><p className="font-semibold text-[#11203B]">Target</p><p>{displayedTargetOdds}</p></div>
-                      <div><p className="font-semibold text-[#11203B]">Risk</p><p>{riskProfile}</p></div>
-                      <div><p className="font-semibold text-[#11203B]">Sport</p><p>{sport}</p></div>
-                    </div>
-                    <Button className="w-full rounded-2xl py-3 text-sm font-semibold md:text-base">Preview example multi</Button>
+                    <div className="pt-2"><Button className="w-full rounded-2xl py-3 text-base">Preview example multi</Button></div>
                   </div>
                 ) : (
-                  <div className="mt-4 space-y-4 md:mt-6 md:space-y-5">
-                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-                      <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
-                      <EdgeSelectField label="Game" value="Select upcoming game" onChange={() => {}} options={["Select upcoming game", "Team A vs Team B", "Team C vs Team D"]} />
-                    </div>
+                  <div className="mt-6 space-y-5">
+                    <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
+                    <EdgeSelectField label="Game" value="Select upcoming game" onChange={() => {}} options={["Select upcoming game", "Team A vs Team B", "Team C vs Team D"]} />
                     <label className="space-y-1 text-sm font-medium">Focus area<Input value="Recent form, injuries and head-to-head" readOnly /></label>
-                    <Button className="w-full rounded-2xl py-3 text-sm font-semibold md:text-base">Preview game analysis</Button>
+                    <div className="pt-2"><Button className="w-full rounded-2xl py-3 text-base">Preview game analysis</Button></div>
                   </div>
                 )}
               </div>
             </Card>
 
-            <div className="space-y-4 md:space-y-6">
+            <div className="space-y-6">
               <Card>
-                <div className="p-4 md:p-6">
+                <div className="p-5 md:p-6">
                   <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">Edge output</p>
-                      <h2 className="mt-1 text-xl font-semibold md:text-2xl">Example {displayedLegs}-leg {sport} multi</h2>
-                      <p className="mt-2 text-xs leading-5 text-slate-600 md:text-sm">Placeholder preview only. Live outputs will use current odds, market availability and sport-specific data where available.</p>
+                      <p className="text-sm font-medium text-slate-500">Edge output</p>
+                      <h2 className="mt-1 text-2xl font-semibold">Example {displayedLegs}-leg {sport} multi</h2>
+                      <p className="mt-2 text-sm text-slate-600">This is placeholder preview data only. The live version will use current odds, market availability and sport-specific statistics before producing outputs.</p>
                     </div>
                     <div className="rounded-2xl bg-[#11203B] px-4 py-3 text-white">
                       <p className="text-xs uppercase tracking-wide text-slate-300">Target odds</p>
-                      <p className="text-xl font-semibold md:text-2xl">{displayedTargetOdds}</p>
+                      <p className="text-2xl font-semibold">{displayedTargetOdds}</p>
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 md:mt-6 md:grid-cols-3 md:gap-4">
+                  <div className="mt-6 grid gap-4 md:grid-cols-3">
                     {exampleLegs.map((leg, index) => (
-                      <div key={leg.name} className="rounded-2xl border border-slate-200 bg-[#FAF7EF] p-3 md:p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Leg {index + 1}</p>
-                            <h3 className="mt-1 text-sm font-semibold md:text-base">{leg.name}</h3>
-                          </div>
-                          <span className="rounded-full bg-[#E8E2D4] px-2 py-1 text-xs font-semibold text-[#11203B]">{leg.confidence}</span>
-                        </div>
-                        <p className="mt-2 text-xs leading-5 text-slate-600 md:text-sm md:leading-6">{leg.reason}</p>
+                      <div key={leg.name} className="rounded-2xl border border-slate-200 p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Leg {index + 1}</p>
+                        <h3 className="mt-1 font-semibold">{leg.name}</h3>
+                        <p className="mt-2 text-sm text-slate-600">{leg.reason}</p>
+                        <p className="mt-3 text-sm font-medium text-[#11203B]">Confidence: {leg.confidence}</p>
                         <EdgeDetailToggle leg={leg} />
                       </div>
                     ))}
                   </div>
 
-                  <div className="mt-4 rounded-2xl bg-slate-50 p-3 md:mt-6 md:p-4">
+                  <div className="mt-6 rounded-2xl bg-slate-50 p-4">
                     <EdgeRiskMeter score={6} />
                     <button
                       type="button"
                       onClick={() => setShowRiskExplanation((current) => !current)}
-                      className="mt-3 flex w-full max-w-sm items-center justify-between rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-2.5 text-left text-sm font-semibold text-slate-900 transition hover:bg-white/70 md:mt-4"
+                      className="mt-4 flex w-full max-w-sm items-center justify-between rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-2.5 text-left text-sm font-semibold text-slate-900 transition hover:bg-white/70"
                     >
                       <span>Why this risk score?</span>
                       <span className="text-lg text-slate-500">{showRiskExplanation ? "−" : "+"}</span>
                     </button>
                     {showRiskExplanation ? (
-                      <div className="mt-3 rounded-2xl bg-[#FAF7EF] p-3 text-xs leading-5 text-slate-700 md:p-4 md:text-sm md:leading-6">
+                      <div className="mt-3 rounded-2xl bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700">
                         A 6/10 preview score reflects a balanced multi with multiple legs and player-market variance. The live version will calculate this from odds, markets, leg count and data confidence.
                       </div>
                     ) : null}
@@ -756,39 +730,36 @@ function EdgePage({ setActivePage }) {
           </section>
 
           <Card>
-            <div className="p-4 md:p-6">
+            <div className="p-5 md:p-6">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">Chat with Edge</p>
-                  <h2 className="text-lg font-semibold md:text-xl">Ask or refine</h2>
-                  <p className="mt-1 text-xs text-slate-500 md:hidden">Use quick prompts or type your own question.</p>
+                  <p className="text-sm font-medium text-slate-500">Chat with Edge</p>
+                  <h2 className="text-xl font-semibold">Refine the build naturally</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={resetEdgeChat} className="px-3 py-2 text-xs md:text-sm">New chat</Button>
-                  <Button type="button" variant="ghost" onClick={clearEdgeChat} className="px-3 py-2 text-xs md:text-sm">Clear</Button>
-                  <span className="rounded-full bg-[#11203B] px-3 py-2 text-xs font-semibold text-white">Preview</span>
+                  <Button type="button" variant="outline" onClick={resetEdgeChat}>New chat</Button>
+                  <Button type="button" variant="ghost" onClick={clearEdgeChat}>Clear chat</Button>
+                  <span className="rounded-full bg-[#11203B] px-3 py-2 text-xs font-semibold text-white">Preview mode</span>
                 </div>
               </div>
-
-              <div className="mt-4 flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible">
-                <button type="button" onClick={() => useExamplePrompt(`Build a ${displayedLegs}-leg ${sport} example multi around ${displayedTargetOdds}. Keep it simple and explain the risk.`)} className="shrink-0 rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Build multi</button>
-                <button type="button" onClick={() => useExamplePrompt(`Show me ${sport} fantasy points markets for this week.`)} className="shrink-0 rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Fantasy markets</button>
-                <button type="button" onClick={() => useExamplePrompt(`Compare disposal markets for Swans vs Collingwood.`)} className="shrink-0 rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Compare disposals</button>
-                <button type="button" onClick={() => useExamplePrompt(`What data would you check before choosing players for this ${sport} build?`)} className="shrink-0 rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Data to check</button>
-              </div>
-
               {chatMessages.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-[#FAF7EF]/70 p-3 md:p-4">
-                  <p className="text-sm font-semibold text-[#11203B]">Start with a prompt</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-600 md:text-sm md:leading-6">Choose a quick prompt above or type your own question below.</p>
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-[#FAF7EF]/70 p-4">
+                  <p className="text-sm font-semibold text-[#11203B]">Try asking Edge</p>
+                  <p className="mt-1 text-sm text-slate-600">Choose a starter prompt or type your own question below.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => useExamplePrompt(`Build a ${displayedLegs}-leg ${sport} example multi around ${displayedTargetOdds}. Keep it simple and explain the risk.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Build example multi</button>
+                    <button type="button" onClick={() => useExamplePrompt(`Make the ${sport} example ${request || "disposals only"} and explain what data you would check.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Use my request</button>
+                    <button type="button" onClick={() => useExamplePrompt(`Explain why this ${sport} build has a 6 out of 10 risk score.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Explain risk score</button>
+                    <button type="button" onClick={() => useExamplePrompt(`What data would you check before choosing players for this ${sport} build?`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">What data to check?</button>
+                  </div>
                 </div>
               ) : null}
-              <div className="mt-4 max-h-[55vh] space-y-3 overflow-y-auto rounded-2xl bg-[#E8E2D4]/40 p-2 md:mt-5 md:max-h-none md:bg-transparent md:p-0">
+              <div className="mt-5 space-y-3">
                 {chatMessages.map((chatMessage, index) => <EdgeMessage key={index} role={chatMessage.role}>{chatMessage.text}</EdgeMessage>)}
               </div>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row md:mt-5">
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
                 <Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Edge a follow-up..." onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} />
-                <Button onClick={sendChatMessage} className="w-full py-3 font-semibold sm:w-auto sm:px-6" disabled={edgeLoading}>{edgeLoading ? "Thinking..." : "Send"}</Button>
+                <Button onClick={sendChatMessage} className="sm:px-6" disabled={edgeLoading}>{edgeLoading ? "Thinking..." : "Send"}</Button>
               </div>
             </div>
           </Card>
@@ -1003,9 +974,11 @@ export default function BettingTrackerWebsite() {
   const [selectedSportFilter, setSelectedSportFilter] = useState("All sports");
   const fileInputRef = useRef(null);
   const formRef = useRef(null);
+  const mobileFormRef = useRef(null);
   const [chartView, setChartView] = useState("weekly");
   const [chartType, setChartType] = useState("bar");
   const [form, setForm] = useState({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
+  const [mobileAddBetOpen, setMobileAddBetOpen] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -1178,11 +1151,13 @@ export default function BettingTrackerWebsite() {
 
   const resetBetForm = () => {
     setEditingBetId(null);
+    setMobileAddBetOpen(false);
     setForm({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
   };
 
   const startEditingBet = (bet) => {
     setEditingBetId(bet.id);
+    setMobileAddBetOpen(true);
     setForm({
       date: bet.date,
       sport: bet.sport || "Other",
@@ -1193,7 +1168,10 @@ export default function BettingTrackerWebsite() {
       notes: bet.notes || "",
     });
     setMessage("Editing bet from " + bet.date + ". Make changes and click Update Bet.");
-    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    window.setTimeout(() => {
+      const target = window.innerWidth < 768 ? mobileFormRef.current : formRef.current;
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   };
 
   const handleAddOrUpdateBet = async (event) => {
@@ -1335,9 +1313,241 @@ export default function BettingTrackerWebsite() {
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
 
   return (
-    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
+    <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto max-w-7xl">
+
+          <div className="space-y-4 md:hidden">
+            <header className="space-y-1">
+              <p className="text-sm font-medium text-slate-500">Online account version</p>
+              <h1 className="text-3xl font-bold tracking-tight">Bet Tracker</h1>
+              <p className="text-sm text-slate-500">Logged in as {session.user.email}</p>
+            </header>
+
+            {message ? <Card><div className="p-4 text-sm text-slate-700">{message}</div></Card> : null}
+            {loadingBets ? <Card><div className="p-4 text-sm text-slate-700">Loading your saved bets...</div></Card> : null}
+            {riskWarning ? <Card className="border-[#D9A39B] bg-[#F3DDD7]"><div className="p-4 text-sm text-[#A94442]">Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.</div></Card> : null}
+
+            <Card>
+              <div className="space-y-4 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[#11203B]">Performance summary</p>
+                    <p className="mt-1 text-xs text-slate-500">Profit/loss, ROI and win rate at a glance.</p>
+                  </div>
+                  <select
+                    value={selectedSportFilter}
+                    onChange={(event) => {
+                      setSelectedSportFilter(event.target.value);
+                      setShowAllBets(false);
+                    }}
+                    className="max-w-[130px] rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium outline-none focus:border-[#11203B] focus:ring-2 focus:ring-slate-200"
+                  >
+                    <option value="All sports">All sports</option>
+                    <option value="AFL">AFL</option>
+                    <option value="NRL">NRL</option>
+                    <option value="Soccer">Soccer</option>
+                    <option value="Basketball">Basketball</option>
+                    <option value="Cricket">Cricket</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className={"rounded-2xl border p-4 " + (stats.totalProfit >= 0 ? "border-[#9BCBB2] bg-[#DDEFE5]" : "border-[#D9A39B] bg-[#F3DDD7]")}>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Profit/Loss</p>
+                  <p className={"mt-1 text-3xl font-bold " + (stats.totalProfit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(stats.totalProfit)}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={(stats.roi >= 0 ? "border-[#9BCBB2] bg-[#DDEFE5]" : "border-[#D9A39B] bg-[#F3DDD7]") + " rounded-2xl border p-4"}>
+                    <p className={(stats.roi >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]") + " text-xs font-medium uppercase tracking-wide"}>ROI</p>
+                    <p className={(stats.roi >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]") + " mt-1 text-xl font-bold"}>{stats.roi.toFixed(1)}%</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#E8E2D4] p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Win Rate</p>
+                    <p className="mt-1 text-xl font-bold text-[#11203B]">{stats.winRate.toFixed(1)}%</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-[#9BCBB2] bg-[#DDEFE5] p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Wins</p>
+                    <p className="mt-1 text-xl font-bold text-[#2E7D5B]">{stats.wins}</p>
+                  </div>
+                  <div className="rounded-2xl border border-[#D9A39B] bg-[#F3DDD7] p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Losses</p>
+                    <p className="mt-1 text-xl font-bold text-[#A94442]">{stats.losses}</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">{chartTitle}</h2>
+                    <p className="text-xs text-slate-500">{chartDescription}</p>
+                  </div>
+                  <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200">
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+                <div className="mt-4 h-56">
+                  {chartData.length ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} width={40} />
+                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                        <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                        <Bar dataKey="profitLoss" radius={[8, 8, 0, 0]}>
+                          {chartData.map((entry) => <Cell key={entry.sortKey} fill={entry.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <div className="flex h-full items-center justify-center rounded-2xl bg-[#E8E2D4] text-sm text-slate-500">Add your first bet to see the graph.</div>}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="border-[#11203B]/20">
+              <div className="space-y-3 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-[#11203B]">Ask Edge</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">Explore player markets, game analysis and example multis.</p>
+                </div>
+                <Button onClick={() => setActivePage("edge")} className="w-full rounded-2xl py-3 text-base font-semibold">Open Edge</Button>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="grid grid-cols-2 gap-3 p-4">
+                <div className="rounded-2xl border border-[#2E7D5B]/25 bg-[#2E7D5B]/10 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Biggest Win</p>
+                  <p className="mt-1 text-lg font-bold text-[#2E7D5B]">{formatCurrency(stats.biggestWin)}</p>
+                </div>
+                <div className="rounded-2xl border border-[#A94442]/25 bg-[#A94442]/10 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Biggest Loss</p>
+                  <p className="mt-1 text-lg font-bold text-[#A94442]">{formatCurrency(stats.biggestLoss)}</p>
+                </div>
+                <div className="rounded-2xl bg-[#E8E2D4] p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Win Streak</p>
+                  <p className="mt-1 text-lg font-bold text-[#11203B]">{stats.longestWinningStreak} bets</p>
+                </div>
+                <div className="rounded-2xl bg-[#E8E2D4] p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Losing Streak</p>
+                  <p className="mt-1 text-lg font-bold text-[#11203B]">{stats.longestLosingStreak} bets</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div ref={mobileFormRef} className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
+                    <p className="mt-1 text-xs text-slate-500">{mobileAddBetOpen ? "Enter the details below." : "Tap to quickly log a new bet."}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={mobileAddBetOpen ? "outline" : "primary"}
+                    onClick={() => {
+                      if (mobileAddBetOpen) resetBetForm();
+                      else setMobileAddBetOpen(true);
+                    }}
+                    className="px-4"
+                  >
+                    {mobileAddBetOpen ? "Cancel" : "Add Bet"}
+                  </Button>
+                </div>
+
+                {mobileAddBetOpen ? (
+                  <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
+                      <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      {["win", "loss", "void"].map((result) => (
+                        <button
+                          key={result}
+                          type="button"
+                          onClick={() => setForm({ ...form, result })}
+                          className={"rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize " + (form.result === result ? "border-[#11203B] bg-[#11203B] text-white" : "border-slate-300 bg-[#FAF7EF] text-[#11203B]")}
+                        >
+                          {result}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
+                      <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
+                      <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
+                    </div>
+
+                    <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
+                    <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
+                    <Button type="submit" className="w-full py-3 text-base font-semibold">{editingBetId ? "Update Bet" : "Save Bet"}</Button>
+                  </form>
+                ) : null}
+              </div>
+            </Card>
+
+            <Card>
+              <div className="p-4">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">Recent bets</h2>
+                    <p className="text-xs text-slate-500">Showing {visibleBets.length} of {filteredBets.length}</p>
+                  </div>
+                  {filteredBets.length > 5 ? <button type="button" onClick={() => setShowAllBets((current) => !current)} className="text-sm font-semibold text-[#11203B] underline">{showAllBets ? "Show less" : "View all"}</button> : null}
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {visibleBets.map((bet) => (
+                    <div key={bet.id} className={"rounded-2xl border border-slate-200 p-4 " + (editingBetId === bet.id ? "bg-slate-50" : "bg-[#FAF7EF]")}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-[#11203B]">{bet.sport || "Other"} · {bet.date}</p>
+                          <p className="mt-1 text-xs capitalize text-slate-500">{bet.result} · Stake {formatCurrency(bet.stake)} · Odds {bet.odds || "-"}</p>
+                        </div>
+                        <p className={"text-base font-bold " + (bet.profitLoss >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(bet.profitLoss)}</p>
+                      </div>
+                      {bet.notes ? <p className="mt-3 text-sm text-slate-600">{bet.notes}</p> : null}
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <Button variant="outline" onClick={() => startEditingBet(bet)} className="w-full">Edit</Button>
+                        <Button variant="ghost" onClick={() => deleteBet(bet.id)} className="w-full">Delete</Button>
+                      </div>
+                    </div>
+                  ))}
+                  {!bets.length ? <div className="rounded-2xl bg-[#E8E2D4] p-8 text-center text-sm text-slate-500">No bets added yet.</div> : null}
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="space-y-3 p-4">
+                <p className="text-sm font-semibold text-[#11203B]">Account and feedback</p>
+                <a
+                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F"
+                  className="block rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm font-medium text-[#11203B]"
+                >
+                  Give feedback
+                </a>
+                <button type="button" onClick={() => setActivePage("settings")} className="w-full rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-left text-sm font-medium text-[#11203B]">Settings</button>
+                <button type="button" onClick={handleLogout} className="w-full rounded-xl border border-red-300 bg-red-100 px-4 py-3 text-left text-sm font-medium text-red-900">Log out</button>
+              </div>
+            </Card>
+          </div>
+
+
+          <div className="hidden space-y-6 md:block">
           <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
               <p className="text-sm font-medium text-slate-500">Online account version</p>
@@ -1360,7 +1570,7 @@ export default function BettingTrackerWebsite() {
 
           {message ? <Card><div className="p-4 text-sm text-slate-700">{message}</div></Card> : null}
           {loadingBets ? <Card><div className="p-4 text-sm text-slate-700">Loading your saved bets...</div></Card> : null}
-          {riskWarning ? <Card className="border-[#A94442]/30 bg-[#A94442]/10"><div className="p-4 text-sm text-[#A94442]">Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.</div></Card> : null}
+          {riskWarning ? <Card className="border-[#D9A39B] bg-[#F3DDD7]"><div className="p-4 text-sm text-[#A94442]">Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.</div></Card> : null}
           {!loadingBets && bets.length === 0 ? (
             <Card className="border-[#C49A4A]/40 bg-[#C49A4A]/15">
               <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
@@ -1420,17 +1630,21 @@ export default function BettingTrackerWebsite() {
           </div>
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"} value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
             <StatCard
-              title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"}
-              value={formatCurrency(stats.totalProfit)}
-              helper="Overall betting result"
-              cardClassName={stats.totalProfit >= 0 ? "border-[#2E7D5B]/30 bg-[#2E7D5B]/10" : "border-[#A94442]/30 bg-[#A94442]/10"}
-              titleClassName={stats.totalProfit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"}
-              valueClassName={stats.totalProfit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"}
-              helperClassName={stats.totalProfit >= 0 ? "text-[#2E7D5B]/80" : "text-[#A94442]/80"}
+              title={selectedSportFilter === "All sports" ? "Win Rate" : selectedSportFilter + " Win Rate"}
+              value={stats.winRate.toFixed(1) + "%"}
+              helper={stats.wins + " wins, " + stats.losses + " losses"}
             />
-            <StatCard title={selectedSportFilter === "All sports" ? "Win Rate" : selectedSportFilter + " Win Rate"} value={stats.winRate.toFixed(1) + "%"} helper={stats.wins + " wins, " + stats.losses + " losses"} />
-            <StatCard title={selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"} value={stats.roi.toFixed(1) + "%"} helper="Profit compared to total staked" />
+            <StatCard
+              title={selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"}
+              value={stats.roi.toFixed(1) + "%"}
+              helper="Profit compared to total staked"
+              cardClassName={stats.roi >= 0 ? "!border-[#9BCBB2] !bg-[#DDEFE5]" : "!border-[#D9A39B] !bg-[#F3DDD7]"}
+              titleClassName={stats.roi >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"}
+              valueClassName={stats.roi >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"}
+              helperClassName={stats.roi >= 0 ? "text-[#2E7D5B]/80" : "text-[#A94442]/80"}
+            />
             <StatCard title={selectedSportFilter === "All sports" ? "Total Staked" : selectedSportFilter + " Staked"} value={formatCurrency(stats.totalStaked)} helper={"Returned: " + formatCurrency(stats.totalReturned)} />
           </section>
 
@@ -1520,34 +1734,10 @@ export default function BettingTrackerWebsite() {
           </section>
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Biggest Win"
-              value={formatCurrency(stats.biggestWin)}
-              cardClassName={stats.biggestWin > 0 ? "border-[#2E7D5B]/30 bg-[#2E7D5B]/10" : "border-slate-200 bg-[#FAF7EF]"}
-              titleClassName={stats.biggestWin > 0 ? "text-[#2E7D5B]" : "text-slate-500"}
-              valueClassName={stats.biggestWin > 0 ? "text-[#2E7D5B]" : "text-[#11203B]"}
-            />
-            <StatCard
-              title="Biggest Loss"
-              value={formatCurrency(stats.biggestLoss)}
-              cardClassName={stats.biggestLoss < 0 ? "border-[#A94442]/30 bg-[#A94442]/10" : "border-slate-200 bg-[#FAF7EF]"}
-              titleClassName={stats.biggestLoss < 0 ? "text-[#A94442]" : "text-slate-500"}
-              valueClassName={stats.biggestLoss < 0 ? "text-[#A94442]" : "text-[#11203B]"}
-            />
-            <StatCard
-              title="Longest Winning Streak"
-              value={String(stats.longestWinningStreak) + " bets"}
-              cardClassName={stats.longestWinningStreak > 0 ? "border-[#2E7D5B]/30 bg-[#2E7D5B]/10" : "border-slate-200 bg-[#FAF7EF]"}
-              titleClassName={stats.longestWinningStreak > 0 ? "text-[#2E7D5B]" : "text-slate-500"}
-              valueClassName={stats.longestWinningStreak > 0 ? "text-[#2E7D5B]" : "text-[#11203B]"}
-            />
-            <StatCard
-              title="Longest Losing Streak"
-              value={String(stats.longestLosingStreak) + " bets"}
-              cardClassName={stats.longestLosingStreak > 0 ? "border-[#A94442]/30 bg-[#A94442]/10" : "border-slate-200 bg-[#FAF7EF]"}
-              titleClassName={stats.longestLosingStreak > 0 ? "text-[#A94442]" : "text-slate-500"}
-              valueClassName={stats.longestLosingStreak > 0 ? "text-[#A94442]" : "text-[#11203B]"}
-            />
+            <StatCard title="Biggest Win" value={formatCurrency(stats.biggestWin)} />
+            <StatCard title="Biggest Loss" value={formatCurrency(stats.biggestLoss)} />
+            <StatCard title="Longest Winning Streak" value={String(stats.longestWinningStreak) + " bets"} />
+            <StatCard title="Longest Losing Streak" value={String(stats.longestLosingStreak) + " bets"} />
           </section>
 
           <Card>
@@ -1598,10 +1788,11 @@ export default function BettingTrackerWebsite() {
               {filteredBets.length > 5 ? <div className="mt-5 flex justify-center"><Button type="button" variant="outline" onClick={() => setShowAllBets((current) => !current)}>{showAllBets ? "Show less" : `Show all bets (${filteredBets.length})`}</Button></div> : null}
             </div>
           </Card>
+
+          </div>
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
-      <MobileBottomNav activePage={activePage} setActivePage={setActivePage} formRef={formRef} />
       <Analytics />
     </div>
   );
