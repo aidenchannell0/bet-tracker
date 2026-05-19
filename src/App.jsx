@@ -203,13 +203,21 @@ function Input({ className = "", ...props }) {
   return <input className={"w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-[#E8E2D4] " + className} {...props} />;
 }
 
-function StatCard({ title, value, helper, valueClassName = "text-[#11203B]" }) {
+function StatCard({
+  title,
+  value,
+  helper,
+  valueClassName = "text-[#11203B]",
+  cardClassName = "",
+  titleClassName = "text-slate-500",
+  helperClassName = "text-slate-500",
+}) {
   return (
-    <Card>
+    <Card className={cardClassName}>
       <div className="p-5">
-        <p className="text-sm text-slate-500">{title}</p>
+        <p className={"text-sm font-medium " + titleClassName}>{title}</p>
         <p className={"mt-1 text-2xl font-semibold " + valueClassName}>{value}</p>
-        {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
+        {helper ? <p className={"mt-1 text-xs " + helperClassName}>{helper}</p> : null}
       </div>
     </Card>
   );
@@ -1412,7 +1420,15 @@ export default function BettingTrackerWebsite() {
           </div>
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"} value={formatCurrency(stats.totalProfit)} helper="Overall betting result" valueClassName={stats.totalProfit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"} />
+            <StatCard
+              title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"}
+              value={formatCurrency(stats.totalProfit)}
+              helper="Overall betting result"
+              cardClassName={stats.totalProfit >= 0 ? "border-[#2E7D5B]/30 bg-[#2E7D5B]/10" : "border-[#A94442]/30 bg-[#A94442]/10"}
+              titleClassName={stats.totalProfit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"}
+              valueClassName={stats.totalProfit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"}
+              helperClassName={stats.totalProfit >= 0 ? "text-[#2E7D5B]/80" : "text-[#A94442]/80"}
+            />
             <StatCard title={selectedSportFilter === "All sports" ? "Win Rate" : selectedSportFilter + " Win Rate"} value={stats.winRate.toFixed(1) + "%"} helper={stats.wins + " wins, " + stats.losses + " losses"} />
             <StatCard title={selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"} value={stats.roi.toFixed(1) + "%"} helper="Profit compared to total staked" />
             <StatCard title={selectedSportFilter === "All sports" ? "Total Staked" : selectedSportFilter + " Staked"} value={formatCurrency(stats.totalStaked)} helper={"Returned: " + formatCurrency(stats.totalReturned)} />
@@ -1504,10 +1520,34 @@ export default function BettingTrackerWebsite() {
           </section>
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Biggest Win" value={formatCurrency(stats.biggestWin)} valueClassName="text-[#2E7D5B]" />
-            <StatCard title="Biggest Loss" value={formatCurrency(stats.biggestLoss)} valueClassName={stats.biggestLoss < 0 ? "text-[#A94442]" : "text-slate-500"} />
-            <StatCard title="Longest Winning Streak" value={String(stats.longestWinningStreak) + " bets"} valueClassName="text-[#2E7D5B]" />
-            <StatCard title="Longest Losing Streak" value={String(stats.longestLosingStreak) + " bets"} valueClassName={stats.longestLosingStreak > 0 ? "text-[#A94442]" : "text-slate-500"} />
+            <StatCard
+              title="Biggest Win"
+              value={formatCurrency(stats.biggestWin)}
+              cardClassName={stats.biggestWin > 0 ? "border-[#2E7D5B]/30 bg-[#2E7D5B]/10" : "border-slate-200 bg-[#FAF7EF]"}
+              titleClassName={stats.biggestWin > 0 ? "text-[#2E7D5B]" : "text-slate-500"}
+              valueClassName={stats.biggestWin > 0 ? "text-[#2E7D5B]" : "text-[#11203B]"}
+            />
+            <StatCard
+              title="Biggest Loss"
+              value={formatCurrency(stats.biggestLoss)}
+              cardClassName={stats.biggestLoss < 0 ? "border-[#A94442]/30 bg-[#A94442]/10" : "border-slate-200 bg-[#FAF7EF]"}
+              titleClassName={stats.biggestLoss < 0 ? "text-[#A94442]" : "text-slate-500"}
+              valueClassName={stats.biggestLoss < 0 ? "text-[#A94442]" : "text-[#11203B]"}
+            />
+            <StatCard
+              title="Longest Winning Streak"
+              value={String(stats.longestWinningStreak) + " bets"}
+              cardClassName={stats.longestWinningStreak > 0 ? "border-[#2E7D5B]/30 bg-[#2E7D5B]/10" : "border-slate-200 bg-[#FAF7EF]"}
+              titleClassName={stats.longestWinningStreak > 0 ? "text-[#2E7D5B]" : "text-slate-500"}
+              valueClassName={stats.longestWinningStreak > 0 ? "text-[#2E7D5B]" : "text-[#11203B]"}
+            />
+            <StatCard
+              title="Longest Losing Streak"
+              value={String(stats.longestLosingStreak) + " bets"}
+              cardClassName={stats.longestLosingStreak > 0 ? "border-[#A94442]/30 bg-[#A94442]/10" : "border-slate-200 bg-[#FAF7EF]"}
+              titleClassName={stats.longestLosingStreak > 0 ? "text-[#A94442]" : "text-slate-500"}
+              valueClassName={stats.longestLosingStreak > 0 ? "text-[#A94442]" : "text-[#11203B]"}
+            />
           </section>
 
           <Card>
