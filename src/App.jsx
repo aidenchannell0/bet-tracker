@@ -184,7 +184,7 @@ function Card({ children, className = "" }) {
 }
 
 function Button({ children, className = "", variant = "primary", ...props }) {
-    const base = "inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
+  const base = "inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
   const styles =
     variant === "outline"
       ? "border border-slate-300 bg-[#FAF7EF] text-slate-900 hover:bg-[#E8E2D4]"
@@ -206,10 +206,10 @@ function Input({ className = "", ...props }) {
 function StatCard({ title, value, helper }) {
   return (
     <Card>
-      <div className="p-4 md:p-5">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">{title}</p>
-        <p className="mt-1 text-xl font-semibold text-[#11203B] md:text-2xl">{value}</p>
-        {helper ? <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p> : null}
+      <div className="p-5">
+        <p className="text-sm text-slate-500">{title}</p>
+        <p className="mt-1 text-2xl font-semibold text-[#11203B]">{value}</p>
+        {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
       </div>
     </Card>
   );
@@ -1243,24 +1243,20 @@ export default function BettingTrackerWebsite() {
   return (
     <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto max-w-7xl space-y-5 md:space-y-6">
           <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
               <p className="text-sm font-medium text-slate-500">Online account version</p>
               <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Bet Tracker</h1>
-              <p className="mt-2 max-w-2xl text-slate-600">Track stakes, returns, profit/loss, win rate, ROI and weekly performance. Your data is saved online with Supabase.</p>
-              <p className="mt-1 text-sm text-slate-500">Logged in as {session.user.email}</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">Track stakes, returns, profit/loss, win rate, ROI and weekly performance.</p>
+              <p className="mt-1 text-xs text-slate-500 md:text-sm">Logged in as {session.user.email}</p>
             </div>
-            <div className="flex flex-col gap-3 sm:items-end">
+            <div className="hidden flex-col gap-3 md:flex md:items-end">
               <div className="relative max-w-sm rounded-2xl border border-slate-300 bg-[#FAF7EF] px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm">
                 Hi, I’m Edge. I can help you explore example multis, player markets, and game analysis.
                 <span className="absolute -bottom-2 left-[28%] h-4 w-4 rotate-45 border-b border-r border-slate-300 bg-[#FAF7EF]" />
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-                <Button onClick={() => setActivePage("edge")} className="col-span-2 w-full rounded-2xl px-6 py-4 text-base font-semibold shadow-lg shadow-slate-300 sm:col-span-1 sm:w-auto">Ask Edge</Button>
-                <Button onClick={() => setActivePage("settings")} variant="outline" className="w-full sm:w-auto">Settings</Button>
-                <Button onClick={handleLogout} variant="outline" className="col-span-2 w-full sm:col-span-1 sm:w-auto">Log out</Button>
-              </div>
+              <Button onClick={() => setActivePage("edge")} className="rounded-2xl px-6 py-4 text-base font-semibold shadow-lg shadow-slate-300">Ask Edge</Button>
             </div>
           </header>
 
@@ -1280,14 +1276,14 @@ export default function BettingTrackerWebsite() {
             </Card>
           ) : null}
 
-          <div className="grid gap-3 lg:grid-cols-[1.35fr_0.9fr]">
-            <Card>
-              <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
+          <Card>
+            <div className="p-4 md:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Dashboard filter</p>
-                  <p className="mt-1 text-xs text-slate-600 md:text-sm">Filter stats, graph and history by sport.</p>
+                  <p className="text-sm font-semibold text-[#11203B]">Performance summary</p>
+                  <p className="mt-1 text-xs text-slate-600 md:text-sm">Profit/loss, ROI and win rate at a glance.</p>
                 </div>
-                <label className="space-y-1 text-sm font-medium md:min-w-52">
+                <label className="space-y-1 text-sm font-medium sm:min-w-52">
                   Sport
                   <select
                     value={selectedSportFilter}
@@ -1295,7 +1291,7 @@ export default function BettingTrackerWebsite() {
                       setSelectedSportFilter(event.target.value);
                       setShowAllBets(false);
                     }}
-                    className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-[#11203B] focus:ring-2 focus:ring-slate-200"
+                    className="w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-[#11203B] focus:ring-2 focus:ring-slate-200 md:text-sm"
                   >
                     <option value="All sports">All sports</option>
                     <option value="AFL">AFL</option>
@@ -1307,133 +1303,105 @@ export default function BettingTrackerWebsite() {
                   </select>
                 </label>
               </div>
-            </Card>
 
-            <Card className="border-[#C49A4A]/40 bg-[#C49A4A]/10">
-              <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Quick feedback</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-700 md:text-sm">Got an idea or found something confusing?</p>
+              <div className="mt-4 grid grid-cols-3 gap-2 md:gap-4">
+                <div className="rounded-2xl bg-[#E8E2D4] p-3 md:p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">Profit/Loss</p>
+                  <p className={("mt-1 text-lg font-bold md:text-2xl " + (stats.totalProfit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"))}>{formatCurrency(stats.totalProfit)}</p>
                 </div>
-                <a
-                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F"
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-[#11203B] px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 md:w-auto"
-                >
-                  Give feedback
-                </a>
-              </div>
-            </Card>
-          </div>
-
-          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"} value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
-            <StatCard title={selectedSportFilter === "All sports" ? "Win Rate" : selectedSportFilter + " Win Rate"} value={stats.winRate.toFixed(1) + "%"} helper={stats.wins + " wins, " + stats.losses + " losses"} />
-            <StatCard title={selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"} value={stats.roi.toFixed(1) + "%"} helper="Profit compared to total staked" />
-            <StatCard title={selectedSportFilter === "All sports" ? "Total Staked" : selectedSportFilter + " Staked"} value={formatCurrency(stats.totalStaked)} helper={"Returned: " + formatCurrency(stats.totalReturned)} />
-          </section>
-
-          <section className="grid gap-6 lg:grid-cols-5">
-            <Card className="lg:col-span-2">
-              <div ref={formRef} className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
-                    {editingBetId ? <p className="mt-1 text-sm text-slate-500">Update the details below, then save your changes.</p> : null}
-                  </div>
-                  {editingBetId ? <Button type="button" variant="outline" onClick={resetBetForm}>Cancel</Button> : null}
+                <div className="rounded-2xl bg-[#E8E2D4] p-3 md:p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">ROI</p>
+                  <p className="mt-1 text-lg font-bold text-[#11203B] md:text-2xl">{stats.roi.toFixed(1)}%</p>
                 </div>
-                <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
-                    <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
-                    <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
-                    <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
-                    <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
-                  </div>
-                  <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
-                  <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
-                  <Button type="submit" className="w-full py-3 text-base font-semibold shadow-sm">
-                  {editingBetId ? "Update Bet" : "Add Bet"}
-                  </Button>
-                </form>
-              </div>
-            </Card>
-
-            <Card className="lg:col-span-3">
-              <div className="p-5">
-                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                  <div><h2 className="text-xl font-semibold">{chartTitle}</h2><p className="text-sm text-slate-500">{chartDescription}</p></div>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
-                    <select value={chartType} onChange={(event) => setChartType(event.target.value)} className="rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="bar">Bar graph</option><option value="line">Line graph</option><option value="area">Area graph</option></select>
-                  </div>
-                </div>
-                <div className="mt-4 h-64 md:h-80">
-                  {chartData.length ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      {chartType === "line" ? (
-                        <LineChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
-                          <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
-                          <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                          <Line type="monotone" dataKey="profitLoss" stroke={chartColor} strokeWidth={3} dot={(props) => <circle cx={props.cx} cy={props.cy} r={4} fill={props.payload.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />} activeDot={{ r: 6 }} />
-                        </LineChart>
-                      ) : chartType === "area" ? (
-                        <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
-                          <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
-                          <defs>
-                            <linearGradient id="profitLossGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={positiveChartColor} stopOpacity={0.22} />
-                              <stop offset={zeroOffset + "%"} stopColor={positiveChartColor} stopOpacity={0.16} />
-                              <stop offset={zeroOffset + "%"} stopColor={negativeChartColor} stopOpacity={0.16} />
-                              <stop offset="100%" stopColor={negativeChartColor} stopOpacity={0.24} />
-                            </linearGradient>
-                          </defs>
-                          <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                          <Area type="monotone" dataKey="profitLoss" stroke={chartColor} fill="url(#profitLossGradient)" strokeWidth={3} />
-                        </AreaChart>
-                      ) : (
-                        <BarChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
-                          <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
-                          <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                          <Bar dataKey="profitLoss" radius={[10, 10, 0, 0]}>
-                            {chartData.map((entry) => <Cell key={entry.sortKey} fill={entry.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />)}
-                          </Bar>
-                        </BarChart>
-                      )}
-                    </ResponsiveContainer>
-                  ) : <div className="flex h-full items-center justify-center rounded-2xl bg-[#E8E2D4] text-sm text-slate-500">Add your first bet to see the graph.</div>}
+                <div className="rounded-2xl bg-[#E8E2D4] p-3 md:p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 md:text-sm md:normal-case md:tracking-normal">Win Rate</p>
+                  <p className="mt-1 text-lg font-bold text-[#11203B] md:text-2xl">{stats.winRate.toFixed(1)}%</p>
                 </div>
               </div>
-            </Card>
-          </section>
 
-          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Biggest Win" value={formatCurrency(stats.biggestWin)} />
-            <StatCard title="Biggest Loss" value={formatCurrency(stats.biggestLoss)} />
-            <StatCard title="Longest Winning Streak" value={String(stats.longestWinningStreak) + " bets"} />
-            <StatCard title="Longest Losing Streak" value={String(stats.longestLosingStreak) + " bets"} />
-          </section>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4 md:gap-3">
+                <div className="rounded-xl border border-slate-200 bg-[#FAF7EF] p-3"><p className="text-xs text-slate-500">Staked</p><p className="font-semibold text-[#11203B]">{formatCurrency(stats.totalStaked)}</p></div>
+                <div className="rounded-xl border border-slate-200 bg-[#FAF7EF] p-3"><p className="text-xs text-slate-500">Returned</p><p className="font-semibold text-[#11203B]">{formatCurrency(stats.totalReturned)}</p></div>
+                <div className="rounded-xl border border-slate-200 bg-[#FAF7EF] p-3"><p className="text-xs text-slate-500">Wins</p><p className="font-semibold text-[#11203B]">{stats.wins}</p></div>
+                <div className="rounded-xl border border-slate-200 bg-[#FAF7EF] p-3"><p className="text-xs text-slate-500">Losses</p><p className="font-semibold text-[#11203B]">{stats.losses}</p></div>
+              </div>
+            </div>
+          </Card>
 
           <Card>
-            <div className="p-5">
+            <div className="p-4 md:p-5">
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                <div><h2 className="text-xl font-semibold">{chartTitle}</h2><p className="text-sm text-slate-500">{chartDescription}</p></div>
+                <div className="grid grid-cols-2 gap-2 sm:flex">
+                  <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+                  <select value={chartType} onChange={(event) => setChartType(event.target.value)} className="min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="bar">Bar graph</option><option value="line">Line graph</option><option value="area">Area graph</option></select>
+                </div>
+              </div>
+              <div className="mt-4 h-64 md:h-80">
+                {chartData.length ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    {chartType === "line" ? (
+                      <LineChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} width={45} />
+                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                        <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                        <Line type="monotone" dataKey="profitLoss" stroke={chartColor} strokeWidth={3} dot={(props) => <circle cx={props.cx} cy={props.cy} r={4} fill={props.payload.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />} activeDot={{ r: 6 }} />
+                      </LineChart>
+                    ) : chartType === "area" ? (
+                      <AreaChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} width={45} />
+                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                        <defs>
+                          <linearGradient id="profitLossGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={positiveChartColor} stopOpacity={0.22} />
+                            <stop offset={zeroOffset + "%"} stopColor={positiveChartColor} stopOpacity={0.16} />
+                            <stop offset={zeroOffset + "%"} stopColor={negativeChartColor} stopOpacity={0.16} />
+                            <stop offset="100%" stopColor={negativeChartColor} stopOpacity={0.24} />
+                          </linearGradient>
+                        </defs>
+                        <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                        <Area type="monotone" dataKey="profitLoss" stroke={chartColor} fill="url(#profitLossGradient)" strokeWidth={3} />
+                      </AreaChart>
+                    ) : (
+                      <BarChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} width={45} />
+                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                        <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                        <Bar dataKey="profitLoss" radius={[10, 10, 0, 0]}>
+                          {chartData.map((entry) => <Cell key={entry.sortKey} fill={entry.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />)}
+                        </Bar>
+                      </BarChart>
+                    )}
+                  </ResponsiveContainer>
+                ) : <div className="flex h-full items-center justify-center rounded-2xl bg-[#E8E2D4] text-sm text-slate-500">Add your first bet to see the graph.</div>}
+              </div>
+            </div>
+          </Card>
+
+          <Card className="border-[#11203B]/15 bg-[#FAF7EF]">
+            <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-5">
+              <div>
+                <p className="text-sm font-semibold text-slate-500">Edge AI Analyst</p>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#11203B]">Ask Edge before your next one.</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Explore available markets, compare saved stats, and build informational examples with clear risk notes.</p>
+              </div>
+              <Button onClick={() => setActivePage("edge")} className="w-full rounded-2xl py-3 text-base font-semibold shadow-sm md:w-auto md:px-6">Open Edge</Button>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="p-4 md:p-5">
               <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
                 <div>
-                  <h2 className="text-xl font-semibold">Bet history</h2>
-                  <p className="text-sm text-slate-500">Edit or delete entries if you make a mistake.</p>
+                  <h2 className="text-xl font-semibold">Recent bets</h2>
+                  <p className="text-sm text-slate-500">Showing {visibleBets.length} of {filteredBets.length} bets{selectedSportFilter !== "All sports" ? " for " + selectedSportFilter : ""}</p>
                 </div>
-                <p className="text-sm text-slate-500">Showing {visibleBets.length} of {filteredBets.length} bets{selectedSportFilter !== "All sports" ? " for " + selectedSportFilter : ""}</p>
               </div>
 
               <div className="mt-4 space-y-3 md:hidden">
@@ -1441,8 +1409,8 @@ export default function BettingTrackerWebsite() {
                   <div key={bet.id} className={"rounded-2xl border border-slate-200 p-4 " + (editingBetId === bet.id ? "bg-slate-50" : "bg-[#FAF7EF]")}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#11203B]">{bet.date}</p>
-                        <p className="mt-1 text-xs capitalize text-slate-500">{bet.sport || "Other"} · {bet.result} · Odds {bet.odds || "-"}</p>
+                        <p className="text-sm font-semibold text-[#11203B]">{bet.sport || "Other"}</p>
+                        <p className="mt-1 text-xs capitalize text-slate-500">{bet.date} · {bet.result} · Odds {bet.odds || "-"}</p>
                       </div>
                       <p className={"text-base font-semibold " + (bet.profitLoss >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(bet.profitLoss)}</p>
                     </div>
@@ -1474,12 +1442,63 @@ export default function BettingTrackerWebsite() {
               {filteredBets.length > 5 ? <div className="mt-5 flex justify-center"><Button type="button" variant="outline" onClick={() => setShowAllBets((current) => !current)}>{showAllBets ? "Show less" : `Show all bets (${filteredBets.length})`}</Button></div> : null}
             </div>
           </Card>
+
+          <Card>
+            <div ref={formRef} className="p-4 md:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
+                  {editingBetId ? <p className="mt-1 text-sm text-slate-500">Update the details below, then save your changes.</p> : <p className="mt-1 text-sm text-slate-500">Log the stake, odds, result and return.</p>}
+                </div>
+                {editingBetId ? <Button type="button" variant="outline" onClick={resetBetForm}>Cancel</Button> : null}
+              </div>
+              <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
+                  <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
+                  <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full min-h-11 rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2.5 text-base outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 md:text-sm"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
+                  <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
+                  <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
+                </div>
+                <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
+                <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
+                <Button type="submit" className="w-full py-3 text-base font-semibold shadow-sm">{editingBetId ? "Update Bet" : "Add Bet"}</Button>
+              </form>
+            </div>
+          </Card>
+
+          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard title="Biggest Win" value={formatCurrency(stats.biggestWin)} />
+            <StatCard title="Biggest Loss" value={formatCurrency(stats.biggestLoss)} />
+            <StatCard title="Longest Winning Streak" value={String(stats.longestWinningStreak) + " bets"} />
+            <StatCard title="Longest Losing Streak" value={String(stats.longestLosingStreak) + " bets"} />
+          </section>
+
+          <Card>
+            <div className="space-y-3 p-4 md:p-5">
+              <p className="text-sm font-semibold text-[#11203B]">Account and feedback</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <a
+                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-[#FAF7EF] px-4 py-2.5 text-sm font-medium text-[#11203B] transition hover:bg-[#E8E2D4]"
+                >
+                  Give feedback
+                </a>
+                <Button type="button" variant="outline" onClick={() => setActivePage("settings")} className="w-full">Settings</Button>
+                <Button type="button" variant="outline" onClick={handleLogout} className="w-full border-red-300 bg-red-100 text-red-900 hover:bg-red-100">Log out</Button>
+              </div>
+            </div>
+          </Card>
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
       <Analytics />
     </div>
   );
+
 }
 
 runBasicTests();
