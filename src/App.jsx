@@ -974,9 +974,11 @@ export default function BettingTrackerWebsite() {
   const [selectedSportFilter, setSelectedSportFilter] = useState("All sports");
   const fileInputRef = useRef(null);
   const formRef = useRef(null);
+  const mobileFormRef = useRef(null);
   const [chartView, setChartView] = useState("weekly");
   const [chartType, setChartType] = useState("bar");
   const [form, setForm] = useState({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
+  const [mobileAddBetOpen, setMobileAddBetOpen] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -1149,11 +1151,13 @@ export default function BettingTrackerWebsite() {
 
   const resetBetForm = () => {
     setEditingBetId(null);
+    setMobileAddBetOpen(false);
     setForm({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
   };
 
   const startEditingBet = (bet) => {
     setEditingBetId(bet.id);
+    setMobileAddBetOpen(true);
     setForm({
       date: bet.date,
       sport: bet.sport || "Other",
@@ -1164,7 +1168,10 @@ export default function BettingTrackerWebsite() {
       notes: bet.notes || "",
     });
     setMessage("Editing bet from " + bet.date + ". Make changes and click Update Bet.");
-    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    window.setTimeout(() => {
+      const target = window.innerWidth < 768 ? mobileFormRef.current : formRef.current;
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   };
 
   const handleAddOrUpdateBet = async (event) => {
@@ -1306,9 +1313,241 @@ export default function BettingTrackerWebsite() {
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
 
   return (
-    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
+    <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto max-w-7xl">
+
+          <div className="space-y-4 md:hidden">
+            <header className="space-y-1">
+              <p className="text-sm font-medium text-slate-500">Online account version</p>
+              <h1 className="text-3xl font-bold tracking-tight">Bet Tracker</h1>
+              <p className="text-sm text-slate-500">Logged in as {session.user.email}</p>
+            </header>
+
+            {message ? <Card><div className="p-4 text-sm text-slate-700">{message}</div></Card> : null}
+            {loadingBets ? <Card><div className="p-4 text-sm text-slate-700">Loading your saved bets...</div></Card> : null}
+            {riskWarning ? <Card className="border-[#A94442]/30 bg-[#A94442]/10"><div className="p-4 text-sm text-[#A94442]">Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.</div></Card> : null}
+
+            <Card>
+              <div className="space-y-4 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[#11203B]">Performance summary</p>
+                    <p className="mt-1 text-xs text-slate-500">Profit/loss, ROI and win rate at a glance.</p>
+                  </div>
+                  <select
+                    value={selectedSportFilter}
+                    onChange={(event) => {
+                      setSelectedSportFilter(event.target.value);
+                      setShowAllBets(false);
+                    }}
+                    className="max-w-[130px] rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium outline-none focus:border-[#11203B] focus:ring-2 focus:ring-slate-200"
+                  >
+                    <option value="All sports">All sports</option>
+                    <option value="AFL">AFL</option>
+                    <option value="NRL">NRL</option>
+                    <option value="Soccer">Soccer</option>
+                    <option value="Basketball">Basketball</option>
+                    <option value="Cricket">Cricket</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className={"rounded-2xl p-4 " + (stats.totalProfit >= 0 ? "bg-[#2E7D5B]/10" : "bg-[#A94442]/10")}>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Profit/Loss</p>
+                  <p className={"mt-1 text-3xl font-bold " + (stats.totalProfit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(stats.totalProfit)}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-[#E8E2D4] p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">ROI</p>
+                    <p className="mt-1 text-xl font-bold text-[#11203B]">{stats.roi.toFixed(1)}%</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#E8E2D4] p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Win Rate</p>
+                    <p className="mt-1 text-xl font-bold text-[#11203B]">{stats.winRate.toFixed(1)}%</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-[#2E7D5B]/30 bg-[#2E7D5B]/10 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Wins</p>
+                    <p className="mt-1 text-xl font-bold text-[#2E7D5B]">{stats.wins}</p>
+                  </div>
+                  <div className="rounded-2xl border border-[#A94442]/30 bg-[#A94442]/10 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Losses</p>
+                    <p className="mt-1 text-xl font-bold text-[#A94442]">{stats.losses}</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">{chartTitle}</h2>
+                    <p className="text-xs text-slate-500">{chartDescription}</p>
+                  </div>
+                  <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200">
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+                <div className="mt-4 h-56">
+                  {chartData.length ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} width={40} />
+                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                        <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                        <Bar dataKey="profitLoss" radius={[8, 8, 0, 0]}>
+                          {chartData.map((entry) => <Cell key={entry.sortKey} fill={entry.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <div className="flex h-full items-center justify-center rounded-2xl bg-[#E8E2D4] text-sm text-slate-500">Add your first bet to see the graph.</div>}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="border-[#11203B]/20">
+              <div className="space-y-3 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-[#11203B]">Ask Edge</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">Explore player markets, game analysis and example multis.</p>
+                </div>
+                <Button onClick={() => setActivePage("edge")} className="w-full rounded-2xl py-3 text-base font-semibold">Open Edge</Button>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="grid grid-cols-2 gap-3 p-4">
+                <div className="rounded-2xl border border-[#2E7D5B]/25 bg-[#2E7D5B]/10 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Biggest Win</p>
+                  <p className="mt-1 text-lg font-bold text-[#2E7D5B]">{formatCurrency(stats.biggestWin)}</p>
+                </div>
+                <div className="rounded-2xl border border-[#A94442]/25 bg-[#A94442]/10 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Biggest Loss</p>
+                  <p className="mt-1 text-lg font-bold text-[#A94442]">{formatCurrency(stats.biggestLoss)}</p>
+                </div>
+                <div className="rounded-2xl bg-[#E8E2D4] p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Win Streak</p>
+                  <p className="mt-1 text-lg font-bold text-[#11203B]">{stats.longestWinningStreak} bets</p>
+                </div>
+                <div className="rounded-2xl bg-[#E8E2D4] p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Losing Streak</p>
+                  <p className="mt-1 text-lg font-bold text-[#11203B]">{stats.longestLosingStreak} bets</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div ref={mobileFormRef} className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
+                    <p className="mt-1 text-xs text-slate-500">{mobileAddBetOpen ? "Enter the details below." : "Tap to quickly log a new bet."}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={mobileAddBetOpen ? "outline" : "primary"}
+                    onClick={() => {
+                      if (mobileAddBetOpen) resetBetForm();
+                      else setMobileAddBetOpen(true);
+                    }}
+                    className="px-4"
+                  >
+                    {mobileAddBetOpen ? "Cancel" : "Add Bet"}
+                  </Button>
+                </div>
+
+                {mobileAddBetOpen ? (
+                  <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
+                      <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      {["win", "loss", "void"].map((result) => (
+                        <button
+                          key={result}
+                          type="button"
+                          onClick={() => setForm({ ...form, result })}
+                          className={"rounded-xl border px-3 py-2.5 text-sm font-semibold capitalize " + (form.result === result ? "border-[#11203B] bg-[#11203B] text-white" : "border-slate-300 bg-[#FAF7EF] text-[#11203B]")}
+                        >
+                          {result}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
+                      <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
+                      <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
+                    </div>
+
+                    <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
+                    <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
+                    <Button type="submit" className="w-full py-3 text-base font-semibold">{editingBetId ? "Update Bet" : "Save Bet"}</Button>
+                  </form>
+                ) : null}
+              </div>
+            </Card>
+
+            <Card>
+              <div className="p-4">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">Recent bets</h2>
+                    <p className="text-xs text-slate-500">Showing {visibleBets.length} of {filteredBets.length}</p>
+                  </div>
+                  {filteredBets.length > 5 ? <button type="button" onClick={() => setShowAllBets((current) => !current)} className="text-sm font-semibold text-[#11203B] underline">{showAllBets ? "Show less" : "View all"}</button> : null}
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {visibleBets.map((bet) => (
+                    <div key={bet.id} className={"rounded-2xl border border-slate-200 p-4 " + (editingBetId === bet.id ? "bg-slate-50" : "bg-[#FAF7EF]")}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-[#11203B]">{bet.sport || "Other"} · {bet.date}</p>
+                          <p className="mt-1 text-xs capitalize text-slate-500">{bet.result} · Stake {formatCurrency(bet.stake)} · Odds {bet.odds || "-"}</p>
+                        </div>
+                        <p className={"text-base font-bold " + (bet.profitLoss >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(bet.profitLoss)}</p>
+                      </div>
+                      {bet.notes ? <p className="mt-3 text-sm text-slate-600">{bet.notes}</p> : null}
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <Button variant="outline" onClick={() => startEditingBet(bet)} className="w-full">Edit</Button>
+                        <Button variant="ghost" onClick={() => deleteBet(bet.id)} className="w-full">Delete</Button>
+                      </div>
+                    </div>
+                  ))}
+                  {!bets.length ? <div className="rounded-2xl bg-[#E8E2D4] p-8 text-center text-sm text-slate-500">No bets added yet.</div> : null}
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="space-y-3 p-4">
+                <p className="text-sm font-semibold text-[#11203B]">Account and feedback</p>
+                <a
+                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F"
+                  className="block rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm font-medium text-[#11203B]"
+                >
+                  Give feedback
+                </a>
+                <button type="button" onClick={() => setActivePage("settings")} className="w-full rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-left text-sm font-medium text-[#11203B]">Settings</button>
+                <button type="button" onClick={handleLogout} className="w-full rounded-xl border border-red-300 bg-red-100 px-4 py-3 text-left text-sm font-medium text-red-900">Log out</button>
+              </div>
+            </Card>
+          </div>
+
+
+          <div className="hidden space-y-6 md:block">
           <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
               <p className="text-sm font-medium text-slate-500">Online account version</p>
@@ -1537,13 +1776,15 @@ export default function BettingTrackerWebsite() {
               {filteredBets.length > 5 ? <div className="mt-5 flex justify-center"><Button type="button" variant="outline" onClick={() => setShowAllBets((current) => !current)}>{showAllBets ? "Show less" : `Show all bets (${filteredBets.length})`}</Button></div> : null}
             </div>
           </Card>
+
+          </div>
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
-      <MobileBottomNav activePage={activePage} setActivePage={setActivePage} formRef={formRef} />
       <Analytics />
     </div>
   );
+
 }
 
 runBasicTests();
