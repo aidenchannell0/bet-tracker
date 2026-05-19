@@ -304,7 +304,7 @@ function Footer({ setActivePage }) {
 
 function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup }) {
   return (
-    <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
+    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-3xl space-y-6">
           <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
@@ -618,7 +618,7 @@ function EdgePage({ setActivePage }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
+    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
           <header className="grid gap-6 lg:grid-cols-[1.35fr_0.75fr] lg:items-start">
@@ -889,6 +889,71 @@ function LegalPage({ page, setActivePage }) {
         </Card>
       </div>
     </div>
+  );
+}
+
+
+function MobileBottomNav({ activePage, setActivePage, formRef }) {
+  const navButtonClass =
+    "flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-xs font-semibold transition";
+
+  const inactiveClass = "text-slate-500 hover:bg-[#E8E2D4] hover:text-[#11203B]";
+  const activeClass = "bg-[#11203B] text-white shadow-sm";
+
+  const goToDashboard = () => {
+    setActivePage("app");
+    window.setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 50);
+  };
+
+  const goToAddBet = () => {
+    setActivePage("app");
+    window.setTimeout(() => {
+      formRef?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  };
+
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-[#FAF7EF]/95 px-3 pb-[env(safe-area-inset-bottom)] pt-2 shadow-[0_-8px_25px_rgba(15,23,42,0.12)] backdrop-blur md:hidden">
+      <div className="mx-auto flex max-w-xl gap-2 rounded-3xl">
+        <button
+          type="button"
+          onClick={goToDashboard}
+          className={`${navButtonClass} ${activePage === "app" ? activeClass : inactiveClass}`}
+        >
+          <span className="text-lg">⌂</span>
+          <span>Home</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={goToAddBet}
+          className={`${navButtonClass} bg-[#C49A4A]/20 text-[#11203B] hover:bg-[#C49A4A]/30`}
+        >
+          <span className="text-lg">＋</span>
+          <span>Add</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActivePage("edge")}
+          className={`${navButtonClass} ${activePage === "edge" ? activeClass : inactiveClass}`}
+        >
+          <span className="text-lg">◇</span>
+          <span>Edge</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActivePage("settings")}
+          className={`${navButtonClass} ${activePage === "settings" ? activeClass : inactiveClass}`}
+        >
+          <span className="text-lg">⚙</span>
+          <span>Settings</span>
+        </button>
+      </div>
+    </nav>
   );
 }
 
@@ -1241,7 +1306,7 @@ export default function BettingTrackerWebsite() {
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
 
   return (
-    <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
+    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
           <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
@@ -1475,6 +1540,7 @@ export default function BettingTrackerWebsite() {
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
+      <MobileBottomNav activePage={activePage} setActivePage={setActivePage} formRef={formRef} />
       <Analytics />
     </div>
   );
