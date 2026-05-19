@@ -215,6 +215,39 @@ function StatCard({ title, value, helper }) {
   );
 }
 
+function ColoredStatCard({ title, value, helper, tone = "neutral" }) {
+  const toneClass =
+    tone === "green"
+      ? "!border-[#9BCBB2] !bg-[#DDEFE5]"
+      : tone === "red"
+      ? "!border-[#D9A39B] !bg-[#F3DDD7]"
+      : "!border-slate-200 !bg-[#FAF7EF]";
+
+  const labelClass =
+    tone === "green"
+      ? "text-[#2E7D5B]"
+      : tone === "red"
+      ? "text-[#A94442]"
+      : "text-slate-500";
+
+  const valueClass =
+    tone === "green"
+      ? "text-[#2E7D5B]"
+      : tone === "red"
+      ? "text-[#A94442]"
+      : "text-[#11203B]";
+
+  return (
+    <Card className={toneClass}>
+      <div className="p-5">
+        <p className={`text-sm font-medium ${labelClass}`}>{title}</p>
+        <p className={`mt-1 text-2xl font-semibold ${valueClass}`}>{value}</p>
+        {helper ? <p className={`mt-1 text-xs ${labelClass}`}>{helper}</p> : null}
+      </div>
+    </Card>
+  );
+}
+
 function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassword, loading, message, onSubmit, onResetPassword }) {
   return (
     <div className="min-h-screen bg-[#E8E2D4] p-4 text-[#11203B] md:p-8">
@@ -1630,22 +1663,30 @@ export default function BettingTrackerWebsite() {
           </div>
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"} value={formatCurrency(stats.totalProfit)} helper="Overall betting result" />
-            <StatCard
+            <ColoredStatCard
+              title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"}
+              value={formatCurrency(stats.totalProfit)}
+              helper="Overall betting result"
+              tone={stats.totalProfit >= 0 ? "green" : "red"}
+            />
+            <ColoredStatCard
               title={selectedSportFilter === "All sports" ? "Win Rate" : selectedSportFilter + " Win Rate"}
               value={stats.winRate.toFixed(1) + "%"}
               helper={stats.wins + " wins, " + stats.losses + " losses"}
+              tone="green"
             />
-            <StatCard
+            <ColoredStatCard
               title={selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"}
               value={stats.roi.toFixed(1) + "%"}
               helper="Profit compared to total staked"
-              cardClassName={stats.roi >= 0 ? "!border-[#9BCBB2] !bg-[#DDEFE5]" : "!border-[#D9A39B] !bg-[#F3DDD7]"}
-              titleClassName={stats.roi >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"}
-              valueClassName={stats.roi >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]"}
-              helperClassName={stats.roi >= 0 ? "text-[#2E7D5B]/80" : "text-[#A94442]/80"}
+              tone={stats.roi >= 0 ? "green" : "red"}
             />
-            <StatCard title={selectedSportFilter === "All sports" ? "Total Staked" : selectedSportFilter + " Staked"} value={formatCurrency(stats.totalStaked)} helper={"Returned: " + formatCurrency(stats.totalReturned)} />
+            <ColoredStatCard
+              title={selectedSportFilter === "All sports" ? "Total Staked" : selectedSportFilter + " Staked"}
+              value={formatCurrency(stats.totalStaked)}
+              helper={"Returned: " + formatCurrency(stats.totalReturned)}
+              tone="neutral"
+            />
           </section>
 
           <section className="grid gap-6 lg:grid-cols-5">
@@ -1734,10 +1775,26 @@ export default function BettingTrackerWebsite() {
           </section>
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Biggest Win" value={formatCurrency(stats.biggestWin)} />
-            <StatCard title="Biggest Loss" value={formatCurrency(stats.biggestLoss)} />
-            <StatCard title="Longest Winning Streak" value={String(stats.longestWinningStreak) + " bets"} />
-            <StatCard title="Longest Losing Streak" value={String(stats.longestLosingStreak) + " bets"} />
+            <ColoredStatCard
+              title="Biggest Win"
+              value={formatCurrency(stats.biggestWin)}
+              tone="green"
+            />
+            <ColoredStatCard
+              title="Biggest Loss"
+              value={formatCurrency(stats.biggestLoss)}
+              tone={stats.biggestLoss < 0 ? "red" : "neutral"}
+            />
+            <ColoredStatCard
+              title="Longest Winning Streak"
+              value={String(stats.longestWinningStreak) + " bets"}
+              tone="green"
+            />
+            <ColoredStatCard
+              title="Longest Losing Streak"
+              value={String(stats.longestLosingStreak) + " bets"}
+              tone={stats.longestLosingStreak > 0 ? "red" : "neutral"}
+            />
           </section>
 
           <Card>
