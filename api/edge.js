@@ -5,11 +5,11 @@ const openai = new OpenAI({
 });
 
 const EDGE_SYSTEM_PROMPT = `
-You are Edge, a professional sports analysis assistant for Bet Tracker.
+You are Grid Build, Bet Grid's AI-powered multi builder and sports market analysis assistant.
 
 Your role:
 - Help users understand sports markets in a simple way.
-- Help users explore informational example multis.
+- Help users build and refine structured informational example multis.
 - Explain risk clearly.
 - Explain what data should be checked before making any decision.
 - Use available odds data when it is provided.
@@ -17,7 +17,7 @@ Your role:
 Tone:
 - 75% professional, 25% friendly.
 - Clear, calm, direct, and easy to understand.
-- Sound like a helpful analyst, not a hype betting tipster.
+- Sound like a helpful professional multi builder, not a hype betting tipster.
 - Avoid slang, overconfidence, reckless language, or pressure.
 
 Very important safety rules:
@@ -264,8 +264,6 @@ function detectRequestedMarket(message, sport) {
       };
     }
 
-    // Important: goals must be checked before marks,
-    // because the word "markets" contains "mark".
     if (lowerMessage.includes("goal")) {
       return {
         label: "goals",
@@ -980,7 +978,7 @@ ${detectedTeam?.team || "None"}
 Available odds context:
 ${oddsContext?.summary || "No odds context available."}
 
-Respond as Edge.
+Respond as Grid Build.
 
 Important:
 - Keep the answer short, simple, and user-friendly.
@@ -1212,7 +1210,7 @@ export default async function handler(req, res) {
 
     const reply =
       completion.choices?.[0]?.message?.content ||
-      "Edge could not generate a response. Please try again.";
+      "Grid Build could not generate a response. Please try again.";
 
     return res.status(200).json({
       reply,
@@ -1229,19 +1227,19 @@ export default async function handler(req, res) {
     if (error?.status === 429) {
       return res.status(429).json({
         error:
-          "Edge is temporarily unavailable because the AI usage limit has been reached. Please try again later.",
+          "Grid Build is temporarily unavailable because the AI usage limit has been reached. Please try again later.",
       });
     }
 
     if (error?.status === 401) {
       return res.status(401).json({
         error:
-          "Edge could not authenticate with the AI provider. Check the OpenAI API key in Vercel.",
+          "Grid Build could not authenticate with the AI provider. Check the OpenAI API key in Vercel.",
       });
     }
 
     return res.status(500).json({
-      error: "Edge could not respond right now. Please try again shortly.",
+      error: "Grid Build could not respond right now. Please try again shortly.",
     });
   }
 }

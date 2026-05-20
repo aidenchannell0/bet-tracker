@@ -255,7 +255,7 @@ function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassw
         <Card className="w-full">
           <div className="p-6 md:p-8">
             <p className="text-sm font-medium text-slate-500">Online version</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">Bet Tracker</h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">Bet Grid</h1>
             <p className="mt-2 text-sm text-slate-600">Create an account or log in to save your bets online and access them from any device.</p>
             {authMode === "reset" ? <p className="mt-2 text-sm text-slate-600">Enter your email and we will send you a password reset link.</p> : null}
 
@@ -302,7 +302,7 @@ function PasswordRecoveryScreen({ newPassword, setNewPassword, loading, message,
           <div className="p-6 md:p-8">
             <p className="text-sm font-medium text-slate-500">Password reset</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight">Set a new password</h1>
-            <p className="mt-2 text-sm text-slate-600">Enter a new password for your Bet Tracker account.</p>
+            <p className="mt-2 text-sm text-slate-600">Enter a new password for your Bet Grid account.</p>
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
               <label className="space-y-1 text-sm font-medium">
                 New password
@@ -322,9 +322,9 @@ function Footer({ setActivePage }) {
   return (
     <footer className="border-t border-slate-200 py-6 text-sm text-slate-500">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 md:flex-row md:items-center md:justify-between md:px-8">
-        <p>© {new Date().getFullYear()} Bet Tracker. Informational use only.</p>
+        <p>© {new Date().getFullYear()} Bet Grid. Informational use only.</p>
         <div className="flex flex-wrap gap-4">
-          <a href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F" className="font-medium text-[#11203B] hover:underline">Give feedback</a>
+          <a href="mailto:aidenchannell0@gmail.com?subject=Bet%20Grid%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Grid%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Grid%20Build%20with%20live%20sports%20data%3F" className="font-medium text-[#11203B] hover:underline">Give feedback</a>
           <button onClick={() => setActivePage("disclaimer")} className="hover:text-[#11203B]">Disclaimer</button>
           <button onClick={() => setActivePage("responsible")} className="hover:text-[#11203B]">Responsible Gambling</button>
           <button onClick={() => setActivePage("privacy")} className="hover:text-[#11203B]">Privacy</button>
@@ -343,7 +343,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
           <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
           <Card>
             <div className="p-6 md:p-8">
-              <p className="text-sm font-medium text-slate-500">Bet Tracker</p>
+              <p className="text-sm font-medium text-slate-500">Bet Grid</p>
               <h1 className="mt-1 text-3xl font-bold tracking-tight">Settings</h1>
               <p className="mt-2 text-sm leading-6 text-slate-600">Manage exports, backups and account-level bet data actions.</p>
 
@@ -359,7 +359,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
 
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <h2 className="text-lg font-semibold">Import backup</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">Import a Bet Tracker JSON backup. Imported bets will be added to your online account.</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">Import a Bet Grid JSON backup. Imported bets will be added to your online account.</p>
                   <div className="mt-4">
                     <Button onClick={() => fileInputRef.current && fileInputRef.current.click()} variant="outline">Import Backup</Button>
                     <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={importBackup} className="hidden" />
@@ -436,7 +436,7 @@ function EdgeDetailToggle({ leg }) {
             <p className="mt-1 leading-6">{leg.trend}</p>
           </div>
           <div>
-            <p className="font-medium text-slate-900">Why Edge included it</p>
+            <p className="font-medium text-slate-900">Why Grid Build included it</p>
             <p className="mt-1 leading-6">{leg.extraReason}</p>
           </div>
         </div>
@@ -589,7 +589,7 @@ function EdgePage({ setActivePage }) {
     setChatMessages([
       {
         role: "edge",
-        text: "Simple view:\n\nNew Edge chat started. Ask me for an example multi, a game analysis structure, or what data I would check before building a selection.\n\nExample structure:\n\nYou can ask things like: Build a 3-leg AFL example around $2.00 using disposals only.\n\nWhat I would check:\n\nI will explain the key data needed without pretending live stats are connected yet.\n\nRisk level:\n\nI can explain the risk on a 1 to 10 scale.\n\nImportant:\n\nThis is informational only, not betting advice.",
+        text: "Simple view:\n\nNew Grid Build chat started. Ask me for an example multi, a game analysis structure, or what data I would check before building a selection.\n\nExample structure:\n\nYou can ask things like: Build a 3-leg AFL example around $2.00 using disposals only.\n\nWhat I would check:\n\nI will explain the key data needed without pretending live stats are connected yet.\n\nRisk level:\n\nI can explain the risk on a 1 to 10 scale.\n\nImportant:\n\nThis is informational only, not betting advice.",
       },
     ]);
     setChatInput("");
@@ -635,14 +635,14 @@ function EdgePage({ setActivePage }) {
       if (data?.edgeContext) {
         setLastEdgeContext(data.edgeContext);
       }
-      if (!response.ok) throw new Error(data.error || "Edge request failed");
+      if (!response.ok) throw new Error(data.error || "Grid Build request failed");
       setChatMessages((current) => [...current, { role: "edge", text: data.reply }]);
     } catch (error) {
       setChatMessages((current) => [
         ...current,
         {
           role: "edge",
-          text: "Simple view:\n\nEdge could not respond right now.\n\nExample structure:\n\nThis usually means the backend API, OpenAI key, or deployment needs to be checked.\n\nWhat I would check:\n\nConfirm the Vercel function is deployed and the OPENAI_API_KEY is set correctly.\n\nRisk level:\n\nTechnical issue only.\n\nImportant:\n\nTry again shortly after checking the setup.",
+          text: "Simple view:\n\nGrid Build could not respond right now.\n\nExample structure:\n\nThis usually means the backend API, OpenAI key, or deployment needs to be checked.\n\nWhat I would check:\n\nConfirm the Vercel function is deployed and the OPENAI_API_KEY is set correctly.\n\nRisk level:\n\nTechnical issue only.\n\nImportant:\n\nTry again shortly after checking the setup.",
         },
       ]);
     } finally {
@@ -658,22 +658,22 @@ function EdgePage({ setActivePage }) {
             <div>
               <button onClick={() => setActivePage("app")} className="mb-3 text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium text-slate-500">AI analyst preview</p>
+                <p className="text-sm font-medium text-slate-500">AI multi builder preview</p>
                 <span className="rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">Beta preview</span>
               </div>
-              <h1 className="mt-2 text-4xl font-bold tracking-tight md:text-6xl">Edge</h1>
-              <p className="mt-2 max-w-2xl text-slate-600">A smarter way to explore example multis, game analysis and risk, built around clear data instead of vague tips.</p>
+              <h1 className="mt-2 text-4xl font-bold tracking-tight md:text-6xl">Grid Build</h1>
+              <p className="mt-2 max-w-2xl text-slate-600">A smarter way to build structured example multis using market lines, recent trends and risk scoring.</p>
               <div className="mt-3 inline-flex max-w-xl items-center rounded-2xl border border-[#C49A4A]/50 bg-[#C49A4A]/15 px-4 py-3 text-sm leading-6 text-[#11203B] shadow-sm">
                 <span className="mr-2">✨</span><span><span className="font-semibold">Live data coming soon:</span> odds, player stats and team news.</span>
               </div>
               <div className="mt-3 max-w-3xl rounded-2xl border border-slate-300 bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700">
-                <p className="font-semibold text-[#11203B]">What is Edge?</p>
-                <p className="mt-1">Edge is your AI analysis assistant inside Bet Tracker. It helps explain example multis, risk levels, market types and what data should be checked before making decisions. Edge is designed to be educational and data-focused, not a betting tips service.</p>
+                <p className="font-semibold text-[#11203B]">What is Grid Build?</p>
+                <p className="mt-1">Grid Build is Bet Grid’s AI-powered multi builder. It helps create structured example multis, explain risk levels, compare market types and show what data should be checked before making decisions. Grid Build is designed to be structured and data-focused, not a betting tips service.</p>
               </div>
             </div>
             <div className="space-y-4 lg:pt-10">
               <div className="rounded-2xl border border-[#C49A4A]/40 bg-[#C49A4A]/15 p-4 text-sm leading-6 text-[#11203B] shadow-sm">
-                <span className="font-semibold">Important:</span> Edge is for informational analysis only. It is not betting advice, financial advice, or a guarantee of results. Always make your own decision and gamble responsibly.
+                <span className="font-semibold">Important:</span> Grid Build is for informational analysis only. It is not betting advice, financial advice, or a guarantee of results. Always make your own decision and gamble responsibly.
               </div>
               <div className="flex flex-col items-start gap-3 lg:items-end">
                 <div className="rounded-2xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm text-slate-600 shadow-sm">
@@ -719,7 +719,7 @@ function EdgePage({ setActivePage }) {
                 <div className="p-5 md:p-6">
                   <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                     <div>
-                      <p className="text-sm font-medium text-slate-500">Edge output</p>
+                      <p className="text-sm font-medium text-slate-500">Grid Build output</p>
                       <h2 className="mt-1 text-2xl font-semibold">Example {displayedLegs}-leg {sport} multi</h2>
                       <p className="mt-2 text-sm text-slate-600">This is placeholder preview data only. The live version will use current odds, market availability and sport-specific statistics before producing outputs.</p>
                     </div>
@@ -766,7 +766,7 @@ function EdgePage({ setActivePage }) {
             <div className="p-5 md:p-6">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                 <div>
-                  <p className="text-sm font-medium text-slate-500">Chat with Edge</p>
+                  <p className="text-sm font-medium text-slate-500">Chat with Grid Build</p>
                   <h2 className="text-xl font-semibold">Refine the build naturally</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -777,7 +777,7 @@ function EdgePage({ setActivePage }) {
               </div>
               {chatMessages.length === 0 ? (
                 <div className="mt-5 rounded-2xl border border-slate-200 bg-[#FAF7EF]/70 p-4">
-                  <p className="text-sm font-semibold text-[#11203B]">Try asking Edge</p>
+                  <p className="text-sm font-semibold text-[#11203B]">Try Grid Build</p>
                   <p className="mt-1 text-sm text-slate-600">Choose a starter prompt or type your own question below.</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button" onClick={() => useExamplePrompt(`Build a ${displayedLegs}-leg ${sport} example multi around ${displayedTargetOdds}. Keep it simple and explain the risk.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Build example multi</button>
@@ -791,7 +791,7 @@ function EdgePage({ setActivePage }) {
                 {chatMessages.map((chatMessage, index) => <EdgeMessage key={index} role={chatMessage.role}>{chatMessage.text}</EdgeMessage>)}
               </div>
               <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-                <Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Edge a follow-up..." onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} />
+                <Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Grid Build a follow-up..." onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} />
                 <Button onClick={sendChatMessage} className="sm:px-6" disabled={edgeLoading}>{edgeLoading ? "Thinking..." : "Send"}</Button>
               </div>
             </div>
@@ -816,7 +816,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
         <div className="mx-auto max-w-7xl space-y-10">
           <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <p className="text-sm font-medium text-slate-500">Bet Tracker</p>
+              <p className="text-sm font-medium text-slate-500">Bet Grid</p>
               <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Track every bet. Understand every result.</h1>
             </div>
             <div className="flex gap-2">
@@ -829,13 +829,13 @@ function LandingPage({ setActivePage, setAuthMode }) {
             <div className="space-y-6">
               <div>
                 <h2 className="text-4xl font-bold tracking-tight md:text-6xl">Know if you are actually winning.</h2>
-                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">Bet Tracker helps you record every bet, review your profit and loss, monitor your win rate, and understand your performance over time.</p>
+                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">Bet Grid helps you record every bet, review your profit and loss, monitor your win rate, and understand your performance over time.</p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Start tracking</Button>
                 <Button variant="outline" onClick={() => openAuth("login")} className="w-full sm:w-auto">I already have an account</Button>
               </div>
-              <p className="text-sm text-slate-500">Built for tracking and informational use. Bet Tracker does not accept bets or guarantee outcomes.</p>
+              <p className="text-sm text-slate-500">Built for tracking and informational use. Bet Grid does not accept bets or guarantee outcomes.</p>
             </div>
 
             <Card>
@@ -858,7 +858,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
           <section className="grid gap-4 md:grid-cols-3">
             <Card><div className="p-5"><h3 className="text-lg font-semibold">Track every bet</h3><p className="mt-2 text-sm leading-6 text-slate-600">Record stakes, odds, returns, sports, results and notes so your betting history is easy to review.</p></div></Card>
             <Card><div className="p-5"><h3 className="text-lg font-semibold">Understand performance</h3><p className="mt-2 text-sm leading-6 text-slate-600">See profit/loss, ROI, win rate, streaks and weekly, monthly or yearly trends.</p></div></Card>
-            <Card><div className="p-5"><h3 className="text-lg font-semibold">Meet Edge AI</h3><p className="mt-2 text-sm leading-6 text-slate-600">Edge explains example multis, risk levels and what data should be checked. It is an educational analysis assistant, not a betting tips service.</p><button onClick={() => openAuth("signup")} className="mt-3 text-sm font-medium text-[#11203B] underline">Join to preview Edge</button></div></Card>
+            <Card><div className="p-5"><h3 className="text-lg font-semibold">Meet Grid Build</h3><p className="mt-2 text-sm leading-6 text-slate-600">Grid Build helps create structured example multis using market lines, recent trends and risk scoring. It is an educational multi builder, not a betting tips service.</p><button onClick={() => openAuth("signup")} className="mt-3 text-sm font-medium text-[#11203B] underline">Join to preview Grid Build</button></div></Card>
           </section>
         </div>
       </main>
@@ -873,15 +873,15 @@ function LegalPage({ page, setActivePage }) {
     disclaimer: {
       title: "Disclaimer",
       body: [
-        "Bet Tracker is designed to help users record, review and understand their own betting activity. The information shown in the app is for general informational and tracking purposes only.",
-        "Nothing in Bet Tracker should be treated as financial advice, betting advice, a guarantee of results or an instruction to place a bet. Betting involves risk, and users are responsible for their own decisions.",
+        "Bet Grid is designed to help users record, review and understand their own betting activity. The information shown in the app is for general informational and tracking purposes only.",
+        "Nothing in Bet Grid should be treated as financial advice, betting advice, a guarantee of results or an instruction to place a bet. Betting involves risk, and users are responsible for their own decisions.",
         "Statistics, graphs and future AI-generated analysis may contain errors, omissions or outdated information. Always check information independently before relying on it.",
       ],
     },
     responsible: {
       title: "Responsible Gambling",
       body: [
-        "Bet Tracker is intended to support awareness and accountability. If betting stops being fun, causes stress, or affects your finances, relationships, study or work, consider taking a break and seeking support.",
+        "Bet Grid is intended to support awareness and accountability. If betting stops being fun, causes stress, or affects your finances, relationships, study or work, consider taking a break and seeking support.",
         "Set limits before you bet, never bet more than you can afford to lose, and do not chase losses. Tracking losses clearly is one of the reasons this app exists.",
         "If you are in Australia and need support, consider contacting Gambling Help Online or your local gambling support service. If you are outside Australia, contact the relevant support service in your country.",
       ],
@@ -889,16 +889,16 @@ function LegalPage({ page, setActivePage }) {
     privacy: {
       title: "Privacy Policy",
       body: [
-        "Bet Tracker stores account and bet-tracking information so users can access their data across devices. This may include email address, bet dates, stakes, returns, results, notes and related performance statistics.",
-        "Bet Tracker does not need users to enter bookmaker account details or payment card details to use the core tracking features. Do not enter sensitive personal information into the notes field.",
+        "Bet Grid stores account and bet-tracking information so users can access their data across devices. This may include email address, bet dates, stakes, returns, results, notes and related performance statistics.",
+        "Bet Grid does not need users to enter bookmaker account details or payment card details to use the core tracking features. Do not enter sensitive personal information into the notes field.",
         "Data is stored using third-party infrastructure providers such as Supabase and Vercel. As the product develops, this policy should be reviewed and replaced with a full legal privacy policy before wider public marketing.",
       ],
     },
     terms: {
       title: "Terms of Use",
       body: [
-        "By using Bet Tracker, you agree to use it for lawful personal tracking and informational purposes only. You are responsible for the accuracy of the information you enter.",
-        "Bet Tracker does not accept bets, process wagers, provide bookmaker services or guarantee betting outcomes. Any betting decisions are made entirely by the user.",
+        "By using Bet Grid, you agree to use it for lawful personal tracking and informational purposes only. You are responsible for the accuracy of the information you enter.",
+        "Bet Grid does not accept bets, process wagers, provide bookmaker services or guarantee betting outcomes. Any betting decisions are made entirely by the user.",
         "The app may change, experience downtime, or contain errors while it is being developed. These terms are a working draft and should be reviewed by a qualified lawyer before commercial launch.",
       ],
     },
@@ -912,7 +912,7 @@ function LegalPage({ page, setActivePage }) {
         <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
         <Card>
           <div className="p-6 md:p-8">
-            <p className="text-sm font-medium text-slate-500">Bet Tracker</p>
+            <p className="text-sm font-medium text-slate-500">Bet Grid</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight">{selected.title}</h1>
             <div className="mt-6 space-y-4 text-sm leading-7 text-slate-700">
               {selected.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
@@ -974,7 +974,7 @@ function MobileBottomNav({ activePage, setActivePage, formRef }) {
           className={`${navButtonClass} ${activePage === "edge" ? activeClass : inactiveClass}`}
         >
           <span className="text-lg">◇</span>
-          <span>Edge</span>
+          <span>Build</span>
         </button>
 
         <button
@@ -1287,11 +1287,11 @@ export default function BettingTrackerWebsite() {
     const headers = ["Date", "Sport", "Stake", "Odds", "Result", "Return", "Profit/Loss", "Notes"];
     const rows = bets.map((bet) => [csvCell(bet.date), csvCell(bet.sport), csvCell(bet.stake), csvCell(bet.odds), csvCell(bet.result), csvCell(bet.returnAmount), csvCell(bet.profitLoss), csvCell(bet.notes)]);
     const csv = [headers.map(csvCell), ...rows].map((row) => row.join(",")).join("\n");
-    downloadFile(csv, "bet-tracker.csv", "text/csv;charset=utf-8;");
+    downloadFile(csv, "bet-grid.csv", "text/csv;charset=utf-8;");
   };
 
   const exportBackup = () => {
-    downloadFile(JSON.stringify({ app: "Bet Tracker", version: 2, exportedAt: new Date().toISOString(), bets }, null, 2), "bet-tracker-backup.json", "application/json;charset=utf-8;");
+    downloadFile(JSON.stringify({ app: "Bet Grid", version: 2, exportedAt: new Date().toISOString(), bets }, null, 2), "bet-grid-backup.json", "application/json;charset=utf-8;");
   };
 
   const importBackup = (event) => {
@@ -1317,7 +1317,7 @@ export default function BettingTrackerWebsite() {
         }
         setBets((current) => [...(data || []).map(databaseRowToBet), ...current]);
       } catch (error) {
-        window.alert("Could not import that backup file. Make sure it is a Bet Tracker JSON backup.");
+        window.alert("Could not import that backup file. Make sure it is a Bet Grid JSON backup.");
       } finally {
         event.target.value = "";
       }
@@ -1353,7 +1353,7 @@ export default function BettingTrackerWebsite() {
           <div className="space-y-4 md:hidden">
             <header className="space-y-1">
               <p className="text-sm font-medium text-slate-500">Online account version</p>
-              <h1 className="text-3xl font-bold tracking-tight">Bet Tracker</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Bet Grid</h1>
               <p className="text-sm text-slate-500">Logged in as {session.user.email}</p>
             </header>
 
@@ -1450,10 +1450,10 @@ export default function BettingTrackerWebsite() {
             <Card className="border-[#11203B]/20">
               <div className="space-y-3 p-4">
                 <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Ask Edge</p>
+                  <p className="text-sm font-semibold text-[#11203B]">Open Grid Build</p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">Explore player markets, game analysis and example multis.</p>
                 </div>
-                <Button onClick={() => setActivePage("edge")} className="w-full rounded-2xl py-3 text-base font-semibold">Open Edge</Button>
+                <Button onClick={() => setActivePage("edge")} className="w-full rounded-2xl py-3 text-base font-semibold">Open Grid Build</Button>
               </div>
             </Card>
 
@@ -1568,7 +1568,7 @@ export default function BettingTrackerWebsite() {
               <div className="space-y-3 p-4">
                 <p className="text-sm font-semibold text-[#11203B]">Account and feedback</p>
                 <a
-                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F"
+                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Grid%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Grid%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Grid%20Build%20with%20live%20sports%20data%3F"
                   className="block rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm font-medium text-[#11203B]"
                 >
                   Give feedback
@@ -1584,17 +1584,17 @@ export default function BettingTrackerWebsite() {
           <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
               <p className="text-sm font-medium text-slate-500">Online account version</p>
-              <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Bet Tracker</h1>
+              <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Bet Grid</h1>
               <p className="mt-2 max-w-2xl text-slate-600">Track stakes, returns, profit/loss, win rate, ROI and weekly performance. Your data is saved online with Supabase.</p>
               <p className="mt-1 text-sm text-slate-500">Logged in as {session.user.email}</p>
             </div>
             <div className="flex flex-col gap-3 sm:items-end">
               <div className="relative max-w-sm rounded-2xl border border-slate-300 bg-[#FAF7EF] px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm">
-                Hi, I’m Edge. I can help you explore example multis, player markets, and game analysis.
+                Hi, I’m Grid Build. I can help you explore example multis, player markets, and game analysis.
                 <span className="absolute -bottom-2 left-[28%] h-4 w-4 rotate-45 border-b border-r border-slate-300 bg-[#FAF7EF]" />
               </div>
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-                <Button onClick={() => setActivePage("edge")} className="col-span-2 w-full rounded-2xl px-6 py-4 text-base font-semibold shadow-lg shadow-slate-300 sm:col-span-1 sm:w-auto">Ask Edge</Button>
+                <Button onClick={() => setActivePage("edge")} className="col-span-2 w-full rounded-2xl px-6 py-4 text-base font-semibold shadow-lg shadow-slate-300 sm:col-span-1 sm:w-auto">Open Grid Build</Button>
                 <Button onClick={() => setActivePage("settings")} variant="outline" className="w-full sm:w-auto">Settings</Button>
                 <Button onClick={handleLogout} variant="outline" className="col-span-2 w-full sm:col-span-1 sm:w-auto">Log out</Button>
               </div>
@@ -1608,7 +1608,7 @@ export default function BettingTrackerWebsite() {
             <Card className="border-[#C49A4A]/40 bg-[#C49A4A]/15">
               <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Welcome to Bet Tracker</p>
+                  <p className="text-sm font-semibold text-[#11203B]">Welcome to Bet Grid</p>
                   <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#11203B]">Start by adding your first bet.</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Once you add a bet, your dashboard will start showing profit/loss, win rate, ROI, sport history and graph trends.</p>
                 </div>
@@ -1653,7 +1653,7 @@ export default function BettingTrackerWebsite() {
                   <p className="mt-1 text-xs leading-5 text-slate-700 md:text-sm">Got an idea or found something confusing?</p>
                 </div>
                 <a
-                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Tracker%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Tracker%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Edge%20with%20live%20sports%20data%3F"
+                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Grid%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Grid%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Grid%20Build%20with%20live%20sports%20data%3F"
                   className="inline-flex w-full items-center justify-center rounded-xl bg-[#11203B] px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 md:w-auto"
                 >
                   Give feedback
