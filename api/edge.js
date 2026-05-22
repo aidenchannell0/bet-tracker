@@ -712,11 +712,17 @@ function enrichProps(props, aflStats) {
     const hr10 = computeHitRate(ms.last10Values, prop.line);
     const implied = impliedProbFromOdds(prop.odds);
 
+    // Laplace-smoothed probabilities (rule of succession) so small samples and
+    // perfect records don't read as a literal 100% / 0% chance.
+    const smoothed = (hr) => (hr ? (hr.hits + 1) / (hr.total + 2) : null);
+    const p5 = smoothed(hr5);
+    const p10 = smoothed(hr10);
+
     // Blend recent (last 5) with the larger, steadier sample (last 10)
     let empirical = null;
-    if (hr5 && hr10) empirical = hr5.prob * 0.4 + hr10.prob * 0.6;
-    else if (hr10) empirical = hr10.prob;
-    else if (hr5) empirical = hr5.prob;
+    if (p5 != null && p10 != null) empirical = p5 * 0.4 + p10 * 0.6;
+    else if (p10 != null) empirical = p10;
+    else if (p5 != null) empirical = p5;
 
     const edge = empirical != null && implied != null ? empirical - implied : null;
 
@@ -1605,23 +1611,42 @@ export default async function handler(req, res) {
       const riskProfile =
         detectRiskFromMessage(message) || getSafeString(context?.riskProfile, "Balanced");
 
-      // Pick up to 2 games to analyse player props for
-      const selectedGames = oddsContext.events.slice(0, 2);
+      // Probe several upcoming games — some may not have player props posted yet.
+      // Keep props from the first games that actually return them (cap at 2 games).
+      const candidateGames = oddsContext.events.slice(0, 4);
 
       const eventMarketResults = await Promise.allSettled(
-        selectedGames.map((game) =>
+        candidateGames.map((game) =>
           fetchEventOddsContext(req, sport, game.id, allAFLPlayerMarkets)
         )
       );
 
-      // Gather all player props from those games
       const allProps = [];
-      for (let i = 0; i < selectedGames.length; i++) {
-        const result = eventMarketResults[i];
+      let gamesUsed = 0;
+      for (const result of eventMarketResults) {
+        if (gamesUsed >= 2) break;
         if (result.status === "fulfilled" && result.value?.event) {
           const gameProps = extractPlayerPropsFromEvent(result.value.event);
-          allProps.push(...gameProps);
+          if (gameProps.length > 0) {
+            allProps.push(...gameProps);
+            gamesUsed += 1;
+          }
         }
+      }
+
+      // No player props on any probed game — say so plainly instead of inventing legs.
+      if (allProps.length === 0) {
+        return res.status(200).json({
+          reply: `Simple view:\n\nI could not find player prop markets (disposals, goals, tackles and similar) for the upcoming ${sport} games right now.\n\nWhat I would check:\n\nPlayer markets are usually posted closer to game time. Try again nearer to the round, or ask me for the available games and head-to-head odds.\n\nImportant:\n\nThis is informational only, not betting advice.`,
+          multi: null,
+          oddsConnected: oddsContext.available,
+          aflStatsConnected: false,
+          intent: "multi",
+          sport,
+          detectedTeam: detectedTeam?.team || null,
+          dateWindow: dateWindow?.label || "upcoming games",
+          edgeContext,
+        });
       }
 
       if (allProps.length > 0) {
