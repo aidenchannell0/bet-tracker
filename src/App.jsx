@@ -532,6 +532,7 @@ function EdgePage({ setActivePage }) {
   const [showRiskExplanation, setShowRiskExplanation] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [lastEdgeContext, setLastEdgeContext] = useState(null);
+  const chatSectionRef = React.useRef(null);
 
   const displayedTargetOdds = targetOdds === "Custom" && customTargetOdds ? "$" + customTargetOdds : targetOdds;
   const displayedLegs = legs === "Custom" && customLegs ? customLegs : legs;
@@ -605,12 +606,23 @@ function EdgePage({ setActivePage }) {
     setChatInput(prompt);
   };
 
-  const sendChatMessage = async () => {
-    const trimmed = chatInput.trim();
+  const previewMulti = () => {
+    if (edgeLoading) return;
+    const requestPart = request.trim() ? `. Focus: ${request.trim()}` : "";
+    const riskPart = riskProfile !== "Balanced" ? ` with a ${riskProfile} risk profile` : "";
+    const prompt = `Build a ${displayedLegs}-leg ${sport} example multi targeting ${displayedTargetOdds}${riskPart}${requestPart}. Use real player stats and current market lines to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
+    sendChatMessage(prompt);
+    setTimeout(() => {
+      chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  const sendChatMessage = async (messageOverride = null) => {
+    const trimmed = (messageOverride || chatInput).trim();
     if (!trimmed || edgeLoading) return;
 
     setChatMessages((current) => [...current, { role: "user", text: trimmed }]);
-    setChatInput("");
+    if (!messageOverride) setChatInput("");
     setEdgeLoading(true);
 
     try {
@@ -664,7 +676,7 @@ function EdgePage({ setActivePage }) {
               <h1 className="mt-2 text-4xl font-bold tracking-tight md:text-6xl">Grid Build</h1>
               <p className="mt-2 max-w-2xl text-slate-600">A smarter way to build structured example multis using market lines, recent trends and risk scoring.</p>
               <div className="mt-3 inline-flex max-w-xl items-center rounded-2xl border border-[#C49A4A]/50 bg-[#C49A4A]/15 px-4 py-3 text-sm leading-6 text-[#11203B] shadow-sm">
-                <span className="mr-2">✨</span><span><span className="font-semibold">Live data coming soon:</span> odds, player stats and team news.</span>
+                <span className="mr-2">✨</span><span><span className="font-semibold">Live AFL data connected:</span> real player stats, hit rates and market lines power the multi builder.</span>
               </div>
               <div className="mt-3 max-w-3xl rounded-2xl border border-slate-300 bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700">
                 <p className="font-semibold text-[#11203B]">What is Grid Build?</p>
@@ -677,7 +689,7 @@ function EdgePage({ setActivePage }) {
               </div>
               <div className="flex flex-col items-start gap-3 lg:items-end">
                 <div className="rounded-2xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm text-slate-600 shadow-sm">
-                  <span className="font-semibold text-[#11203B]">Preview mode</span><br />Live sports data coming soon
+                  <span className="font-semibold text-[#11203B]">Live AFL data</span><br />Powered by current odds and AFL Tables stats
                 </div>
               </div>
             </div>
@@ -701,7 +713,7 @@ function EdgePage({ setActivePage }) {
                     {targetOdds === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom target odds<Input type="number" min="1" step="0.01" value={customTargetOdds} onChange={(event) => setCustomTargetOdds(event.target.value)} placeholder="e.g. 2.20" /></label> : null}
                     <EdgeSelectField label="Risk profile" value={riskProfile} onChange={setRiskProfile} options={["Safer", "Balanced", "Aggressive"]} />
                     <label className="space-y-1 text-sm font-medium">Optional request<Input value={request} onChange={(event) => setRequest(event.target.value)} placeholder="e.g. Disposals only, no same-game legs" /></label>
-                    <div className="pt-2"><Button className="w-full rounded-2xl py-3 text-base">Preview example multi</Button></div>
+                    <div className="pt-2"><Button onClick={previewMulti} disabled={edgeLoading} className="w-full rounded-2xl py-3 text-base">{edgeLoading ? "Analysing..." : "Preview example multi"}</Button></div>
                   </div>
                 ) : (
                   <div className="mt-6 space-y-5">
@@ -721,7 +733,7 @@ function EdgePage({ setActivePage }) {
                     <div>
                       <p className="text-sm font-medium text-slate-500">Grid Build output</p>
                       <h2 className="mt-1 text-2xl font-semibold">Example {displayedLegs}-leg {sport} multi</h2>
-                      <p className="mt-2 text-sm text-slate-600">This is placeholder preview data only. The live version will use current odds, market availability and sport-specific statistics before producing outputs.</p>
+                      <p className="mt-2 text-sm text-slate-600">The example below is illustrative. Click <span className="font-semibold">Preview example multi</span> to generate a live build from real {sport} stats and current market lines in the chat below.</p>
                     </div>
                     <div className="rounded-2xl bg-[#11203B] px-4 py-3 text-white">
                       <p className="text-xs uppercase tracking-wide text-slate-300">Target odds</p>
@@ -762,7 +774,7 @@ function EdgePage({ setActivePage }) {
             </div>
           </section>
 
-          <Card>
+          <div ref={chatSectionRef}><Card>
             <div className="p-5 md:p-6">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                 <div>
@@ -772,7 +784,7 @@ function EdgePage({ setActivePage }) {
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="outline" onClick={resetEdgeChat}>New chat</Button>
                   <Button type="button" variant="ghost" onClick={clearEdgeChat}>Clear chat</Button>
-                  <span className="rounded-full bg-[#11203B] px-3 py-2 text-xs font-semibold text-white">Preview mode</span>
+                  <span className="rounded-full bg-[#11203B] px-3 py-2 text-xs font-semibold text-white">{sport === "AFL" ? "Live AFL data" : "Preview mode"}</span>
                 </div>
               </div>
               {chatMessages.length === 0 ? (
@@ -792,10 +804,10 @@ function EdgePage({ setActivePage }) {
               </div>
               <div className="mt-5 flex flex-col gap-2 sm:flex-row">
                 <Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Grid Build a follow-up..." onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} />
-                <Button onClick={sendChatMessage} className="sm:px-6" disabled={edgeLoading}>{edgeLoading ? "Thinking..." : "Send"}</Button>
+                <Button onClick={() => sendChatMessage()} className="sm:px-6" disabled={edgeLoading}>{edgeLoading ? "Thinking..." : "Send"}</Button>
               </div>
             </div>
-          </Card>
+          </Card></div>
         </div>
       </main>
       <Footer setActivePage={setActivePage} />

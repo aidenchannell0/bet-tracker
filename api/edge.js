@@ -571,6 +571,309 @@ function extractRequestedPlayers(message) {
   return [];
 }
 
+async function fetchAFLStatsContext(req, team1, team2, players, metrics) {
+  try {
+    const baseUrl = buildBaseUrl(req);
+    const url = new URL("/api/afl-stats", baseUrl);
+
+    url.searchParams.set("team1", team1);
+    url.searchParams.set("team2", team2);
+    url.searchParams.set("players", players.join(","));
+    url.searchParams.set("metrics", metrics.join(","));
+
+    const response = await fetch(url.toString());
+    const data = await response.json();
+
+    if (!response.ok || !data.available) {
+      return { available: false, players: [], gamesAnalysed: 0 };
+    }
+
+    return {
+      available: true,
+      players: data.players || [],
+      gamesAnalysed: data.gamesAnalysed || 0,
+      source: data.source || "Squiggle API",
+      year: data.year,
+    };
+  } catch (error) {
+    console.error("AFL stats context error:", error);
+    return { available: false, players: [], gamesAnalysed: 0 };
+  }
+}
+
+function extractPlayerPropsFromEvent(event) {
+  const props = [];
+  const seen = new Set();
+  const overMarketKeys = [
+    "player_disposals_over",
+    "player_goals_scored_over",
+    "player_marks_over",
+    "player_tackles_over",
+    "player_afl_fantasy_points_over",
+    "player_clearances_over",
+    "player_kicks_over",
+    "player_handballs_over",
+  ];
+
+  const metricFromMarket = {
+    player_disposals_over: "disposals",
+    player_goals_scored_over: "goals",
+    player_marks_over: "marks",
+    player_tackles_over: "tackles",
+    player_afl_fantasy_points_over: "fantasy_points",
+    player_clearances_over: "clearances",
+    player_kicks_over: "kicks",
+    player_handballs_over: "handballs",
+  };
+
+  for (const bookmaker of event?.bookmakers || []) {
+    for (const market of bookmaker.markets || []) {
+      if (!overMarketKeys.includes(market.key)) continue;
+
+      for (const outcome of market.outcomes || []) {
+        const isOver = outcome.name === "Over" || market.key.includes("_over");
+        if (!isOver) continue;
+
+        const player = outcome.description || outcome.name;
+        if (!player || player === "Over") continue;
+
+        const key = `${player}-${market.key}-${outcome.point}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        props.push({
+          playerName: player,
+          metric: metricFromMarket[market.key] || "disposals",
+          marketKey: market.key,
+          line: outcome.point,
+          odds: outcome.price,
+          bookmaker: bookmaker.title,
+          homeTeam: event.homeTeam,
+          awayTeam: event.awayTeam,
+          gameLabel: `${event.homeTeam} vs ${event.awayTeam}`,
+        });
+      }
+    }
+  }
+
+  return props;
+}
+
+function impliedProbFromOdds(odds) {
+  const value = Number(odds);
+  return value > 1 ? 1 / value : null;
+}
+
+function computeHitRate(values, line) {
+  if (!values?.length || line == null) return null;
+  const hits = values.filter((v) => v >= line).length;
+  return { hits, total: values.length, prob: hits / values.length };
+}
+
+function parseOddsValue(targetOdds) {
+  const value = parseFloat(String(targetOdds).replace(/[^0-9.]/g, ""));
+  return isNaN(value) ? null : value;
+}
+
+function propKey(prop) {
+  return `${prop.playerName}|${prop.metric}|${prop.line}`;
+}
+
+function matchStatsForProp(prop, statsMap) {
+  const normName = String(prop.playerName || "").toLowerCase();
+  const propWords = normName.split(" ").filter(Boolean);
+  const propLast = propWords[propWords.length - 1];
+  const propFirst = propWords[0]?.[0];
+
+  for (const [key, stats] of statsMap.entries()) {
+    const keyWords = key.split(" ").filter(Boolean);
+    const keyLast = keyWords[keyWords.length - 1];
+    if (!keyLast || !propLast || keyLast !== propLast) continue;
+    const keyFirst = keyWords[0]?.[0];
+    if (!keyFirst || !propFirst || keyFirst === propFirst) return stats;
+  }
+  return null;
+}
+
+// Attach probability, edge and recent-form numbers to each prop
+function enrichProps(props, aflStats) {
+  const statsMap = new Map();
+  for (const ps of aflStats?.players || []) {
+    statsMap.set(String(ps.player || "").toLowerCase(), ps);
+  }
+
+  return props.map((prop) => {
+    const matched = matchStatsForProp(prop, statsMap);
+    const ms = matched?.metrics?.[prop.metric];
+
+    if (!ms?.available) return { ...prop, statsAvailable: false };
+
+    const hr5 = computeHitRate(ms.last5Values, prop.line);
+    const hr10 = computeHitRate(ms.last10Values, prop.line);
+    const implied = impliedProbFromOdds(prop.odds);
+
+    // Blend recent (last 5) with the larger, steadier sample (last 10)
+    let empirical = null;
+    if (hr5 && hr10) empirical = hr5.prob * 0.4 + hr10.prob * 0.6;
+    else if (hr10) empirical = hr10.prob;
+    else if (hr5) empirical = hr5.prob;
+
+    const edge = empirical != null && implied != null ? empirical - implied : null;
+
+    return {
+      ...prop,
+      statsAvailable: true,
+      recentAvg: ms.recentAvg,
+      avg10: ms.avg10,
+      last5Values: ms.last5Values || [],
+      sampleSize: (ms.last10Values || []).length,
+      hr5,
+      hr10,
+      implied,
+      empirical,
+      edge,
+      margin: ms.recentAvg != null ? Number((ms.recentAvg - prop.line).toFixed(1)) : null,
+    };
+  });
+}
+
+// Deterministically pick the strongest legs for the target and risk profile
+function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
+  const candidates = enriched.filter(
+    (p) => p.statsAvailable && p.empirical != null && Number(p.odds) > 1 && p.sampleSize >= 3
+  );
+
+  const minHit = riskProfile === "Safer" ? 0.7 : riskProfile === "Aggressive" ? 0.45 : 0.58;
+
+  const scored = candidates
+    .map((p) => ({ ...p, score: (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5 }))
+    .sort((a, b) => b.score - a.score);
+
+  // Try threshold-qualifying legs first, then top up by score to honour the requested count
+  const ordered = [
+    ...scored.filter((p) => p.empirical >= minHit),
+    ...scored.filter((p) => p.empirical < minHit),
+  ];
+
+  const wantCount =
+    targetLegs === "Any" || !targetLegs ? null : Math.max(1, parseInt(targetLegs, 10) || 3);
+
+  const selected = [];
+  const usedPlayers = new Set();
+  let combinedOdds = 1;
+
+  for (const p of ordered) {
+    if (wantCount && selected.length >= wantCount) break;
+    if (usedPlayers.has(p.playerName)) continue;
+
+    selected.push(p);
+    usedPlayers.add(p.playerName);
+    combinedOdds *= Number(p.odds);
+
+    if (!wantCount && targetOddsValue && combinedOdds >= targetOddsValue) break;
+  }
+
+  return selected;
+}
+
+function computeCombinedMetrics(selected) {
+  const combinedOdds = selected.reduce((acc, p) => acc * Number(p.odds), 1);
+  const combinedProb = selected.reduce((acc, p) => acc * (p.empirical ?? 0), 1);
+  const ev = combinedProb * combinedOdds - 1;
+  return {
+    combinedOdds: Number(combinedOdds.toFixed(2)),
+    combinedProb,
+    combinedProbPct: Math.round(combinedProb * 100),
+    evPct: Math.round(ev * 100),
+  };
+}
+
+function computeRiskScore(combinedProb, legCount) {
+  let score = 10 - combinedProb * 9;
+  score += Math.max(0, legCount - 2) * 0.4;
+  return Math.min(10, Math.max(1, Math.round(score)));
+}
+
+function buildAFLMultiDataBlock(props, aflStats, targetLegs, targetOdds, riskProfile) {
+  const enriched = enrichProps(props, aflStats);
+  const targetOddsValue = parseOddsValue(targetOdds);
+  const selected = selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile);
+  const dataSource = aflStats?.available
+    ? `AFL Tables — ${aflStats.gamesAnalysed} recent games analysed`
+    : "AFL Tables stats unavailable";
+
+  if (!selected.length) {
+    return `
+PRE-COMPUTED AFL MULTI (no qualifying legs)
+Stats source: ${dataSource}
+No player props had enough recent stats to build a confident multi for these games yet.
+
+INSTRUCTIONS FOR GRID BUILD:
+- Explain that live player prop stats were not available for these games yet.
+- Do not invent players or numbers.
+- Keep it brief, informational only, not betting advice.
+`.trim();
+  }
+
+  const metrics = computeCombinedMetrics(selected);
+  const risk = computeRiskScore(metrics.combinedProb, selected.length);
+
+  const fmtPct = (x) => (x == null ? "N/A" : Math.round(x * 100) + "%");
+  const fmtEdge = (e) => (e == null ? "N/A" : (e >= 0 ? "+" : "") + Math.round(e * 100) + "%");
+
+  const selectedLines = selected
+    .map((p, i) => {
+      const l5 = p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : "N/A";
+      const l10 = p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "N/A";
+      const marginStr = p.margin != null ? `${p.margin >= 0 ? "+" : ""}${p.margin}` : "N/A";
+      return `LEG ${i + 1}: ${p.playerName} — ${p.metric} Over ${p.line} @ $${p.odds} (${p.gameLabel})
+   Recent average: ${p.recentAvg} (clears the line by ${marginStr})
+   Hit rate L5: ${l5} | L10: ${l10} (from ${p.sampleSize} games)
+   Recent-form chance: ${fmtPct(p.empirical)} | Odds imply: ${fmtPct(p.implied)} | Form edge: ${fmtEdge(p.edge)}
+   Last 5 results: [${p.last5Values.join(", ")}]`;
+    })
+    .join("\n\n");
+
+  const selectedKeys = new Set(selected.map(propKey));
+  const alternatives = enriched
+    .filter((p) => p.statsAvailable && p.empirical != null && !selectedKeys.has(propKey(p)))
+    .sort((a, b) => (b.empirical ?? 0) - (a.empirical ?? 0))
+    .slice(0, 5)
+    .map(
+      (p) =>
+        `• ${p.playerName} — ${p.metric} Over ${p.line} @ $${p.odds} | form chance ${fmtPct(p.empirical)} | edge ${fmtEdge(p.edge)}`
+    )
+    .join("\n");
+
+  return `
+PRE-COMPUTED AFL MULTI (all numbers below are already calculated by the app's math engine — DO NOT recompute or change selections, just present and explain them)
+Request: ${targetLegs} legs | Target odds: ${targetOdds} | Risk profile: ${riskProfile}
+Stats source: ${dataSource}
+
+SELECTED MULTI (${selected.length} legs):
+${selectedLines}
+
+COMBINED (already calculated):
+- Combined odds: $${metrics.combinedOdds}
+- Estimated combined chance from recent form: ${metrics.combinedProbPct}%
+- Overall risk score: ${risk}/10
+- Historical edge figure (context only, not a prediction): ${metrics.evPct >= 0 ? "+" : ""}${metrics.evPct}%
+
+OTHER QUALIFYING OPTIONS (mention only if useful):
+${alternatives || "None."}
+
+INSTRUCTIONS FOR GRID BUILD:
+- The legs and every number above are already selected and calculated. Present them as-is. Do NOT recompute, re-pick, or alter any figure.
+- Use these exact section labels: "Simple view:", "Example structure:", "What I would check:", "Risk level:", "Important:".
+- Under "Example structure:" list each leg with player, market line, odds, recent average and hit rate (L5 and L10).
+- Under "Risk level:" state the ${risk}/10 score and explain it plainly (more legs and lower hit rates raise risk).
+- Under "What I would check:" remind the user to confirm team news, late outs and role changes, which historical stats cannot capture, and flag any leg built on a small sample.
+- Frame the recent-form chance and edge as historical only, never a guarantee.
+- Under "Important:" state clearly this is informational only, not betting advice, and outcomes are uncertain.
+- Keep it clear and under 320 words.
+`.trim();
+}
+
 async function fetchPlayerStatsContext(req, sport, metric, players = []) {
   try {
     const baseUrl = buildBaseUrl(req);
@@ -1182,6 +1485,136 @@ export default async function handler(req, res) {
         dateWindow: dateWindow?.label || "upcoming games",
         edgeContext,
       });
+    }
+
+    // AFL multi builder: fetch real player props + Squiggle stats before sending to GPT
+    if (userIntent === "multi" && sport === "AFL" && oddsContext.events.length > 0) {
+      const allAFLPlayerMarkets = {
+        label: "AFL player props",
+        markets: [
+          "player_disposals_over",
+          "player_goals_scored_over",
+          "player_marks_over",
+          "player_tackles_over",
+          "player_afl_fantasy_points_over",
+          "player_clearances_over",
+          "player_kicks_over",
+          "player_handballs_over",
+        ],
+      };
+
+      const targetLegs = getSafeString(context?.legs, "3");
+      const targetOdds = getSafeString(context?.targetOdds, "$2.00");
+      const riskProfile = getSafeString(context?.riskProfile, "Balanced");
+
+      // Pick up to 2 games to analyse player props for
+      const selectedGames = oddsContext.events.slice(0, 2);
+
+      const eventMarketResults = await Promise.allSettled(
+        selectedGames.map((game) =>
+          fetchEventOddsContext(req, sport, game.id, allAFLPlayerMarkets)
+        )
+      );
+
+      // Gather all player props from those games
+      const allProps = [];
+      for (let i = 0; i < selectedGames.length; i++) {
+        const result = eventMarketResults[i];
+        if (result.status === "fulfilled" && result.value?.event) {
+          const gameProps = extractPlayerPropsFromEvent(result.value.event);
+          allProps.push(...gameProps);
+        }
+      }
+
+      if (allProps.length > 0) {
+        const uniqueMetrics = [...new Set(allProps.map((p) => p.metric))];
+
+        // Group players by their game so each stats lookup only asks for that game's players
+        const gameGroups = new Map();
+        for (const prop of allProps) {
+          if (!gameGroups.has(prop.gameLabel)) {
+            gameGroups.set(prop.gameLabel, {
+              homeTeam: prop.homeTeam,
+              awayTeam: prop.awayTeam,
+              players: new Set(),
+            });
+          }
+          gameGroups.get(prop.gameLabel).players.add(prop.playerName);
+        }
+
+        // Fetch AFL Tables stats for each game in parallel (only that game's players)
+        const statsResults = await Promise.all(
+          [...gameGroups.values()].map((group) =>
+            fetchAFLStatsContext(
+              req,
+              group.homeTeam,
+              group.awayTeam,
+              [...group.players].slice(0, 30),
+              uniqueMetrics
+            )
+          )
+        );
+
+        // Combine players from every game, preferring entries that actually have data
+        const combinedPlayers = [];
+        let totalGamesAnalysed = 0;
+        let anyAvailable = false;
+        for (const result of statsResults) {
+          if (result.available) anyAvailable = true;
+          totalGamesAnalysed += result.gamesAnalysed || 0;
+          for (const player of result.players || []) {
+            const existing = combinedPlayers.find(
+              (cp) => cp.player?.toLowerCase() === player?.player?.toLowerCase()
+            );
+            if (!existing) combinedPlayers.push(player);
+          }
+        }
+
+        const aflStatsContext = {
+          available: anyAvailable,
+          players: combinedPlayers,
+          gamesAnalysed: totalGamesAnalysed,
+          source: "AFL Tables (afltables.com)",
+        };
+
+        const dataBlock = buildAFLMultiDataBlock(
+          allProps,
+          aflStatsContext,
+          targetLegs,
+          targetOdds,
+          riskProfile
+        );
+
+        const multiCompletion = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages: [
+            { role: "system", content: EDGE_SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: `User request: ${message}\n\n${dataBlock}`,
+            },
+          ],
+          temperature: 0.2,
+          max_tokens: 700,
+        });
+
+        const reply =
+          multiCompletion.choices?.[0]?.message?.content ||
+          "Grid Build could not generate a multi right now. Please try again.";
+
+        return res.status(200).json({
+          reply,
+          oddsConnected: oddsContext.available,
+          aflStatsConnected: aflStatsContext.available,
+          gamesAnalysed: aflStatsContext.gamesAnalysed,
+          propsFound: allProps.length,
+          intent: "multi",
+          sport,
+          detectedTeam: detectedTeam?.team || null,
+          dateWindow: dateWindow?.label || "upcoming games",
+          edgeContext,
+        });
+      }
     }
 
     const completion = await openai.chat.completions.create({
