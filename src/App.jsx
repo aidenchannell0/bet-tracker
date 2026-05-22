@@ -532,7 +532,9 @@ function EdgePage({ setActivePage }) {
   const [showRiskExplanation, setShowRiskExplanation] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [lastEdgeContext, setLastEdgeContext] = useState(null);
+  const [multiOutput, setMultiOutput] = useState(null);
   const chatSectionRef = React.useRef(null);
+  const outputPanelRef = React.useRef(null);
 
   const displayedTargetOdds = targetOdds === "Custom" && customTargetOdds ? "$" + customTargetOdds : targetOdds;
   const displayedLegs = legs === "Custom" && customLegs ? customLegs : legs;
@@ -613,7 +615,7 @@ function EdgePage({ setActivePage }) {
     const prompt = `Build a ${displayedLegs}-leg ${sport} example multi targeting ${displayedTargetOdds}${riskPart}${requestPart}. Use real player stats and current market lines to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
     sendChatMessage(prompt);
     setTimeout(() => {
-      chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      outputPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   };
 
@@ -646,6 +648,9 @@ function EdgePage({ setActivePage }) {
       const data = await response.json();
       if (data?.edgeContext) {
         setLastEdgeContext(data.edgeContext);
+      }
+      if (data?.multi) {
+        setMultiOutput(data.multi);
       }
       if (!response.ok) throw new Error(data.error || "Grid Build request failed");
       setChatMessages((current) => [...current, { role: "edge", text: data.reply }]);
@@ -726,35 +731,48 @@ function EdgePage({ setActivePage }) {
               </div>
             </Card>
 
-            <div className="space-y-6">
+            <div className="space-y-6" ref={outputPanelRef}>
               <Card>
                 <div className="p-5 md:p-6">
                   <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                     <div>
                       <p className="text-sm font-medium text-slate-500">Grid Build output</p>
-                      <h2 className="mt-1 text-2xl font-semibold">Example {displayedLegs}-leg {sport} multi</h2>
-                      <p className="mt-2 text-sm text-slate-600">The example below is illustrative. Click <span className="font-semibold">Preview example multi</span> to generate a live build from real {sport} stats and current market lines in the chat below.</p>
+                      <h2 className="mt-1 text-2xl font-semibold">
+                        {multiOutput
+                          ? `${multiOutput.legCount}-leg ${multiOutput.sport} multi`
+                          : `Example ${displayedLegs}-leg ${sport} multi`}
+                      </h2>
+                      <p className="mt-2 text-sm text-slate-600">
+                        {multiOutput
+                          ? <>Built from real {multiOutput.sport} stats and current market lines. Refine it in the chat below.</>
+                          : <>The example below is illustrative. Click <span className="font-semibold">Preview example multi</span> to generate a live build from real {sport} stats and current market lines.</>}
+                      </p>
                     </div>
                     <div className="rounded-2xl bg-[#11203B] px-4 py-3 text-white">
-                      <p className="text-xs uppercase tracking-wide text-slate-300">Target odds</p>
-                      <p className="text-2xl font-semibold">{displayedTargetOdds}</p>
+                      <p className="text-xs uppercase tracking-wide text-slate-300">{multiOutput ? "Combined odds" : "Target odds"}</p>
+                      <p className="text-2xl font-semibold">{multiOutput ? `$${multiOutput.combinedOdds}` : displayedTargetOdds}</p>
+                      {multiOutput ? <p className="mt-0.5 text-xs text-slate-300">~{multiOutput.combinedProbPct}% combined chance</p> : null}
                     </div>
                   </div>
 
                   <div className="mt-6 grid gap-4 md:grid-cols-3">
-                    {exampleLegs.map((leg, index) => (
-                      <div key={leg.name} className="rounded-2xl border border-slate-200 p-4">
+                    {(multiOutput?.legs || exampleLegs).map((leg, index) => (
+                      <div key={`${leg.name}-${index}`} className="rounded-2xl border border-slate-200 p-4">
                         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Leg {index + 1}</p>
                         <h3 className="mt-1 font-semibold">{leg.name}</h3>
+                        {leg.game ? <p className="mt-0.5 text-xs text-slate-500">{leg.game}</p> : null}
                         <p className="mt-2 text-sm text-slate-600">{leg.reason}</p>
-                        <p className="mt-3 text-sm font-medium text-[#11203B]">Confidence: {leg.confidence}</p>
+                        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-[#11203B]">
+                          <span>Confidence: {leg.confidence}</span>
+                          {leg.odds ? <span className="text-slate-500">Odds: ${leg.odds}</span> : null}
+                        </div>
                         <EdgeDetailToggle leg={leg} />
                       </div>
                     ))}
                   </div>
 
                   <div className="mt-6 rounded-2xl bg-slate-50 p-4">
-                    <EdgeRiskMeter score={6} />
+                    <EdgeRiskMeter score={multiOutput ? multiOutput.risk : 6} />
                     <button
                       type="button"
                       onClick={() => setShowRiskExplanation((current) => !current)}
@@ -765,7 +783,9 @@ function EdgePage({ setActivePage }) {
                     </button>
                     {showRiskExplanation ? (
                       <div className="mt-3 rounded-2xl bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700">
-                        A 6/10 preview score reflects a balanced multi with multiple legs and player-market variance. The live version will calculate this from odds, markets, leg count and data confidence.
+                        {multiOutput
+                          ? multiOutput.riskExplanation
+                          : "A 6/10 preview score reflects a balanced multi with multiple legs and player-market variance. The live version will calculate this from odds, markets, leg count and data confidence."}
                       </div>
                     ) : null}
                   </div>

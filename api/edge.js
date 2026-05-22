@@ -794,13 +794,110 @@ function computeRiskScore(combinedProb, legCount) {
   return Math.min(10, Math.max(1, Math.round(score)));
 }
 
-function buildAFLMultiDataBlock(props, aflStats, targetLegs, targetOdds, riskProfile) {
+const METRIC_LABELS = {
+  disposals: "disposals",
+  goals: "goals",
+  marks: "marks",
+  tackles: "tackles",
+  fantasy_points: "fantasy points",
+  kicks: "kicks",
+  handballs: "handballs",
+  clearances: "clearances",
+};
+
+function metricLabel(metric) {
+  return METRIC_LABELS[metric] || metric;
+}
+
+function detectLegCountFromMessage(message) {
+  const lower = String(message || "").toLowerCase();
+  const numMatch = lower.match(/(\d+)\s*[- ]?\s*legs?\b/);
+  if (numMatch) return numMatch[1];
+
+  const words = { two: "2", three: "3", four: "4", five: "5", six: "6", seven: "7", eight: "8" };
+  for (const [word, num] of Object.entries(words)) {
+    if (new RegExp(`\\b${word}[- ]?\\s*legs?\\b`).test(lower)) return num;
+  }
+  return null;
+}
+
+function detectTargetOddsFromMessage(message) {
+  const match = String(message || "").match(/\$\s*(\d+(?:\.\d+)?)/);
+  return match ? `$${match[1]}` : null;
+}
+
+function detectRiskFromMessage(message) {
+  const lower = String(message || "").toLowerCase();
+  if (lower.includes("safer") || lower.includes("safe multi") || lower.includes("low risk")) return "Safer";
+  if (lower.includes("aggressive") || lower.includes("high risk") || lower.includes("riskier")) return "Aggressive";
+  if (lower.includes("balanced")) return "Balanced";
+  return null;
+}
+
+// Shared computation: enrich props, select legs, compute combined metrics + risk
+function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile) {
   const enriched = enrichProps(props, aflStats);
   const targetOddsValue = parseOddsValue(targetOdds);
   const selected = selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile);
   const dataSource = aflStats?.available
     ? `AFL Tables — ${aflStats.gamesAnalysed} recent games analysed`
     : "AFL Tables stats unavailable";
+
+  if (!selected.length) {
+    return { selected: [], enriched, dataSource, metrics: null, risk: null };
+  }
+
+  const metrics = computeCombinedMetrics(selected);
+  const risk = computeRiskScore(metrics.combinedProb, selected.length);
+  return { selected, enriched, dataSource, metrics, risk };
+}
+
+// Structured multi for the output panel (separate from the GPT narration)
+function buildStructuredMulti(computed, sport, targetOdds) {
+  if (!computed.selected.length) return null;
+  const { selected, metrics, risk } = computed;
+
+  const legs = selected.map((p) => {
+    const empPct = Math.round((p.empirical ?? 0) * 100);
+    const impPct = p.implied != null ? Math.round(p.implied * 100) : null;
+    const edgePct = p.edge != null ? Math.round(p.edge * 100) : null;
+    const l5 = p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : "N/A";
+    const l10 = p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "N/A";
+
+    return {
+      name: `${p.playerName} Over ${p.line} ${metricLabel(p.metric)}`,
+      player: p.playerName,
+      game: p.gameLabel,
+      odds: p.odds,
+      confidence: `${empPct}%`,
+      reason: `Cleared this line in ${l10} recent games, averaging ${p.recentAvg}.`,
+      details: [
+        { label: "Market line", value: `Over ${p.line}` },
+        { label: "Odds", value: `$${p.odds}` },
+        { label: "Recent average", value: `${p.recentAvg}` },
+        { label: "Last 5 hit rate", value: l5 },
+        { label: "Last 10 hit rate", value: l10 },
+        { label: "Form edge", value: edgePct != null ? `${edgePct >= 0 ? "+" : ""}${edgePct}%` : "N/A" },
+      ],
+      trend: `Last 5 results: ${(p.last5Values || []).join(", ")}.`,
+      extraReason: `Recent-form chance ${empPct}%${impPct != null ? ` vs odds-implied ${impPct}%` : ""}. Based on ${p.sampleSize} recent games.`,
+    };
+  });
+
+  return {
+    sport,
+    legCount: selected.length,
+    legs,
+    combinedOdds: metrics.combinedOdds,
+    combinedProbPct: metrics.combinedProbPct,
+    targetOdds,
+    risk,
+    riskExplanation: `A ${risk}/10 score reflects ${selected.length} legs with a combined recent-form chance of about ${metrics.combinedProbPct}%. More legs and lower individual hit rates raise the risk. This is based on historical stats only and does not guarantee the outcome.`,
+  };
+}
+
+function buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile) {
+  const { selected, enriched, dataSource, metrics, risk } = computed;
 
   if (!selected.length) {
     return `
@@ -814,9 +911,6 @@ INSTRUCTIONS FOR GRID BUILD:
 - Keep it brief, informational only, not betting advice.
 `.trim();
   }
-
-  const metrics = computeCombinedMetrics(selected);
-  const risk = computeRiskScore(metrics.combinedProb, selected.length);
 
   const fmtPct = (x) => (x == null ? "N/A" : Math.round(x * 100) + "%");
   const fmtEdge = (e) => (e == null ? "N/A" : (e >= 0 ? "+" : "") + Math.round(e * 100) + "%");
@@ -1503,9 +1597,13 @@ export default async function handler(req, res) {
         ],
       };
 
-      const targetLegs = getSafeString(context?.legs, "3");
-      const targetOdds = getSafeString(context?.targetOdds, "$2.00");
-      const riskProfile = getSafeString(context?.riskProfile, "Balanced");
+      // Prefer values stated in the message (e.g. "give me a 3 leg multi"), fall back to the form
+      const targetLegs =
+        detectLegCountFromMessage(message) || getSafeString(context?.legs, "3");
+      const targetOdds =
+        detectTargetOddsFromMessage(message) || getSafeString(context?.targetOdds, "$2.00");
+      const riskProfile =
+        detectRiskFromMessage(message) || getSafeString(context?.riskProfile, "Balanced");
 
       // Pick up to 2 games to analyse player props for
       const selectedGames = oddsContext.events.slice(0, 2);
@@ -1577,13 +1675,15 @@ export default async function handler(req, res) {
           source: "AFL Tables (afltables.com)",
         };
 
-        const dataBlock = buildAFLMultiDataBlock(
+        const computed = computeAFLMulti(
           allProps,
           aflStatsContext,
           targetLegs,
           targetOdds,
           riskProfile
         );
+        const dataBlock = buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile);
+        const structuredMulti = buildStructuredMulti(computed, sport, targetOdds);
 
         const multiCompletion = await openai.chat.completions.create({
           model: "gpt-4.1-mini",
@@ -1604,6 +1704,7 @@ export default async function handler(req, res) {
 
         return res.status(200).json({
           reply,
+          multi: structuredMulti,
           oddsConnected: oddsContext.available,
           aflStatsConnected: aflStatsContext.available,
           gamesAnalysed: aflStatsContext.gamesAnalysed,
