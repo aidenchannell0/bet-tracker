@@ -512,7 +512,18 @@ async function fetchOddsContext(req, sport, detectedTeam, dateWindow) {
   }
 }
 
+// Short in-memory cache for event odds — repeated builds/refines in a session reuse
+// the same odds instead of spending Odds API credits each time (player props are costly).
+const eventOddsCache = new Map();
+const EVENT_ODDS_TTL_MS = 10 * 60 * 1000;
+
 async function fetchEventOddsContext(req, sport, eventId, requestedMarket) {
+  const cacheKey = `${sport}:${eventId}:${requestedMarket.markets.join(",")}`;
+  const cached = eventOddsCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < EVENT_ODDS_TTL_MS) {
+    return cached.value;
+  }
+
   try {
     const baseUrl = buildBaseUrl(req);
     const url = new URL("/api/event-odds", baseUrl);
@@ -532,12 +543,14 @@ async function fetchEventOddsContext(req, sport, eventId, requestedMarket) {
       };
     }
 
-    return {
+    const result = {
       available: true,
       event: data.event,
       summary: summariseEventMarkets(data.event, requestedMarket),
       quota: data.quota,
     };
+    eventOddsCache.set(cacheKey, { at: Date.now(), value: result });
+    return result;
   } catch (error) {
     console.error("Edge event markets error:", error);
 
@@ -1644,7 +1657,23 @@ export default async function handler(req, res) {
     }
 
     // AFL multi builder: fetch real player props + Squiggle stats before sending to GPT
-    if (userIntent === "multi" && sport === "AFL" && oddsContext.events.length > 0) {
+    if (userIntent === "multi" && sport === "AFL") {
+      // No live odds (limit reached, or no games scheduled) — say so plainly. Never
+      // fall through to a generic reply that invents placeholder players and stats.
+      if (oddsContext.events.length === 0) {
+        return res.status(200).json({
+          reply: `Simple view:\n\nI couldn't load live ${sport} odds right now, so I can't build a real multi this time.\n\nWhat I would check:\n\nThis usually means the live odds data limit has been reached for the moment, or there are no upcoming ${sport} games posted yet. It refreshes over time.\n\nImportant:\n\nI won't invent players, odds or stats. This is informational only, not betting advice.`,
+          multi: null,
+          oddsConnected: oddsContext.available,
+          aflStatsConnected: false,
+          intent: "multi",
+          sport,
+          detectedTeam: detectedTeam?.team || null,
+          dateWindow: dateWindow?.label || "upcoming games",
+          edgeContext,
+        });
+      }
+
       const allAFLPlayerMarkets = {
         label: "AFL player props",
         markets: [
@@ -1667,9 +1696,10 @@ export default async function handler(req, res) {
       const riskProfile =
         detectRiskFromMessage(message) || getSafeString(context?.riskProfile, "Balanced");
 
-      // Probe several upcoming games — some may not have player props posted yet.
+      // Probe a few upcoming games — some may not have player props posted yet.
       // Keep props from the first games that actually return them (cap at 2 games).
-      const candidateGames = oddsContext.events.slice(0, 4);
+      // Limited to 3 to keep Odds API credit use down (player props are charged per market).
+      const candidateGames = oddsContext.events.slice(0, 3);
 
       const eventMarketResults = await Promise.allSettled(
         candidateGames.map((game) =>
