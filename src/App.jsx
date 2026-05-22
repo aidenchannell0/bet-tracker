@@ -612,7 +612,7 @@ function EdgePage({ setActivePage }) {
     if (edgeLoading) return;
     const requestPart = request.trim() ? `. Focus: ${request.trim()}` : "";
     const riskPart = riskProfile !== "Balanced" ? ` with a ${riskProfile} risk profile` : "";
-    const prompt = `Build a ${displayedLegs}-leg ${sport} example multi targeting ${displayedTargetOdds}${riskPart}${requestPart}. Use real player stats and current market lines to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
+    const prompt = `Build a ${displayedLegs}-leg ${sport} example multi targeting ${displayedTargetOdds}${riskPart}${requestPart}. Use real player form and current odds to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
     sendChatMessage(prompt);
     setTimeout(() => {
       outputPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });

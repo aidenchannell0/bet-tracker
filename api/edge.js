@@ -313,6 +313,18 @@ function detectRequestedMarket(message, sport) {
 function getUserIntent(message, requestedMarket) {
   const lowerMessage = String(message || "").toLowerCase();
 
+  // A clear multi/build request takes priority. The multi builder picks its own
+  // markets, so don't let an incidental word like "line" (in "market lines") route
+  // it to a market lookup and then fall through to the generic reply.
+  const asksForMulti =
+    lowerMessage.includes("multi") ||
+    /\blegs?\b/.test(lowerMessage) ||
+    lowerMessage.includes("build") ||
+    lowerMessage.includes("selection") ||
+    lowerMessage.includes("example bet");
+
+  if (asksForMulti) return "multi";
+
   const asksForStats =
     lowerMessage.includes("stats") ||
     lowerMessage.includes("average") ||
@@ -337,16 +349,7 @@ function getUserIntent(message, requestedMarket) {
     lowerMessage.includes("give me odds") ||
     lowerMessage.includes("what are the odds");
 
-  const asksForMulti =
-    lowerMessage.includes("multi") ||
-    lowerMessage.includes("leg") ||
-    lowerMessage.includes("legs") ||
-    lowerMessage.includes("build") ||
-    lowerMessage.includes("selection") ||
-    lowerMessage.includes("example bet");
-
-  if (asksForGames && !asksForMulti) return "available_games";
-  if (asksForMulti) return "multi";
+  if (asksForGames) return "available_games";
   if (asksForStats) return "player_stats";
 
   return "general";
