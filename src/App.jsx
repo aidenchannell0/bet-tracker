@@ -747,6 +747,9 @@ function EdgePage({ setActivePage }) {
                           ? <>Built from real {multiOutput.sport} stats and current market lines. Refine it in the chat below.</>
                           : <>The example below is illustrative. Click <span className="font-semibold">Preview example multi</span> to generate a live build from real {sport} stats and current market lines.</>}
                       </p>
+                      {multiOutput?.oddsNote ? (
+                        <p className="mt-2 inline-flex rounded-lg border border-[#C49A4A]/40 bg-[#C49A4A]/15 px-3 py-2 text-xs leading-5 text-[#11203B]">{multiOutput.oddsNote}</p>
+                      ) : null}
                     </div>
                     <div className="rounded-2xl bg-[#11203B] px-4 py-3 text-white">
                       <p className="text-xs uppercase tracking-wide text-slate-300">{multiOutput ? "Combined odds" : "Target odds"}</p>

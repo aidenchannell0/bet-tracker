@@ -754,35 +754,71 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
 
   const minHit = riskProfile === "Safer" ? 0.7 : riskProfile === "Aggressive" ? 0.45 : 0.58;
 
-  const scored = candidates
-    .map((p) => ({ ...p, score: (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5 }))
-    .sort((a, b) => b.score - a.score);
+  // Keep the single best-scoring prop per player (a multi can't repeat a player)
+  const byPlayer = new Map();
+  for (const p of candidates) {
+    const score = (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5;
+    const current = byPlayer.get(p.playerName);
+    if (!current || score > current.score) byPlayer.set(p.playerName, { ...p, score });
+  }
 
-  // Try threshold-qualifying legs first, then top up by score to honour the requested count
+  const ranked = [...byPlayer.values()];
   const ordered = [
-    ...scored.filter((p) => p.empirical >= minHit),
-    ...scored.filter((p) => p.empirical < minHit),
+    ...ranked.filter((p) => p.empirical >= minHit).sort((a, b) => b.score - a.score),
+    ...ranked.filter((p) => p.empirical < minHit).sort((a, b) => b.score - a.score),
   ];
 
   const wantCount =
     targetLegs === "Any" || !targetLegs ? null : Math.max(1, parseInt(targetLegs, 10) || 3);
 
-  const selected = [];
-  const usedPlayers = new Set();
-  let combinedOdds = 1;
-
-  for (const p of ordered) {
-    if (wantCount && selected.length >= wantCount) break;
-    if (usedPlayers.has(p.playerName)) continue;
-
-    selected.push(p);
-    usedPlayers.add(p.playerName);
-    combinedOdds *= Number(p.odds);
-
-    if (!wantCount && targetOddsValue && combinedOdds >= targetOddsValue) break;
+  // "Any" legs: add the best legs until combined odds reach the target
+  if (!wantCount) {
+    const selected = [];
+    let combinedOdds = 1;
+    for (const p of ordered) {
+      selected.push(p);
+      combinedOdds *= Number(p.odds);
+      if (targetOddsValue && combinedOdds >= targetOddsValue) break;
+    }
+    return selected;
   }
 
-  return selected;
+  // Fixed leg count with no target: take the top legs by quality
+  if (!targetOddsValue || ordered.length <= wantCount) {
+    return ordered.slice(0, wantCount);
+  }
+
+  // Fixed leg count + target odds: from a quality shortlist, pick the combination of
+  // wantCount legs whose combined odds is closest to the target (ties broken by quality).
+  const shortlist = ordered.slice(
+    0,
+    Math.min(ordered.length, Math.max(wantCount * 2, wantCount + 4))
+  );
+
+  let best = null;
+  const choose = (start, acc) => {
+    if (acc.length === wantCount) {
+      const odds = acc.reduce((a, p) => a * Number(p.odds), 1);
+      const diff = Math.abs(odds - targetOddsValue);
+      const quality = acc.reduce((a, p) => a + p.score, 0);
+      if (
+        !best ||
+        diff < best.diff - 1e-9 ||
+        (Math.abs(diff - best.diff) < 1e-9 && quality > best.quality)
+      ) {
+        best = { legs: [...acc], diff, quality };
+      }
+      return;
+    }
+    for (let i = start; i < shortlist.length; i++) {
+      acc.push(shortlist[i]);
+      choose(i + 1, acc);
+      acc.pop();
+    }
+  };
+  choose(0, []);
+
+  return (best ? best.legs : ordered.slice(0, wantCount)).sort((a, b) => b.score - a.score);
 }
 
 function computeCombinedMetrics(selected) {
@@ -893,6 +929,14 @@ function buildStructuredMulti(computed, sport, targetOdds) {
     };
   });
 
+  const targetVal = parseOddsValue(targetOdds);
+  let oddsNote = null;
+  if (targetVal && metrics.combinedOdds > targetVal * 1.25) {
+    oddsNote = `${selected.length} legs naturally pays more than your ${targetOdds} target — for odds nearer ${targetOdds}, try fewer legs.`;
+  } else if (targetVal && metrics.combinedOdds < targetVal * 0.8) {
+    oddsNote = `These legs combine below your ${targetOdds} target — for higher odds, add more legs.`;
+  }
+
   return {
     sport,
     legCount: selected.length,
@@ -900,6 +944,7 @@ function buildStructuredMulti(computed, sport, targetOdds) {
     combinedOdds: metrics.combinedOdds,
     combinedProbPct: metrics.combinedProbPct,
     targetOdds,
+    oddsNote,
     risk,
     riskExplanation: `A ${risk}/10 score reflects ${selected.length} legs with a combined recent-form chance of about ${metrics.combinedProbPct}%. More legs and lower individual hit rates raise the risk. This is based on historical stats only and does not guarantee the outcome.`,
   };
@@ -948,6 +993,14 @@ INSTRUCTIONS FOR GRID BUILD:
     )
     .join("\n");
 
+  const targetVal = parseOddsValue(targetOdds);
+  let oddsGapNote = "";
+  if (targetVal && metrics.combinedOdds > targetVal * 1.25) {
+    oddsGapNote = `\nNOTE: ${selected.length} legs at realistic prices combine to $${metrics.combinedOdds}, which is above the $${targetVal.toFixed(2)} target. The target cannot be reached with this many legs; fewer legs would be needed for odds nearer the target.`;
+  } else if (targetVal && metrics.combinedOdds < targetVal * 0.8) {
+    oddsGapNote = `\nNOTE: ${selected.length} legs combine to $${metrics.combinedOdds}, below the $${targetVal.toFixed(2)} target. More legs would be needed for odds nearer the target.`;
+  }
+
   return `
 PRE-COMPUTED AFL MULTI (all numbers below are already calculated by the app's math engine — DO NOT recompute or change selections, just present and explain them)
 Request: ${targetLegs} legs | Target odds: ${targetOdds} | Risk profile: ${riskProfile}
@@ -960,7 +1013,7 @@ COMBINED (already calculated):
 - Combined odds: $${metrics.combinedOdds}
 - Estimated combined chance from recent form: ${metrics.combinedProbPct}%
 - Overall risk score: ${risk}/10
-- Historical edge figure (context only, not a prediction): ${metrics.evPct >= 0 ? "+" : ""}${metrics.evPct}%
+- Historical edge figure (context only, not a prediction): ${metrics.evPct >= 0 ? "+" : ""}${metrics.evPct}%${oddsGapNote}
 
 OTHER QUALIFYING OPTIONS (mention only if useful):
 ${alternatives || "None."}
@@ -970,7 +1023,7 @@ INSTRUCTIONS FOR GRID BUILD:
 - Use these exact section labels: "Simple view:", "Example structure:", "What I would check:", "Risk level:", "Important:".
 - Under "Example structure:" list each leg with player, market line, odds, recent average and hit rate (L5 and L10).
 - Under "Risk level:" state the ${risk}/10 score and explain it plainly (more legs and lower hit rates raise risk).
-- Under "What I would check:" remind the user to confirm team news, late outs and role changes, which historical stats cannot capture, and flag any leg built on a small sample.
+- Under "What I would check:" remind the user to confirm team news, late outs and role changes, which historical stats cannot capture, and flag any leg built on a small sample.${oddsGapNote ? "\n- Mention the note above about the combined odds versus the target, plainly." : ""}
 - Frame the recent-form chance and edge as historical only, never a guarantee.
 - Under "Important:" state clearly this is informational only, not betting advice, and outcomes are uncertain.
 - Keep it clear and under 320 words.
