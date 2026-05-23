@@ -179,7 +179,7 @@ async function main() {
 
     for (const game of games) {
       if (have.has(game.code)) continue;
-      await sleep(1500); // gentle on afltables
+      await sleep(1000); // gentle on afltables (~1 request/sec)
 
       let html;
       try {
