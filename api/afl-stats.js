@@ -229,6 +229,29 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  // Temporary diagnostic: can this serverless environment reach afltables.com?
+  if (req.query.debug === "1") {
+    const year = new Date().getFullYear();
+    const out = {};
+    for (const y of [year, year - 1]) {
+      try {
+        const r = await fetch(`${AFLTABLES_BASE}/seas/${y}.html`, {
+          headers: { "User-Agent": UA },
+          signal: AbortSignal.timeout(8000),
+        });
+        const text = await r.text();
+        out[y] = {
+          status: r.status,
+          length: text.length,
+          gameLinks: (text.match(/stats\/games\/\d{4}\/\d+\.html/g) || []).length,
+        };
+      } catch (e) {
+        out[y] = { error: `${e.name}: ${e.message}` };
+      }
+    }
+    return res.status(200).json({ debug: true, year, ua: UA, fetch: out });
+  }
+
   try {
     const { team1, team2, players: playersParam, metrics: metricsParam } = req.query;
 
