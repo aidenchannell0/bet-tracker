@@ -976,6 +976,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
             request,
             gameId: selectedGameId,
             previousEdgeContext: lastEdgeContext,
+            currentMulti: multiOutput,
           },
         }),
       });
@@ -1203,8 +1204,23 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
               <div className="mt-5 space-y-3">
                 {chatMessages.map((chatMessage, index) => <EdgeMessage key={index} role={chatMessage.role}>{chatMessage.text}</EdgeMessage>)}
               </div>
+              {multiOutput ? (
+                <div className="mt-5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Edit this build</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[
+                      { label: "Swap the weakest leg", prompt: "Swap the weakest leg for a better option." },
+                      { label: "Add a leg", prompt: "Add another leg to the multi." },
+                      { label: "Make it safer", prompt: "Make it safer." },
+                      { label: "Longer odds", prompt: "Give it longer odds." },
+                    ].map((chip) => (
+                      <button key={chip.label} type="button" onClick={() => sendChatMessage(chip.prompt)} disabled={edgeLoading} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] transition hover:bg-white/70 disabled:opacity-50">{chip.label}</button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-                <Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Grid Build a follow-up..." onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} />
+                <Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={multiOutput ? "Refine your build — e.g. ‘swap leg 2’, ‘make it safer’, ‘around $3’" : "Ask Grid Build a follow-up..."} onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} />
                 <Button onClick={() => sendChatMessage()} className="sm:px-6" disabled={edgeLoading}>{edgeLoading ? "Thinking..." : "Send"}</Button>
               </div>
             </div>

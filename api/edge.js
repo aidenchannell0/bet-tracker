@@ -1003,38 +1003,42 @@ function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile) {
   return { selected, enriched, dataSource, metrics, risk };
 }
 
+// Build one structured leg from an enriched prop (shared by fresh builds + edits)
+function structureLegFromEnriched(p) {
+  const empPct = Math.round((p.empirical ?? 0) * 100);
+  const impPct = p.implied != null ? Math.round(p.implied * 100) : null;
+  const edgePct = p.edge != null ? Math.round(p.edge * 100) : null;
+  const l5 = p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : "N/A";
+  const l10 = p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "N/A";
+
+  return {
+    name: `${p.playerName} Over ${p.line} ${metricLabel(p.metric)}`,
+    player: p.playerName,
+    metric: p.metric,
+    game: p.gameLabel,
+    odds: p.odds,
+    bookmaker: p.bookmaker || null,
+    confidence: `${empPct}%`,
+    reason: `Cleared this line in ${l10} recent games, averaging ${p.recentAvg}.`,
+    details: [
+      { label: "Market line", value: `Over ${p.line}` },
+      { label: "Best odds", value: p.bookmaker ? `$${p.odds} (${p.bookmaker})` : `$${p.odds}` },
+      { label: "Recent average", value: `${p.recentAvg}` },
+      { label: "Last 5 hit rate", value: l5 },
+      { label: "Last 10 hit rate", value: l10 },
+      { label: "Form edge", value: edgePct != null ? `${edgePct >= 0 ? "+" : ""}${edgePct}%` : "N/A" },
+    ],
+    trend: `Last 5 results: ${(p.last5Values || []).join(", ")}.`,
+    extraReason: `Recent-form chance ${empPct}%${impPct != null ? ` vs odds-implied ${impPct}%` : ""}. Based on ${p.sampleSize} recent games.`,
+  };
+}
+
 // Structured multi for the output panel (separate from the GPT narration)
 function buildStructuredMulti(computed, sport, targetOdds) {
   if (!computed.selected.length) return null;
   const { selected, metrics, risk } = computed;
 
-  const legs = selected.map((p) => {
-    const empPct = Math.round((p.empirical ?? 0) * 100);
-    const impPct = p.implied != null ? Math.round(p.implied * 100) : null;
-    const edgePct = p.edge != null ? Math.round(p.edge * 100) : null;
-    const l5 = p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : "N/A";
-    const l10 = p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "N/A";
-
-    return {
-      name: `${p.playerName} Over ${p.line} ${metricLabel(p.metric)}`,
-      player: p.playerName,
-      game: p.gameLabel,
-      odds: p.odds,
-      bookmaker: p.bookmaker || null,
-      confidence: `${empPct}%`,
-      reason: `Cleared this line in ${l10} recent games, averaging ${p.recentAvg}.`,
-      details: [
-        { label: "Market line", value: `Over ${p.line}` },
-        { label: "Best odds", value: p.bookmaker ? `$${p.odds} (${p.bookmaker})` : `$${p.odds}` },
-        { label: "Recent average", value: `${p.recentAvg}` },
-        { label: "Last 5 hit rate", value: l5 },
-        { label: "Last 10 hit rate", value: l10 },
-        { label: "Form edge", value: edgePct != null ? `${edgePct >= 0 ? "+" : ""}${edgePct}%` : "N/A" },
-      ],
-      trend: `Last 5 results: ${(p.last5Values || []).join(", ")}.`,
-      extraReason: `Recent-form chance ${empPct}%${impPct != null ? ` vs odds-implied ${impPct}%` : ""}. Based on ${p.sampleSize} recent games.`,
-    };
-  });
+  const legs = selected.map(structureLegFromEnriched);
 
   const targetVal = parseOddsValue(targetOdds);
   let oddsNote = null;
@@ -1055,6 +1059,280 @@ function buildStructuredMulti(computed, sport, targetOdds) {
     risk,
     riskExplanation: `A ${risk}/10 score reflects ${selected.length} legs with a combined recent-form chance of about ${metrics.combinedProbPct}%. More legs and lower individual hit rates raise the risk. This is based on historical stats only and does not guarantee the outcome.`,
   };
+}
+
+// ── Conversational multi editing ────────────────────────────────────────
+// Turn the chat into an analyst that edits the current build in place
+// (swap / remove / add a leg, retarget odds or leg count, make it safer/riskier)
+// instead of regenerating from scratch every time.
+
+function legEmpirical(leg) {
+  const n = parseFloat(String(leg?.confidence || "").replace("%", ""));
+  return Number.isFinite(n) ? n / 100 : 0;
+}
+
+function legEmpiricalPct(leg) {
+  return Math.round(legEmpirical(leg) * 100);
+}
+
+function legMetricOf(leg) {
+  if (leg && leg.metric) return leg.metric;
+  const name = String(leg?.name || "").toLowerCase();
+  for (const [key, label] of Object.entries(METRIC_LABELS)) {
+    if (name.includes(label)) return key;
+  }
+  return null;
+}
+
+function weakestLegIndex(legs) {
+  return legs
+    .map((l, i) => [i, legEmpirical(l)])
+    .sort((a, b) => a[1] - b[1])[0][0];
+}
+
+// Best-scoring enriched candidates not already in the build, optionally one metric
+function eligibleCandidates(enriched, usedPlayers, metric) {
+  const list = (enriched || [])
+    .filter(
+      (p) =>
+        p.statsAvailable &&
+        p.empirical != null &&
+        Number(p.odds) > 1 &&
+        p.sampleSize >= 3 &&
+        !usedPlayers.has((p.playerName || "").toLowerCase()) &&
+        (!metric || p.metric === metric)
+    )
+    .map((p) => ({ ...p, score: (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5 }));
+
+  // One entry per player (keep best score)
+  const byPlayer = new Map();
+  for (const c of list) {
+    const key = (c.playerName || "").toLowerCase();
+    const cur = byPlayer.get(key);
+    if (!cur || c.score > cur.score) byPlayer.set(key, c);
+  }
+  return [...byPlayer.values()].sort((a, b) => b.score - a.score);
+}
+
+// Pick a replacement: prefer same metric; among the strongest, prefer odds closest
+// to the leg being replaced so the combined price stays near where it was.
+function pickReplacement(enriched, usedPlayers, metric, targetLegOdds) {
+  let cands = eligibleCandidates(enriched, usedPlayers, metric);
+  if (!cands.length && metric) cands = eligibleCandidates(enriched, usedPlayers, null);
+  if (!cands.length) return null;
+  if (targetLegOdds) {
+    const top = cands.slice(0, 8);
+    top.sort(
+      (a, b) =>
+        Math.abs(Number(a.odds) - targetLegOdds) - Math.abs(Number(b.odds) - targetLegOdds)
+    );
+    return top[0];
+  }
+  return cands[0];
+}
+
+// Recompute combined odds/prob/risk from a final set of structured legs
+function recomputeMultiFromLegs(base, legs, sport) {
+  const combinedOdds = Number(legs.reduce((a, l) => a * Number(l.odds || 1), 1).toFixed(2));
+  const combinedProb = legs.reduce((a, l) => a * legEmpirical(l), 1);
+  const combinedProbPct = Math.round(combinedProb * 100);
+  const risk = computeRiskScore(combinedProb, legs.length);
+  const targetOdds = base.targetOdds;
+  const targetVal = parseOddsValue(targetOdds);
+  let oddsNote = null;
+  if (targetVal && combinedOdds > targetVal * 1.25) {
+    oddsNote = `${legs.length} legs naturally pays more than your ${targetOdds} target — for odds nearer ${targetOdds}, try fewer legs.`;
+  } else if (targetVal && combinedOdds < targetVal * 0.8) {
+    oddsNote = `These legs combine below your ${targetOdds} target — for higher odds, add more legs.`;
+  }
+  return {
+    ...base,
+    sport: sport || base.sport,
+    legCount: legs.length,
+    legs,
+    combinedOdds,
+    combinedProbPct,
+    oddsNote,
+    risk,
+    riskExplanation: `A ${risk}/10 score reflects ${legs.length} legs with a combined recent-form chance of about ${combinedProbPct}%. More legs and lower individual hit rates raise the risk. This is based on historical stats only and does not guarantee the outcome.`,
+  };
+}
+
+// Parse an edit instruction against the current build. Returns null for anything
+// that isn't a recognisable edit (so it falls through to a fresh build / other intents).
+function detectEditIntent(message, currentMulti) {
+  if (!currentMulti || !Array.isArray(currentMulti.legs) || !currentMulti.legs.length) return null;
+  const lower = String(message || "").toLowerCase();
+  const legs = currentMulti.legs;
+
+  const resolveLegIndex = () => {
+    const m = lower.match(/leg\s*(\d+)/);
+    if (m) {
+      const i = parseInt(m[1], 10) - 1;
+      if (i >= 0 && i < legs.length) return i;
+    }
+    const ordinals = [["first", 0], ["1st", 0], ["second", 1], ["2nd", 1], ["third", 2], ["3rd", 2], ["fourth", 3], ["4th", 3], ["fifth", 4], ["5th", 4]];
+    for (const [w, i] of ordinals) if (lower.includes(`${w} leg`) && i < legs.length) return i;
+    if (lower.includes("last leg") || lower.includes("final leg")) return legs.length - 1;
+    for (let i = 0; i < legs.length; i++) {
+      const player = (legs[i].player || "").toLowerCase();
+      const surname = player.split(/\s+/).slice(-1)[0];
+      if (player && (lower.includes(player) || (surname && surname.length >= 4 && lower.includes(surname)))) return i;
+    }
+    const teams = detectAllTeamAliases(message);
+    if (teams.length) {
+      for (let i = 0; i < legs.length; i++) {
+        const g = (legs[i].game || "").toLowerCase();
+        if (teams.some((t) => g.includes((t.team || "").toLowerCase()))) return i;
+      }
+    }
+    return null;
+  };
+
+  const wantsRemove = /\b(remove|drop|delete|take out|get rid of|cut|ditch)\b/.test(lower);
+  const wantsSwap = /\b(swap|replace|change|switch|sub|substitute)\b/.test(lower) || /\bdifferent\b/.test(lower);
+  const wantsAdd = /\b(add|another|one more|extra|include)\b/.test(lower);
+  const wantsSafer = /\b(safer|less risky|lower risk|reduce risk)\b/.test(lower);
+  const wantsRiskier = /\b(riskier|more aggressive|more risk|longshot|long shot)\b/.test(lower);
+  const explicitTarget = detectTargetOddsFromMessage(message);
+  const wantsLonger = /(longer|bigger|higher|more)\s+(odds|payout)|lengthen|push (it )?(up|out)/.test(lower);
+  const wantsShorter = /(shorter|smaller|lower|less)\s+(odds|payout)|tighten/.test(lower);
+  const modifyPhrase = /\b(make it|change to|turn it into|rebuild)\b/.test(lower);
+  const targetCountStr = detectLegCountFromMessage(message);
+  const targetCount = targetCountStr ? parseInt(targetCountStr, 10) : null;
+
+  // A clear fresh-build request should start over, not edit — even if it names a
+  // target price (e.g. "Build a 3-leg multi around $2.00", "give me a 3 leg multi").
+  // Edits use verbs like swap/remove/add/safer/longer or "make it…".
+  const hasEditVerb =
+    wantsRemove || wantsSwap || wantsAdd || wantsSafer || wantsRiskier || wantsLonger || wantsShorter || modifyPhrase;
+  const freshBuildRequest =
+    /\bbuild\b/.test(lower) ||
+    lower.includes("example multi") ||
+    lower.includes("new multi") ||
+    (/\bmulti\b/.test(lower) && !hasEditVerb);
+  if (freshBuildRequest) return null;
+
+  // Change leg count: "make it 4 legs" / "add another leg" with explicit count
+  if (targetCount && targetCount >= 1 && targetCount <= 8 && targetCount !== legs.length && (modifyPhrase || wantsAdd || wantsRemove)) {
+    return { action: "retarget_legs", targetCount };
+  }
+  // Retarget odds
+  if (explicitTarget && !wantsRemove && !wantsSwap && !wantsAdd) {
+    return { action: "retarget", newTargetOdds: explicitTarget };
+  }
+  if ((wantsLonger || wantsShorter) && !wantsSwap && !wantsRemove) {
+    return { action: "retarget", direction: wantsLonger ? "longer" : "shorter" };
+  }
+  // Per-leg edits
+  if (wantsRemove) return { action: "remove", legIndex: resolveLegIndex() ?? weakestLegIndex(legs) };
+  if (wantsSwap) return { action: "swap", legIndex: resolveLegIndex() ?? weakestLegIndex(legs) };
+  if (wantsAdd) return { action: "add" };
+  if (wantsSafer) return { action: "safer" };
+  if (wantsRiskier) return { action: "riskier" };
+  return null;
+}
+
+// Apply an edit action to the current build using the fresh enriched pool.
+// Returns { ok, multi, summary } or { ok:false, message }.
+function editAFLMulti(enriched, currentMulti, action, ctx = {}) {
+  const sport = ctx.sport || currentMulti.sport || "AFL";
+  let legs = currentMulti.legs.map((l) => ({ ...l }));
+  const usedPlayers = () => new Set(legs.map((l) => (l.player || "").toLowerCase()));
+  const dominantMetric = () => {
+    const counts = {};
+    legs.forEach((l) => {
+      const m = legMetricOf(l);
+      if (m) counts[m] = (counts[m] || 0) + 1;
+    });
+    let best = null, bestCount = 0;
+    for (const [m, c] of Object.entries(counts)) if (c > bestCount) { bestCount = c; best = m; }
+    return best;
+  };
+  let summary = "";
+
+  if (action.action === "remove") {
+    const i = action.legIndex;
+    if (i == null || i < 0 || i >= legs.length) return { ok: false, message: "I couldn't tell which leg to remove — try 'remove leg 2' or name the player." };
+    if (legs.length <= 1) return { ok: false, message: "That build only has one leg, so I can't remove the last one. Try swapping it instead." };
+    const removed = legs.splice(i, 1)[0];
+    summary = `Removed **${removed.player}** (was leg ${i + 1}).`;
+  } else if (action.action === "swap") {
+    const i = action.legIndex;
+    if (i == null || i < 0 || i >= legs.length) return { ok: false, message: "I couldn't tell which leg to swap — try 'swap leg 2' or name the player." };
+    const old = legs[i];
+    const metric = legMetricOf(old);
+    const used = usedPlayers();
+    used.delete((old.player || "").toLowerCase());
+    const repl = pickReplacement(enriched, used, metric, Number(old.odds));
+    if (!repl) return { ok: false, message: `I couldn't find a suitable replacement for **${old.player}** in the ${metric ? metricLabel(metric) + " " : ""}markets available right now.` };
+    legs[i] = structureLegFromEnriched(repl);
+    summary = `Swapped **${old.player}** → **${repl.playerName}** (${Math.round((repl.empirical ?? 0) * 100)}% recent hit rate vs ${legEmpiricalPct(old)}%, $${repl.odds} vs $${old.odds}).`;
+  } else if (action.action === "add") {
+    const repl = pickReplacement(enriched, usedPlayers(), dominantMetric(), null);
+    if (!repl) return { ok: false, message: "I couldn't find another suitable leg to add from the markets available right now." };
+    legs.push(structureLegFromEnriched(repl));
+    summary = `Added **${repl.playerName}** (${Math.round((repl.empirical ?? 0) * 100)}% recent hit rate, $${repl.odds}).`;
+  } else if (action.action === "safer") {
+    const i = weakestLegIndex(legs);
+    const old = legs[i];
+    const used = usedPlayers();
+    used.delete((old.player || "").toLowerCase());
+    const cands = eligibleCandidates(enriched, used, legMetricOf(old));
+    const safer =
+      cands.filter((c) => Number(c.odds) <= Number(old.odds)).sort((a, b) => (b.empirical ?? 0) - (a.empirical ?? 0))[0] ||
+      cands.sort((a, b) => (b.empirical ?? 0) - (a.empirical ?? 0))[0];
+    if (!safer) return { ok: false, message: "I couldn't find a safer leg to swap in from the markets available right now." };
+    legs[i] = structureLegFromEnriched(safer);
+    summary = `Made it safer: swapped **${old.player}** for **${safer.playerName}** (${Math.round((safer.empirical ?? 0) * 100)}% recent hit rate).`;
+  } else if (action.action === "riskier") {
+    const repl = pickReplacement(enriched, usedPlayers(), null, null);
+    if (!repl) return { ok: false, message: "I couldn't find another leg to add for a riskier build right now." };
+    legs.push(structureLegFromEnriched(repl));
+    summary = `Made it riskier: added **${repl.playerName}** for longer odds.`;
+  } else if (action.action === "retarget" || action.action === "retarget_legs") {
+    let guard = 0;
+    if (action.targetCount) {
+      while (legs.length < action.targetCount && guard++ < 8) {
+        const repl = pickReplacement(enriched, usedPlayers(), dominantMetric(), null);
+        if (!repl) break;
+        legs.push(structureLegFromEnriched(repl));
+      }
+      while (legs.length > action.targetCount && legs.length > 1 && guard++ < 16) {
+        legs.splice(weakestLegIndex(legs), 1);
+      }
+      summary = `Rebuilt to **${legs.length} legs**, keeping your strongest picks.`;
+    } else {
+      const curOdds = () => legs.reduce((a, l) => a * Number(l.odds || 1), 1);
+      const targetVal = action.newTargetOdds
+        ? parseOddsValue(action.newTargetOdds)
+        : action.direction === "longer"
+        ? curOdds() * 1.4
+        : action.direction === "shorter"
+        ? curOdds() * 0.7
+        : null;
+      if (!targetVal) return { ok: false, message: "I couldn't work out the new target — try 'make it around $3' or 'make it 4 legs'." };
+      if (targetVal > curOdds()) {
+        while (curOdds() < targetVal * 0.92 && legs.length < 8 && guard++ < 12) {
+          const repl = pickReplacement(enriched, usedPlayers(), dominantMetric(), null);
+          if (!repl) break;
+          legs.push(structureLegFromEnriched(repl));
+        }
+      } else {
+        while (curOdds() > targetVal * 1.08 && legs.length > 1 && guard++ < 12) {
+          legs.splice(weakestLegIndex(legs), 1);
+        }
+      }
+      summary = `Adjusted toward **$${targetVal.toFixed(2)}**.`;
+    }
+  } else {
+    return { ok: false, message: "I couldn't work out what to change. Try 'swap leg 2', 'remove a leg', 'add a leg', 'make it safer' or 'make it around $3'." };
+  }
+
+  const base = { ...currentMulti };
+  if (action.action === "retarget" && action.newTargetOdds) base.targetOdds = action.newTargetOdds;
+  const multi = recomputeMultiFromLegs(base, legs, sport);
+  return { ok: true, multi, summary };
 }
 
 function buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile) {
@@ -1596,6 +1874,15 @@ export default async function handler(req, res) {
     const statsMetric = detectStatsMetric(message, requestedMarket);
     const requestedPlayers = extractRequestedPlayers(message);
 
+    // Conversational editing: if the user has a build on screen and the message is
+    // an edit instruction ("swap leg 2", "make it safer", "around $3"), route into
+    // the multi branch and edit in place rather than starting a fresh build.
+    const currentMulti =
+      context?.currentMulti && Array.isArray(context.currentMulti.legs) && context.currentMulti.legs.length
+        ? context.currentMulti
+        : null;
+    const editAction = currentMulti ? detectEditIntent(message, currentMulti) : null;
+
     const oddsContext = await fetchOddsContext(
       req,
       sport,
@@ -1609,7 +1896,7 @@ export default async function handler(req, res) {
       dateWindow,
     };
 
-    if (userIntent === "market_stats_comparison" && requestedMarket?.metric) {
+    if (!editAction && userIntent === "market_stats_comparison" && requestedMarket?.metric) {
       const matchedEvent = findMatchingEvent(
         oddsContext.events,
         message,
@@ -1667,7 +1954,7 @@ export default async function handler(req, res) {
       });
     }
 
-    if (userIntent === "player_stats") {
+    if (!editAction && userIntent === "player_stats") {
       const playerStatsContext = await fetchPlayerStatsContext(
         req,
         sport,
@@ -1694,7 +1981,7 @@ export default async function handler(req, res) {
       });
     }
 
-    if (userIntent === "event_markets" && requestedMarket) {
+    if (!editAction && userIntent === "event_markets" && requestedMarket) {
       const matchedEvent = findMatchingEvent(
         oddsContext.events,
         message,
@@ -1731,7 +2018,7 @@ export default async function handler(req, res) {
       });
     }
 
-    if (userIntent === "available_games") {
+    if (!editAction && userIntent === "available_games") {
       const reply = buildDirectOddsReply({
         sport,
         detectedTeam,
@@ -1751,11 +2038,13 @@ export default async function handler(req, res) {
     }
 
     // AFL multi builder: fetch real player props + Squiggle stats before sending to GPT
-    if (userIntent === "multi" && sport === "AFL") {
+    if ((editAction || userIntent === "multi") && sport === "AFL") {
       // Free tier: 3 builds/week. Subscribers are unlimited. Checked before the
-      // expensive odds/stat work so a gated request costs nothing.
+      // expensive odds/stat work so a gated request costs nothing. Edits to an
+      // existing build are refinements — they don't consume a build credit, so a
+      // gated user can still tweak the build they already have.
       const access = await checkGridBuildAccess(req);
-      if (access.gated) {
+      if (access.gated && !editAction) {
         return res.status(200).json({
           reply: `Simple view:\n\nYou've used all ${access.limit} of your free Grid Build builds for this week.\n\nWhat I would check:\n\nUpgrade to keep building unlimited multis with live AFL stats and odds — your free builds reset on Monday.\n\nImportant:\n\nThis is informational only, not betting advice.`,
           gated: true,
@@ -1820,7 +2109,23 @@ export default async function handler(req, res) {
         : namedGame;
       // Keep props from the first games that actually return them (cap at 2 games when
       // probing). Limited to 3 to keep Odds API credit use down (charged per market).
-      const candidateGames = specificGame ? [specificGame] : oddsContext.events.slice(0, 3);
+      // For an edit, draw replacements from the same games as the current build so a
+      // swapped/added leg comes from a match the user is already targeting.
+      let candidateGames;
+      if (editAction) {
+        const matched = [];
+        for (const label of [...new Set(currentMulti.legs.map((l) => l.game).filter(Boolean))]) {
+          const ev = findMatchingEvent(oddsContext.events, label, detectAllTeamAliases(label));
+          if (ev && !matched.find((m) => m.id === ev.id)) matched.push(ev);
+        }
+        candidateGames = matched.length
+          ? matched.slice(0, 3)
+          : specificGame
+          ? [specificGame]
+          : oddsContext.events.slice(0, 3);
+      } else {
+        candidateGames = specificGame ? [specificGame] : oddsContext.events.slice(0, 3);
+      }
 
       const eventMarketResults = await Promise.allSettled(
         candidateGames.map((game) =>
@@ -1843,7 +2148,9 @@ export default async function handler(req, res) {
 
       // Honour a requested market focus (e.g. "disposals only"): keep only that metric,
       // unless none of that market is available (then fall back to all so we still build).
-      const focusMetric = detectMultiMetricFilter(message, context);
+      // Skipped for edits — the edit engine keeps each leg's own metric and needs the
+      // full pool to find replacements.
+      const focusMetric = editAction ? null : detectMultiMetricFilter(message, context);
       if (focusMetric) {
         const filtered = allProps.filter((p) => p.metric === focusMetric);
         if (filtered.length) {
@@ -1920,6 +2227,42 @@ export default async function handler(req, res) {
           gamesAnalysed: totalGamesAnalysed,
           source: "AFL Tables (afltables.com)",
         };
+
+        // Edit path: refine the current build in place using the fresh pool, no GPT call.
+        if (editAction) {
+          const enrichedPool = enrichProps(allProps, aflStatsContext);
+          const editResult = editAFLMulti(enrichedPool, currentMulti, editAction, { sport });
+          if (!editResult.ok) {
+            return res.status(200).json({
+              reply: `Simple view:\n\n${editResult.message}\n\nWhat I would check:\n\nYou can try a different change, name a specific leg or player, or rebuild from scratch.\n\nImportant:\n\nThis is informational only, not betting advice.`,
+              multi: null,
+              oddsConnected: oddsContext.available,
+              aflStatsConnected: aflStatsContext.available,
+              intent: "multi_edit",
+              sport,
+              usage: access.usage,
+              limit: access.limit,
+              subscribed: access.subscribed,
+              edgeContext,
+            });
+          }
+          const m = editResult.multi;
+          const reply = `Simple view:\n\n${editResult.summary} New combined odds **$${m.combinedOdds}** at about **${m.combinedProbPct}%** across **${m.legCount} leg${m.legCount === 1 ? "" : "s"}**.\n\nWhat I would check:\n\n${m.oddsNote || "The updated leg uses the best current price and recent-form hit rate. Tweak it again any time — e.g. 'swap leg 2', 'make it safer', or 'around $3'."}\n\nRisk level:\n\n${m.risk}/10 based on the new combination.\n\nImportant:\n\nThis is informational only, not betting advice.`;
+          return res.status(200).json({
+            reply,
+            multi: m,
+            oddsConnected: oddsContext.available,
+            aflStatsConnected: aflStatsContext.available,
+            gamesAnalysed: aflStatsContext.gamesAnalysed,
+            propsFound: allProps.length,
+            usage: access.usage,
+            limit: access.limit,
+            subscribed: access.subscribed,
+            intent: "multi_edit",
+            sport,
+            edgeContext,
+          });
+        }
 
         const computed = computeAFLMulti(
           allProps,
