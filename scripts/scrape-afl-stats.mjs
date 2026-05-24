@@ -148,7 +148,15 @@ function parseMatchPlayers(html, gameCode, season) {
         });
       });
   });
-  return rows;
+
+  // De-duplicate by player — a page can occasionally list a player twice, which
+  // would break the upsert (duplicate game_code+player_name in one batch).
+  const seen = new Set();
+  return rows.filter((r) => {
+    if (seen.has(r.player_name)) return false;
+    seen.add(r.player_name);
+    return true;
+  });
 }
 
 async function main() {
