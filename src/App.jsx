@@ -744,7 +744,7 @@ function EdgePage({ setActivePage }) {
                       </h2>
                       <p className="mt-2 text-sm text-slate-600">
                         {multiOutput
-                          ? <>Built from real {multiOutput.sport} stats and current market lines. Refine it in the chat below.</>
+                          ? <>Built from real {multiOutput.sport} stats and the best available bookmaker odds. Refine it in the chat below.</>
                           : <>The example below is illustrative. Click <span className="font-semibold">Preview example multi</span> to generate a live build from real {sport} stats and current market lines.</>}
                       </p>
                       {multiOutput?.oddsNote ? (
@@ -767,7 +767,7 @@ function EdgePage({ setActivePage }) {
                         <p className="mt-2 text-sm text-slate-600">{leg.reason}</p>
                         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-[#11203B]">
                           <span>Confidence: {leg.confidence}</span>
-                          {leg.odds ? <span className="text-slate-500">Odds: ${leg.odds}</span> : null}
+                          {leg.odds ? <span className="text-slate-500">Odds: ${leg.odds}{leg.bookmaker ? ` · ${leg.bookmaker}` : ""}</span> : null}
                         </div>
                         <EdgeDetailToggle leg={leg} />
                       </div>

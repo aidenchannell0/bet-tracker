@@ -619,7 +619,6 @@ async function fetchAFLStatsContext(req, team1, team2, players, metrics) {
 
 function extractPlayerPropsFromEvent(event) {
   const props = [];
-  const seen = new Set();
   const overMarketKeys = [
     "player_disposals_over",
     "player_goals_scored_over",
@@ -642,6 +641,10 @@ function extractPlayerPropsFromEvent(event) {
     player_handballs_over: "handballs",
   };
 
+  // For each unique player+market+line, keep the BEST (highest) price across all
+  // bookmakers, and record which book offers it — that's the most accurate, useful odds.
+  const bestByKey = new Map();
+
   for (const bookmaker of event?.bookmakers || []) {
     for (const market of bookmaker.markets || []) {
       if (!overMarketKeys.includes(market.key)) continue;
@@ -653,16 +656,19 @@ function extractPlayerPropsFromEvent(event) {
         const player = outcome.description || outcome.name;
         if (!player || player === "Over") continue;
 
-        const key = `${player}-${market.key}-${outcome.point}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+        const price = Number(outcome.price);
+        if (!price || price <= 1) continue;
 
-        props.push({
+        const key = `${player}-${market.key}-${outcome.point}`;
+        const existing = bestByKey.get(key);
+        if (existing && price <= existing.odds) continue;
+
+        bestByKey.set(key, {
           playerName: player,
           metric: metricFromMarket[market.key] || "disposals",
           marketKey: market.key,
           line: outcome.point,
-          odds: outcome.price,
+          odds: price,
           bookmaker: bookmaker.title,
           homeTeam: event.homeTeam,
           awayTeam: event.awayTeam,
@@ -672,6 +678,7 @@ function extractPlayerPropsFromEvent(event) {
     }
   }
 
+  props.push(...bestByKey.values());
   return props;
 }
 
@@ -941,11 +948,12 @@ function buildStructuredMulti(computed, sport, targetOdds) {
       player: p.playerName,
       game: p.gameLabel,
       odds: p.odds,
+      bookmaker: p.bookmaker || null,
       confidence: `${empPct}%`,
       reason: `Cleared this line in ${l10} recent games, averaging ${p.recentAvg}.`,
       details: [
         { label: "Market line", value: `Over ${p.line}` },
-        { label: "Odds", value: `$${p.odds}` },
+        { label: "Best odds", value: p.bookmaker ? `$${p.odds} (${p.bookmaker})` : `$${p.odds}` },
         { label: "Recent average", value: `${p.recentAvg}` },
         { label: "Last 5 hit rate", value: l5 },
         { label: "Last 10 hit rate", value: l10 },
@@ -1001,7 +1009,7 @@ INSTRUCTIONS FOR GRID BUILD:
       const l5 = p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : "N/A";
       const l10 = p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "N/A";
       const marginStr = p.margin != null ? `${p.margin >= 0 ? "+" : ""}${p.margin}` : "N/A";
-      return `LEG ${i + 1}: ${p.playerName} — ${p.metric} Over ${p.line} @ $${p.odds} (${p.gameLabel})
+      return `LEG ${i + 1}: ${p.playerName} — ${p.metric} Over ${p.line} @ $${p.odds}${p.bookmaker ? ` (best at ${p.bookmaker})` : ""} (${p.gameLabel})
    Recent average: ${p.recentAvg} (clears the line by ${marginStr})
    Hit rate L5: ${l5} | L10: ${l10} (from ${p.sampleSize} games)
    Recent-form chance: ${fmtPct(p.empirical)} | Odds imply: ${fmtPct(p.implied)} | Form edge: ${fmtEdge(p.edge)}
