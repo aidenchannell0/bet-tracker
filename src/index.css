@@ -16,10 +16,11 @@
 /* Primary brand text: dark navy → soft off-white */
 .dark .text-\[\#11203B\] { color: #cdd5e0; }
 
-/* Slate text — all softened */
+/* Slate text — all softened (700/800/900 are body/heading text → readable) */
 .dark .text-slate-500    { color: #6e7f96; }
 .dark .text-slate-600    { color: #8a9ab4; }
 .dark .text-slate-700    { color: #adbace; }
+.dark .text-slate-800    { color: #c2ccda; }
 .dark .text-slate-900    { color: #cdd5e0; }
 
 /* Slate borders — subtle */
