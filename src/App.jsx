@@ -117,6 +117,11 @@ function databaseRowToBet(row) {
     returnAmount: Number(row.return_amount || 0),
     profitLoss: Number(row.profit_loss || 0),
     notes: String(row.notes || ""),
+    bookmaker: String(row.bookmaker || ""),
+    betType: String(row.bet_type || ""),
+    source: row.source || "manual",
+    status: row.status || "settled",
+    legs: row.legs || null,
     createdAt: row.created_at,
   };
 }
@@ -132,6 +137,11 @@ function betToDatabaseRow(bet, userId) {
     return_amount: bet.returnAmount,
     profit_loss: bet.profitLoss,
     notes: bet.notes,
+    bookmaker: bet.bookmaker || null,
+    bet_type: bet.betType || null,
+    source: bet.source || "manual",
+    status: bet.status || "settled",
+    legs: bet.legs || null,
   };
 }
 
@@ -152,6 +162,11 @@ function normaliseBet(bet) {
     returnAmount,
     profitLoss,
     notes: String(source.notes || ""),
+    bookmaker: String(source.bookmaker || ""),
+    betType: String(source.betType || source.bet_type || ""),
+    source: source.source || "manual",
+    status: source.status || "settled",
+    legs: source.legs || null,
     createdAt: source.createdAt || source.created_at || new Date().toISOString(),
   };
 }
@@ -254,7 +269,7 @@ function BreakdownRow({ row }) {
   );
 }
 
-function BreakdownsCard({ bySport, byOdds }) {
+function BreakdownsCard({ bySport, byOdds, byType }) {
   return (
     <Card>
       <div className="p-5 md:p-6">
@@ -270,6 +285,14 @@ function BreakdownsCard({ bySport, byOdds }) {
             {byOdds.length ? byOdds.map((row) => <BreakdownRow key={row.key} row={row} />) : <p className="text-sm text-slate-500">No bets yet.</p>}
           </div>
         </div>
+        {byType && byType.length ? (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">By bet type</p>
+            <div className="md:grid md:grid-cols-2 md:gap-x-6">
+              {byType.map((row) => <BreakdownRow key={row.key} row={row} />)}
+            </div>
+          </div>
+        ) : null}
       </div>
     </Card>
   );
@@ -1169,7 +1192,7 @@ export default function BettingTrackerWebsite() {
   const mobileFormRef = useRef(null);
   const [chartView, setChartView] = useState("weekly");
   const [chartType, setChartType] = useState("bar");
-  const [form, setForm] = useState({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
+  const [form, setForm] = useState({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "", bookmaker: "", betType: "" });
   const [mobileAddBetOpen, setMobileAddBetOpen] = useState(false);
 
   useEffect(() => {
@@ -1337,6 +1360,7 @@ export default function BettingTrackerWebsite() {
     ];
     const sportMap = new Map();
     const oddsMap = new Map();
+    const typeMap = new Map();
     const add = (map, key, bet, order = 0) => {
       if (!map.has(key)) map.set(key, { key, profit: 0, staked: 0, count: 0, wins: 0, completed: 0, order });
       const group = map.get(key);
@@ -1353,6 +1377,7 @@ export default function BettingTrackerWebsite() {
       const odds = Number(bet.odds || 0);
       const band = oddsBands.find((entry) => entry.test(odds));
       add(oddsMap, band ? band.key : "Unknown odds", bet, band ? band.order : 99);
+      if (bet.betType) add(typeMap, bet.betType, bet);
     }
     const finalize = (map) =>
       [...map.values()].map((group) => ({
@@ -1363,6 +1388,7 @@ export default function BettingTrackerWebsite() {
     return {
       bySport: finalize(sportMap).sort((a, b) => b.profit - a.profit),
       byOdds: finalize(oddsMap).sort((a, b) => a.order - b.order),
+      byType: finalize(typeMap).sort((a, b) => b.profit - a.profit),
     };
   }, [bets]);
 
@@ -1391,7 +1417,7 @@ export default function BettingTrackerWebsite() {
   const resetBetForm = () => {
     setEditingBetId(null);
     setMobileAddBetOpen(false);
-    setForm({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "" });
+    setForm({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "", bookmaker: "", betType: "" });
   };
 
   const startEditingBet = (bet) => {
@@ -1405,6 +1431,8 @@ export default function BettingTrackerWebsite() {
       result: bet.result,
       returnAmount: String(bet.returnAmount || ""),
       notes: bet.notes || "",
+      bookmaker: bet.bookmaker || "",
+      betType: bet.betType || "",
     });
     setMessage("Editing bet from " + bet.date + ". Make changes and click Update Bet.");
     window.setTimeout(() => {
@@ -1430,6 +1458,8 @@ export default function BettingTrackerWebsite() {
       returnAmount: returnNum,
       profitLoss: calculateProfitLoss(form.result, stakeNum, returnNum),
       notes: form.notes.trim(),
+      bookmaker: (form.bookmaker || "").trim(),
+      betType: form.betType || "",
     });
 
     if (editingBetId) {
@@ -1731,6 +1761,10 @@ export default function BettingTrackerWebsite() {
                     </div>
 
                     <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="space-y-1 text-sm font-medium">Bet type<select value={form.betType} onChange={(event) => setForm({ ...form, betType: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="">—</option><option value="Single">Single</option><option value="Multi">Multi</option><option value="Player prop">Player prop</option><option value="Head-to-head">Head-to-head</option><option value="Line">Line</option><option value="Total">Total</option><option value="Other">Other</option></select></label>
+                      <label className="space-y-1 text-sm font-medium">Bookmaker<Input placeholder="e.g. Sportsbet" value={form.bookmaker} onChange={(event) => setForm({ ...form, bookmaker: event.target.value })} /></label>
+                    </div>
                     <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
                     <Button type="submit" className="w-full py-3 text-base font-semibold">{editingBetId ? "Update Bet" : "Save Bet"}</Button>
                   </form>
@@ -1917,6 +1951,10 @@ export default function BettingTrackerWebsite() {
                     <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
                   </div>
                   <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="space-y-1 text-sm font-medium">Bet type<select value={form.betType} onChange={(event) => setForm({ ...form, betType: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="">—</option><option value="Single">Single</option><option value="Multi">Multi</option><option value="Player prop">Player prop</option><option value="Head-to-head">Head-to-head</option><option value="Line">Line</option><option value="Total">Total</option><option value="Other">Other</option></select></label>
+                      <label className="space-y-1 text-sm font-medium">Bookmaker<Input placeholder="e.g. Sportsbet" value={form.bookmaker} onChange={(event) => setForm({ ...form, bookmaker: event.target.value })} /></label>
+                    </div>
                   <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
                   <Button type="submit" className="w-full">{editingBetId ? "Update Bet" : "Add Bet"}</Button>
                 </form>
@@ -2057,7 +2095,7 @@ export default function BettingTrackerWebsite() {
           {bets.length > 0 ? (
             <div className="mt-4 space-y-4 md:mt-6 md:space-y-6">
               <BankrollCurveCard data={cumulativeData} />
-              <BreakdownsCard bySport={breakdowns.bySport} byOdds={breakdowns.byOdds} />
+              <BreakdownsCard bySport={breakdowns.bySport} byOdds={breakdowns.byOdds} byType={breakdowns.byType} />
             </div>
           ) : null}
         </div>
