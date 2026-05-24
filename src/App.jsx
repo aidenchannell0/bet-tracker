@@ -1520,7 +1520,7 @@ export default function BettingTrackerWebsite() {
       sport: bet.sport || "Other",
       stake: String(bet.stake || ""),
       odds: String(bet.odds || ""),
-      result: bet.result,
+      result: bet.status === "pending" ? "pending" : bet.result,
       returnAmount: String(bet.returnAmount || ""),
       notes: bet.notes || "",
       bookmaker: bet.bookmaker || "",
@@ -1538,7 +1538,9 @@ export default function BettingTrackerWebsite() {
     if (!supabase || !session?.user?.id) return;
     const stakeNum = Number(form.stake);
     const oddsNum = Number(form.odds || 0);
-    const returnNum = form.result === "loss" ? 0 : Number(form.returnAmount || 0);
+    const isPending = form.result === "pending";
+    const effectiveResult = isPending ? "void" : form.result;
+    const returnNum = form.result === "loss" || isPending ? 0 : Number(form.returnAmount || 0);
     if (!form.date || !stakeNum || stakeNum <= 0) return;
 
     const betPayload = normaliseBet({
@@ -1546,12 +1548,13 @@ export default function BettingTrackerWebsite() {
       sport: form.sport,
       stake: stakeNum,
       odds: oddsNum,
-      result: form.result,
+      result: effectiveResult,
       returnAmount: returnNum,
-      profitLoss: calculateProfitLoss(form.result, stakeNum, returnNum),
+      profitLoss: isPending ? 0 : calculateProfitLoss(effectiveResult, stakeNum, returnNum),
       notes: form.notes.trim(),
       bookmaker: (form.bookmaker || "").trim(),
       betType: form.betType || "",
+      status: isPending ? "pending" : "settled",
     });
 
     if (editingBetId) {
@@ -1883,8 +1886,8 @@ export default function BettingTrackerWebsite() {
                       <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      {["win", "loss", "void"].map((result) => (
+                    <div className="grid grid-cols-2 gap-2">
+                      {["win", "loss", "void", "pending"].map((result) => (
                         <button
                           key={result}
                           type="button"
@@ -1899,7 +1902,7 @@ export default function BettingTrackerWebsite() {
                     <div className="grid grid-cols-3 gap-3">
                       <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
                       <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
-                      <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
+                      <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss" || form.result === "pending"} /></label>
                     </div>
 
                     <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
@@ -1907,7 +1910,7 @@ export default function BettingTrackerWebsite() {
                       <label className="space-y-1 text-sm font-medium">Bet type<select value={form.betType} onChange={(event) => setForm({ ...form, betType: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="">—</option><option value="Single">Single</option><option value="Multi">Multi</option><option value="Player prop">Player prop</option><option value="Head-to-head">Head-to-head</option><option value="Line">Line</option><option value="Total">Total</option><option value="Other">Other</option></select></label>
                       <label className="space-y-1 text-sm font-medium">Bookmaker<Input placeholder="e.g. Sportsbet" value={form.bookmaker} onChange={(event) => setForm({ ...form, bookmaker: event.target.value })} /></label>
                     </div>
-                    <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
+                    <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {form.result === "pending" ? "Pending — settle it after the game" : formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
                     <Button type="submit" className="w-full py-3 text-base font-semibold">{editingBetId ? "Update Bet" : "Save Bet"}</Button>
                   </form>
                 ) : null}
@@ -2085,19 +2088,19 @@ export default function BettingTrackerWebsite() {
                   <div className="grid gap-4 sm:grid-cols-3">
                     <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
                     <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
-                    <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></label>
+                    <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option><option value="pending">Pending</option></select></label>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
                     <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
-                    <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss"} /></label>
+                    <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss" || form.result === "pending"} /></label>
                   </div>
                   <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
                     <div className="grid grid-cols-2 gap-3">
                       <label className="space-y-1 text-sm font-medium">Bet type<select value={form.betType} onChange={(event) => setForm({ ...form, betType: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="">—</option><option value="Single">Single</option><option value="Multi">Multi</option><option value="Player prop">Player prop</option><option value="Head-to-head">Head-to-head</option><option value="Line">Line</option><option value="Total">Total</option><option value="Other">Other</option></select></label>
                       <label className="space-y-1 text-sm font-medium">Bookmaker<Input placeholder="e.g. Sportsbet" value={form.bookmaker} onChange={(event) => setForm({ ...form, bookmaker: event.target.value })} /></label>
                     </div>
-                  <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
+                  <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {form.result === "pending" ? "Pending — settle it after the game" : formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
                   <Button type="submit" className="w-full">{editingBetId ? "Update Bet" : "Add Bet"}</Button>
                 </form>
               </div>
