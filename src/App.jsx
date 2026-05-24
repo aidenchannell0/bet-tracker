@@ -1122,6 +1122,9 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                       <p className="text-xs uppercase tracking-wide text-slate-300">{multiOutput ? "Combined odds" : "Target odds"}</p>
                       <p className="text-2xl font-semibold">{multiOutput ? `$${multiOutput.combinedOdds}` : displayedTargetOdds}</p>
                       {multiOutput ? <p className="mt-0.5 text-xs text-slate-300">~{multiOutput.combinedProbPct}% combined chance</p> : null}
+                      {multiOutput && multiOutput.correlated && typeof multiOutput.independentProbPct === "number" ? (
+                        <p className="mt-0.5 text-[11px] leading-4 text-emerald-300">Correlation-adjusted (vs {multiOutput.independentProbPct}% if treated as independent)</p>
+                      ) : null}
                     </div>
                   </div>
 

@@ -913,15 +913,134 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   return pool[0].legs.sort((a, b) => b.score - a.score);
 }
 
+// ── Correlation-aware combined probability ───────────────────────────────
+// Naively multiplying leg probabilities assumes independence. Player counting
+// stats in the SAME match aren't independent: game pace / total possessions is a
+// shared driver, so same-game "overs" tend to hit (or miss) together. We model
+// this with a Gaussian copula + a small structural correlation matrix and
+// estimate P(all legs hit) by seeded Monte-Carlo. Odds are unaffected — only the
+// true combined chance (and therefore EV and risk) changes. For same-game,
+// positively-correlated legs this RAISES the chance vs the naive product.
+const POSSESSION_METRICS = new Set([
+  "disposals", "kicks", "handballs", "marks", "clearances", "fantasy_points",
+]);
+
+// Inverse standard-normal CDF (Acklam's rational approximation)
+function probit(p) {
+  const x = Math.min(1 - 1e-9, Math.max(1e-9, p));
+  const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.38357751867269e2, -3.066479806614716e1, 2.506628277459239e0];
+  const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1, -1.328068155288572e1];
+  const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838e0, -2.549732539343734e0, 4.374664141464968e0, 2.938163982698783e0];
+  const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996e0, 3.754408661907416e0];
+  const plow = 0.02425, phigh = 1 - plow;
+  let q, r;
+  if (x < plow) {
+    q = Math.sqrt(-2 * Math.log(x));
+    return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  } else if (x <= phigh) {
+    q = x - 0.5; r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+  q = Math.sqrt(-2 * Math.log(1 - x));
+  return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+}
+
+// Small deterministic PRNG so the same build always yields the same estimate
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+// Cholesky decomposition (lower triangular), with tiny jitter for PD safety
+function cholesky(matrix) {
+  const n = matrix.length;
+  const L = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j <= i; j++) {
+      let sum = matrix[i][j];
+      for (let k = 0; k < j; k++) sum -= L[i][k] * L[j][k];
+      L[i][j] = i === j ? Math.sqrt(Math.max(sum, 1e-9)) : sum / L[j][j];
+    }
+  }
+  return L;
+}
+
+// Structural pairwise correlation between two legs (same-game game-pace effect)
+function pairCorrelation(a, b) {
+  if (!a.game || !b.game || a.game !== b.game) return 0;
+  const bothPossession = POSSESSION_METRICS.has(a.metric) && POSSESSION_METRICS.has(b.metric);
+  return bothPossession ? 0.28 : 0.1;
+}
+
+// P(all legs hit) under a Gaussian copula. items: [{prob, game, metric}].
+// Falls back to the exact independence product when no pair shares a game.
+function correlationAdjustedProb(items) {
+  const n = items.length;
+  if (n === 0) return 0;
+  const product = items.reduce((acc, it) => acc * Math.max(0, Math.min(1, it.prob || 0)), 1);
+  if (n === 1) return product;
+
+  const R = Array.from({ length: n }, (_, i) =>
+    Array.from({ length: n }, (_, j) => (i === j ? 1 : pairCorrelation(items[i], items[j])))
+  );
+  const anyCorrelated = R.some((row, i) => row.some((v, j) => i !== j && v !== 0));
+  if (!anyCorrelated) return product;
+
+  const thresholds = items.map((it) => probit(Math.max(1e-6, Math.min(1 - 1e-6, it.prob || 0))));
+  const L = cholesky(R);
+  const seed = hashSeed(items.map((it) => `${it.game}|${it.metric}|${Math.round((it.prob || 0) * 1000)}`).join("~"));
+  const rand = mulberry32(seed);
+  const nextNormal = () => {
+    let u = 0, v = 0;
+    while (u === 0) u = rand();
+    while (v === 0) v = rand();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  };
+
+  const SAMPLES = 20000;
+  const z = new Array(n);
+  let hits = 0;
+  for (let s = 0; s < SAMPLES; s++) {
+    for (let i = 0; i < n; i++) z[i] = nextNormal();
+    let all = true;
+    for (let i = 0; i < n; i++) {
+      let y = 0;
+      for (let k = 0; k <= i; k++) y += L[i][k] * z[k];
+      if (y > thresholds[i]) { all = false; break; }
+    }
+    if (all) hits++;
+  }
+  return hits / SAMPLES;
+}
+
 function computeCombinedMetrics(selected) {
   const combinedOdds = selected.reduce((acc, p) => acc * Number(p.odds), 1);
-  const combinedProb = selected.reduce((acc, p) => acc * (p.empirical ?? 0), 1);
+  const independentProb = selected.reduce((acc, p) => acc * (p.empirical ?? 0), 1);
+  const combinedProb = correlationAdjustedProb(
+    selected.map((p) => ({ prob: p.empirical ?? 0, game: p.gameLabel, metric: p.metric }))
+  );
   const ev = combinedProb * combinedOdds - 1;
   return {
     combinedOdds: Number(combinedOdds.toFixed(2)),
     combinedProb,
     combinedProbPct: Math.round(combinedProb * 100),
+    independentProbPct: Math.round(independentProb * 100),
     evPct: Math.round(ev * 100),
+    correlated: Math.abs(combinedProb - independentProb) >= 0.005,
   };
 }
 
@@ -1055,6 +1174,8 @@ function buildStructuredMulti(computed, sport, targetOdds) {
     legs,
     combinedOdds: metrics.combinedOdds,
     combinedProbPct: metrics.combinedProbPct,
+    independentProbPct: metrics.independentProbPct,
+    correlated: metrics.correlated,
     evPct: metrics.evPct, // combined recent-form chance vs the offered price
     valueLegs: legs.filter((l) => typeof l.edgePct === "number" && l.edgePct > 0).length,
     targetOdds,
@@ -1137,10 +1258,15 @@ function pickReplacement(enriched, usedPlayers, metric, targetLegOdds) {
 // Recompute combined odds/prob/risk from a final set of structured legs
 function recomputeMultiFromLegs(base, legs, sport) {
   const combinedOdds = Number(legs.reduce((a, l) => a * Number(l.odds || 1), 1).toFixed(2));
-  const combinedProb = legs.reduce((a, l) => a * legEmpirical(l), 1);
+  const independentProb = legs.reduce((a, l) => a * legEmpirical(l), 1);
+  const combinedProb = correlationAdjustedProb(
+    legs.map((l) => ({ prob: legEmpirical(l), game: l.game, metric: legMetricOf(l) }))
+  );
   const combinedProbPct = Math.round(combinedProb * 100);
+  const independentProbPct = Math.round(independentProb * 100);
   const evPct = Math.round((combinedProb * combinedOdds - 1) * 100);
   const valueLegs = legs.filter((l) => typeof l.edgePct === "number" && l.edgePct > 0).length;
+  const correlated = Math.abs(combinedProb - independentProb) >= 0.005;
   const risk = computeRiskScore(combinedProb, legs.length);
   const targetOdds = base.targetOdds;
   const targetVal = parseOddsValue(targetOdds);
@@ -1157,6 +1283,8 @@ function recomputeMultiFromLegs(base, legs, sport) {
     legs,
     combinedOdds,
     combinedProbPct,
+    independentProbPct,
+    correlated,
     evPct,
     valueLegs,
     oddsNote,
