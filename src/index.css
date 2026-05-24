@@ -4,47 +4,74 @@
 .dark { color-scheme: dark; }
 
 /* Page / section backgrounds */
-.dark .bg-\[\#E8E2D4\]   { background-color: #0f172a; }
-.dark .bg-\[\#FAF7EF\]   { background-color: #1e293b; }
-.dark .bg-white          { background-color: #1e293b; }
+.dark .bg-\[\#E8E2D4\]   { background-color: #0d1117; }
+.dark .bg-\[\#FAF7EF\]   { background-color: #161b22; }
+.dark .bg-white          { background-color: #161b22; }
 
-/* Opacity variants on surfaces */
-.dark .bg-\[\#FAF7EF\]\/95 { background-color: rgb(15 23 42 / 0.97); }
-.dark .bg-\[\#FAF7EF\]\/70 { background-color: rgb(30 41 59 / 0.7);  }
+/* Opacity variants on surfaces (nav backdrop) */
+.dark .bg-\[\#FAF7EF\]\/95 { background-color: rgb(13 17 23 / 0.97); }
+.dark .bg-\[\#FAF7EF\]\/70 { background-color: rgb(22 27 34 / 0.7);  }
 
-/* Primary brand text: dark navy → light slate */
-.dark .text-\[\#11203B\] { color: #e2e8f0; }
+/* Primary brand text: dark navy → soft off-white */
+.dark .text-\[\#11203B\] { color: #cdd5e0; }
 
-/* Slate text */
-.dark .text-slate-500    { color: #94a3b8; }
-.dark .text-slate-600    { color: #cbd5e1; }
-.dark .text-slate-700    { color: #e2e8f0; }
-.dark .text-slate-900    { color: #f1f5f9; }
+/* Slate text — all softened */
+.dark .text-slate-500    { color: #6e7f96; }
+.dark .text-slate-600    { color: #8a9ab4; }
+.dark .text-slate-700    { color: #adbace; }
+.dark .text-slate-900    { color: #cdd5e0; }
 
-/* Slate borders */
-.dark .border-slate-100  { border-color: #1e293b; }
-.dark .border-slate-200  { border-color: #334155; }
-.dark .border-slate-300  { border-color: #475569; }
+/* Slate borders — subtle */
+.dark .border-slate-100  { border-color: #1e2530; }
+.dark .border-slate-200  { border-color: #21293a; }
+.dark .border-slate-300  { border-color: #2d3748; }
 
 /* Slate bg shades */
-.dark .bg-slate-100      { background-color: #1e293b; }
-.dark .bg-slate-200      { background-color: #334155; }
+.dark .bg-slate-100      { background-color: #161b22; }
+.dark .bg-slate-200      { background-color: #1e2530; }
 
 /* Hover states */
-.dark .hover\:bg-\[\#E8E2D4\]:hover   { background-color: #334155; }
-.dark .hover\:bg-white\/70:hover      { background-color: rgb(30 41 59 / 0.7); }
-.dark .hover\:bg-slate-800:hover      { background-color: #0f172a; }
-
-/* Outline button: text-slate-900 hover:bg-[#E8E2D4] — covered above */
-/* Ghost button: hover:bg-[#E8E2D4] — covered above */
+.dark .hover\:bg-\[\#E8E2D4\]:hover   { background-color: #1e2530; }
+.dark .hover\:bg-white\/70:hover      { background-color: rgb(22 27 34 / 0.7); }
+.dark .hover\:bg-slate-800:hover      { background-color: #0d1117; }
 
 /* Input focus ring */
-.dark .focus\:border-slate-900:focus  { border-color: #60a5fa; }
-.dark .focus\:ring-slate-200          { --tw-ring-color: #334155; }
+.dark .focus\:border-slate-900:focus  { border-color: #4a7fa5; }
+.dark .focus\:ring-slate-200          { --tw-ring-color: #21293a; }
 
-/* Danger zone section */
-.dark .bg-\[\#F3DDD7\]     { background-color: #3b1f1f; }
-.dark .border-\[\#D9A39B\] { border-color: #7f4d4d; }
-.dark .text-red-800        { color: #fca5a5; }
-.dark .text-red-900        { color: #fecaca; }
-.dark .hover\:bg-red-100:hover { background-color: #7f1d1d; }
+/* ── Colored stat cards (green / red tones) ─────────────────────── */
+/* Green cards: !bg-[#DDEFE5] !border-[#9BCBB2] */
+.dark .\!bg-\[\#DDEFE5\]    { background-color: #0d1f17 !important; }
+.dark .\!border-\[\#9BCBB2\] { border-color: #1a3d28 !important; }
+
+/* Green text on colored cards */
+.dark .text-\[\#2E7D5B\]    { color: #4a9e74; }
+
+/* Red/salmon cards: !bg-[#F3DDD7] !border-[#D9A39B] */
+.dark .\!bg-\[\#F3DDD7\]    { background-color: #1f0d0d !important; }
+.dark .\!border-\[\#D9A39B\] { border-color: #4a1a1a !important; }
+
+/* Red text on colored cards */
+.dark .text-\[\#A94442\]    { color: #b56060; }
+
+/* Danger zone section (settings) */
+.dark .bg-\[\#F3DDD7\]      { background-color: #1f0d0d; }
+.dark .border-\[\#D9A39B\]  { border-color: #4a1a1a; }
+.dark .text-red-800         { color: #f87171; }
+.dark .text-red-900         { color: #fca5a5; }
+.dark .hover\:bg-red-100:hover { background-color: #3b1111; }
+
+/* ── Shadows — kill the glow in dark mode ───────────────────────── */
+.dark .shadow-sm            { box-shadow: 0 1px 3px rgb(0 0 0 / 0.4); }
+.dark .shadow-md            { box-shadow: 0 2px 6px rgb(0 0 0 / 0.5); }
+.dark .shadow-lg            { box-shadow: 0 4px 12px rgb(0 0 0 / 0.5); }
+/* Specifically kill the bright slate-300 glow on Open Grid Build button */
+.dark .shadow-slate-300     { --tw-shadow-color: transparent; box-shadow: 0 4px 12px rgb(0 0 0 / 0.4); }
+/* Kill the harsh box-shadow on the mobile nav */
+.dark [class*="shadow-\[0_-8px"]  { box-shadow: 0 -4px 12px rgb(0 0 0 / 0.5); }
+
+/* ── Gold accent — keep warm but don't amplify in dark ──────────── */
+/* #C49A4A already reads well on dark bg — no override needed */
+
+/* ── Chat bubble / speech tail bg ──────────────────────────────── */
+/* .dark .bg-[#FAF7EF] already handles speech bubble background */
