@@ -298,6 +298,57 @@ function BreakdownsCard({ bySport, byOdds, byType }) {
   );
 }
 
+function PendingBetsCard({ bets, onSettle, onDelete }) {
+  return (
+    <Card>
+      <div className="p-5 md:p-6">
+        <h2 className="text-lg font-semibold md:text-xl">Pending bets</h2>
+        <p className="text-sm text-slate-500">Saved but not settled yet — mark them once the games finish.</p>
+        <div className="mt-4 space-y-3">
+          {bets.map((bet) => (
+            <div key={bet.id} className="rounded-2xl border border-slate-200 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-[#11203B]">{bet.betType || "Bet"} · {bet.sport || "Other"} @ ${bet.odds}</p>
+                  <p className="text-xs text-slate-500">{bet.date} · {formatCurrency(bet.stake)} stake{bet.source === "grid_build" ? " · from Grid Build" : ""}</p>
+                </div>
+                <p className="text-sm font-medium text-[#11203B]">Returns {formatCurrency(Number(bet.stake || 0) * Number(bet.odds || 0))}</p>
+              </div>
+              {Array.isArray(bet.legs) && bet.legs.length ? (
+                <ul className="mt-2 space-y-0.5 text-xs text-slate-600">
+                  {bet.legs.map((leg, index) => <li key={index}>• {leg.name || leg.player}{leg.odds ? ` @ $${leg.odds}` : ""}</li>)}
+                </ul>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button onClick={() => onSettle(bet.id, "win")} className="bg-[#2E7D5B] hover:bg-[#27684c]">Won</Button>
+                <Button onClick={() => onSettle(bet.id, "loss")} className="bg-[#A94442] hover:bg-[#8f3a38]">Lost</Button>
+                <Button variant="ghost" onClick={() => onDelete(bet.id)}>Delete</Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function GridBuildScoreCard({ stats }) {
+  return (
+    <Card>
+      <div className="p-5 md:p-6">
+        <h2 className="text-lg font-semibold md:text-xl">Grid Build performance</h2>
+        <p className="text-sm text-slate-500">How the multis you saved from Grid Build have actually gone.</p>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-2xl bg-[#E8E2D4] p-4"><p className="text-xs uppercase tracking-wide text-slate-500">Saved</p><p className="mt-1 text-xl font-bold text-[#11203B]">{stats.count}</p></div>
+          <div className="rounded-2xl bg-[#E8E2D4] p-4"><p className="text-xs uppercase tracking-wide text-slate-500">Won</p><p className="mt-1 text-xl font-bold text-[#11203B]">{stats.wins}/{stats.completed}</p></div>
+          <div className={"rounded-2xl p-4 " + (stats.profit >= 0 ? "bg-[#DDEFE5]" : "bg-[#F3DDD7]")}><p className="text-xs uppercase tracking-wide text-slate-500">Profit</p><p className={"mt-1 text-xl font-bold " + (stats.profit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(stats.profit)}</p></div>
+          <div className="rounded-2xl bg-[#E8E2D4] p-4"><p className="text-xs uppercase tracking-wide text-slate-500">ROI</p><p className="mt-1 text-xl font-bold text-[#11203B]">{stats.roi != null ? stats.roi.toFixed(0) + "%" : "—"}</p></div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function Button({ children, className = "", variant = "primary", ...props }) {
   const base = "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
   const styles =
@@ -637,7 +688,7 @@ function EdgeMessage({ role, children }) {
   );
 }
 
-function EdgePage({ setActivePage }) {
+function EdgePage({ setActivePage, onSaveMulti }) {
   const [mode, setMode] = useState("multi");
   const [sport, setSport] = useState("AFL");
   const [legs, setLegs] = useState("3");
@@ -652,6 +703,23 @@ function EdgePage({ setActivePage }) {
   const [chatMessages, setChatMessages] = useState([]);
   const [lastEdgeContext, setLastEdgeContext] = useState(null);
   const [multiOutput, setMultiOutput] = useState(null);
+  const [betStake, setBetStake] = useState("");
+  const [savingBet, setSavingBet] = useState(false);
+  const [saveBetMsg, setSaveBetMsg] = useState("");
+
+  const addMultiToBets = async () => {
+    if (!multiOutput || savingBet || typeof onSaveMulti !== "function") return;
+    setSavingBet(true);
+    setSaveBetMsg("");
+    const result = await onSaveMulti(multiOutput, betStake);
+    setSavingBet(false);
+    if (result?.error) {
+      setSaveBetMsg(result.error);
+    } else {
+      setSaveBetMsg("Saved to your bets as pending. Settle it on the dashboard after the games.");
+      setBetStake("");
+    }
+  };
   const [games, setGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState("");
   const chatSectionRef = React.useRef(null);
@@ -939,6 +1007,18 @@ function EdgePage({ setActivePage }) {
                       </div>
                     ) : null}
                   </div>
+
+                  {multiOutput ? (
+                    <div className="mt-4 rounded-2xl border border-[#11203B]/15 bg-[#FAF7EF] p-4">
+                      <p className="text-sm font-semibold text-[#11203B]">Track this multi</p>
+                      <p className="mt-1 text-xs text-slate-500">Save it to your tracker as a pending bet, then settle it on the dashboard after the games.</p>
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Input type="number" min="0" step="0.01" placeholder="Stake (e.g. 20)" value={betStake} onChange={(event) => setBetStake(event.target.value)} className="sm:max-w-[160px]" />
+                        <Button type="button" onClick={addMultiToBets} disabled={savingBet}>{savingBet ? "Saving..." : "Add to my bets"}</Button>
+                      </div>
+                      {saveBetMsg ? <p className="mt-2 text-xs font-medium text-[#11203B]">{saveBetMsg}</p> : null}
+                    </div>
+                  ) : null}
                 </div>
               </Card>
             </div>
@@ -1291,10 +1371,22 @@ export default function BettingTrackerWebsite() {
     setBets([]);
   };
 
+  const settledBets = useMemo(() => bets.filter((bet) => bet.status !== "pending"), [bets]);
+  const pendingBets = useMemo(() => bets.filter((bet) => bet.status === "pending"), [bets]);
+
   const filteredBets = useMemo(() => {
-    if (selectedSportFilter === "All sports") return bets;
-    return bets.filter((bet) => (bet.sport || "Other") === selectedSportFilter);
-  }, [bets, selectedSportFilter]);
+    if (selectedSportFilter === "All sports") return settledBets;
+    return settledBets.filter((bet) => (bet.sport || "Other") === selectedSportFilter);
+  }, [settledBets, selectedSportFilter]);
+
+  const gridBuildStats = useMemo(() => {
+    const gb = settledBets.filter((bet) => bet.source === "grid_build");
+    const completed = gb.filter((bet) => bet.result === "win" || bet.result === "loss");
+    const wins = gb.filter((bet) => bet.result === "win").length;
+    const profit = gb.reduce((sum, bet) => sum + Number(bet.profitLoss || 0), 0);
+    const staked = gb.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
+    return { count: gb.length, completed: completed.length, wins, profit, roi: staked ? (profit / staked) * 100 : null };
+  }, [settledBets]);
 
   const stats = useMemo(() => {
     const totalStaked = filteredBets.reduce((sum, bet) => sum + Number(bet.stake || 0), 0);
@@ -1372,7 +1464,7 @@ export default function BettingTrackerWebsite() {
         if (bet.result === "win") group.wins += 1;
       }
     };
-    for (const bet of bets) {
+    for (const bet of settledBets) {
       add(sportMap, bet.sport || "Other", bet);
       const odds = Number(bet.odds || 0);
       const band = oddsBands.find((entry) => entry.test(odds));
@@ -1390,7 +1482,7 @@ export default function BettingTrackerWebsite() {
       byOdds: finalize(oddsMap).sort((a, b) => a.order - b.order),
       byType: finalize(typeMap).sort((a, b) => b.profit - a.profit),
     };
-  }, [bets]);
+  }, [settledBets]);
 
   const chartTotal = chartData.reduce((sum, item) => sum + Number(item.profitLoss || 0), 0);
   const positiveChartColor = "#2E7D5B";
@@ -1495,6 +1587,56 @@ export default function BettingTrackerWebsite() {
     if (editingBetId === id) resetBetForm();
   };
 
+  const saveMultiAsBet = async (multi, stake) => {
+    if (!supabase || !session?.user?.id) return { error: "Please sign in first." };
+    if (!multi) return { error: "No multi to save." };
+    const stakeNum = Number(stake);
+    if (!stakeNum || stakeNum <= 0) return { error: "Enter a stake first." };
+
+    const betPayload = normaliseBet({
+      date: todayString(),
+      sport: multi.sport || "AFL",
+      stake: stakeNum,
+      odds: Number(multi.combinedOdds) || 0,
+      result: "void",
+      returnAmount: 0,
+      profitLoss: 0,
+      notes: `Grid Build ${multi.legCount}-leg multi`,
+      betType: "Multi",
+      source: "grid_build",
+      status: "pending",
+      legs: multi.legs || null,
+    });
+
+    const { data, error } = await supabase.from("bets").insert(betToDatabaseRow(betPayload, session.user.id)).select().single();
+    if (error) return { error: error.message };
+    setBets((current) => [databaseRowToBet(data), ...current]);
+    return { ok: true };
+  };
+
+  const settlePendingBet = async (id, outcome) => {
+    if (!supabase || !session?.user?.id) return;
+    const bet = bets.find((item) => item.id === id);
+    if (!bet) return;
+    const stakeNum = Number(bet.stake || 0);
+    const oddsNum = Number(bet.odds || 0);
+    const returnAmount = outcome === "win" ? Number((stakeNum * oddsNum).toFixed(2)) : 0;
+    const profitLoss = calculateProfitLoss(outcome, stakeNum, returnAmount);
+
+    const { data, error } = await supabase
+      .from("bets")
+      .update({ status: "settled", result: outcome, return_amount: returnAmount, profit_loss: profitLoss })
+      .eq("id", id)
+      .eq("user_id", session.user.id)
+      .select()
+      .single();
+    if (error) {
+      setMessage("Could not settle bet: " + error.message);
+      return;
+    }
+    setBets((current) => current.map((item) => (item.id === id ? databaseRowToBet(data) : item)));
+  };
+
   const clearAllBets = async () => {
     const confirmed = window.confirm("This will permanently delete all saved bets from this account. This cannot be undone. Continue?");
     if (!confirmed || !supabase || !session?.user?.id) return;
@@ -1575,7 +1717,7 @@ export default function BettingTrackerWebsite() {
   }
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
-  if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} />;
+  if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} />;
   if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
@@ -2094,7 +2236,9 @@ export default function BettingTrackerWebsite() {
 
           {bets.length > 0 ? (
             <div className="mt-4 space-y-4 md:mt-6 md:space-y-6">
+              {pendingBets.length > 0 ? <PendingBetsCard bets={pendingBets} onSettle={settlePendingBet} onDelete={deleteBet} /> : null}
               <BankrollCurveCard data={cumulativeData} />
+              {gridBuildStats.count > 0 ? <GridBuildScoreCard stats={gridBuildStats} /> : null}
               <BreakdownsCard bySport={breakdowns.bySport} byOdds={breakdowns.byOdds} byType={breakdowns.byType} />
             </div>
           ) : null}
