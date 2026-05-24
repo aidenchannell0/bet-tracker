@@ -791,45 +791,33 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   const wantCount =
     targetLegs === "Any" || !targetLegs ? null : Math.max(1, parseInt(targetLegs, 10) || 3);
 
-  // "Any" legs: add the best legs until combined odds reach the target
-  if (!wantCount) {
-    const selected = [];
-    let combinedOdds = 1;
-    for (const p of ordered) {
-      selected.push(p);
-      combinedOdds *= Number(p.odds);
-      if (targetOddsValue && combinedOdds >= targetOddsValue) break;
-    }
-    return selected;
+  // No target odds: just honour the requested leg count by quality
+  if (!targetOddsValue) {
+    return ordered.slice(0, wantCount || 3);
   }
 
-  // Fixed leg count with no target: take the top legs by quality
-  if (!targetOddsValue || ordered.length <= wantCount) {
-    return ordered.slice(0, wantCount);
-  }
+  // Target odds set: search combinations across leg counts and return one whose combined
+  // odds land within a tolerance of the target (e.g. $2 -> $1.80–$2.20). Tolerance widens
+  // only if no tighter combo exists. Prefer the requested leg count, then highest chance.
+  const shortlist = ordered.slice(0, Math.min(ordered.length, 14));
+  if (!shortlist.length) return [];
 
-  // Fixed leg count + target odds: from a quality shortlist, pick the combination of
-  // wantCount legs whose combined odds is closest to the target (ties broken by quality).
-  const shortlist = ordered.slice(
-    0,
-    Math.min(ordered.length, Math.max(wantCount * 2, wantCount + 4))
-  );
+  const minLegs = 2;
+  const maxLegs = Math.min(7, shortlist.length);
 
-  let best = null;
+  const combos = [];
+  let closest = null;
   const choose = (start, acc) => {
-    if (acc.length === wantCount) {
+    if (acc.length >= minLegs) {
       const odds = acc.reduce((a, p) => a * Number(p.odds), 1);
+      const prob = acc.reduce((a, p) => a * (p.empirical ?? 0), 1);
       const diff = Math.abs(odds - targetOddsValue);
-      const quality = acc.reduce((a, p) => a + p.score, 0);
-      if (
-        !best ||
-        diff < best.diff - 1e-9 ||
-        (Math.abs(diff - best.diff) < 1e-9 && quality > best.quality)
-      ) {
-        best = { legs: [...acc], diff, quality };
-      }
-      return;
+      const legPenalty = wantCount ? Math.abs(acc.length - wantCount) : 0;
+      const cand = { legs: [...acc], prob, diff, legPenalty };
+      combos.push(cand);
+      if (!closest || diff < closest.diff) closest = cand;
     }
+    if (acc.length >= maxLegs) return;
     for (let i = start; i < shortlist.length; i++) {
       acc.push(shortlist[i]);
       choose(i + 1, acc);
@@ -838,7 +826,18 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   };
   choose(0, []);
 
-  return (best ? best.legs : ordered.slice(0, wantCount)).sort((a, b) => b.score - a.score);
+  // Tightest tolerance band that contains at least one combo
+  let pool = [];
+  for (const tol of [0.2, 0.35, 0.5, 0.75, 1.0, Infinity]) {
+    pool = combos.filter((c) => c.diff <= tol);
+    if (pool.length) break;
+  }
+  if (!pool.length) pool = closest ? [closest] : [];
+  if (!pool.length) return ordered.slice(0, wantCount || 3);
+
+  // Prefer requested leg count, then highest combined chance, then closest to target
+  pool.sort((a, b) => a.legPenalty - b.legPenalty || b.prob - a.prob || a.diff - b.diff);
+  return pool[0].legs.sort((a, b) => b.score - a.score);
 }
 
 function computeCombinedMetrics(selected) {
