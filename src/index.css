@@ -28,6 +28,7 @@
 .dark .border-slate-300  { border-color: #2d3748; }
 
 /* Slate bg shades */
+.dark .bg-slate-50       { background-color: #1b2230; }
 .dark .bg-slate-100      { background-color: #161b22; }
 .dark .bg-slate-200      { background-color: #1e2530; }
 
@@ -59,5 +60,10 @@
 /* ── Gold accent — keep warm but don't amplify in dark ──────────── */
 /* #C49A4A already reads well on dark bg — no override needed */
 
-/* ── Chat bubble / speech tail bg ──────────────────────────────── */
-/* .dark .bg-[#FAF7EF] already handles speech bubble background */
+/* ── Recharts: tone down the bright hover band + grid ───────────── */
+/* Default cursor is a near-white rect/line — make it a faint slate */
+.dark .recharts-tooltip-cursor {
+  fill: rgb(148 163 184 / 0.08) !important;
+  stroke: rgb(148 163 184 / 0.22) !important;
+}
+.dark .recharts-cartesian-grid line { stroke: #232b38; }
