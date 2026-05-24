@@ -892,6 +892,20 @@ function detectRiskFromMessage(message) {
   return null;
 }
 
+// If the user asked to focus on one market (e.g. "disposals only"), return that metric
+function detectMultiMetricFilter(message, context) {
+  const text = `${message || ""} ${context?.request || ""}`.toLowerCase();
+  if (text.includes("fantasy")) return "fantasy_points";
+  if (text.includes("disposal")) return "disposals";
+  if (text.includes("clearance")) return "clearances";
+  if (text.includes("tackle")) return "tackles";
+  if (text.includes("handball")) return "handballs";
+  if (text.includes("kick")) return "kicks";
+  if (text.includes("goal")) return "goals";
+  if (/\bmarks?\b/.test(text)) return "marks";
+  return null;
+}
+
 // Shared computation: enrich props, select legs, compute combined metrics + risk
 function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile) {
   const enriched = enrichProps(props, aflStats);
@@ -1717,6 +1731,17 @@ export default async function handler(req, res) {
             allProps.push(...gameProps);
             gamesUsed += 1;
           }
+        }
+      }
+
+      // Honour a requested market focus (e.g. "disposals only"): keep only that metric,
+      // unless none of that market is available (then fall back to all so we still build).
+      const focusMetric = detectMultiMetricFilter(message, context);
+      if (focusMetric) {
+        const filtered = allProps.filter((p) => p.metric === focusMetric);
+        if (filtered.length) {
+          allProps.length = 0;
+          allProps.push(...filtered);
         }
       }
 
