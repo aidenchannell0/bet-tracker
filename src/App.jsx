@@ -183,6 +183,98 @@ function Card({ children, className = "" }) {
   return <div className={"rounded-2xl border border-slate-200 bg-[#FAF7EF] shadow-sm " + className}>{children}</div>;
 }
 
+function BankrollCurveCard({ data }) {
+  const positive = "#2E7D5B";
+  const negative = "#A94442";
+  const balances = data.map((point) => point.balance);
+  const current = balances.length ? balances[balances.length - 1] : 0;
+  const peak = balances.length ? Math.max(0, ...balances) : 0;
+  const drawdown = current - peak;
+  const lineColor = current >= 0 ? positive : negative;
+
+  return (
+    <Card>
+      <div className="p-5 md:p-6">
+        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
+          <div>
+            <h2 className="text-lg font-semibold md:text-xl">Cumulative profit</h2>
+            <p className="text-sm text-slate-500">Your running total over time — the trajectory at a glance.</p>
+          </div>
+          <div className="flex gap-5 text-right">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Now</p>
+              <p className={"text-lg font-bold " + (current >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(current)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Peak</p>
+              <p className="text-lg font-bold text-[#11203B]">{formatCurrency(peak)}</p>
+            </div>
+          </div>
+        </div>
+        {data.length ? (
+          <div className="mt-4 h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
+                <defs>
+                  <linearGradient id="bankrollGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={lineColor} stopOpacity={0.25} />
+                    <stop offset="100%" stopColor={lineColor} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} width={50} />
+                <Tooltip formatter={(value) => formatCurrency(value)} />
+                <ReferenceLine y={0} stroke="#94a3b8" />
+                <Area type="monotone" dataKey="balance" stroke={lineColor} fill="url(#bankrollGradient)" strokeWidth={3} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p className="mt-6 text-sm text-slate-500">Add some bets to see your balance trend.</p>
+        )}
+        {data.length && drawdown < 0 ? (
+          <p className="mt-3 text-xs text-slate-500">Currently {formatCurrency(Math.abs(drawdown))} below your peak.</p>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+function BreakdownRow({ row }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-slate-100 py-2 text-sm first:border-t-0">
+      <span className="font-medium text-[#11203B]">{row.key}</span>
+      <div className="flex items-center gap-4">
+        <span className="hidden w-14 text-right text-xs text-slate-500 sm:inline">{row.completed ? `${Math.round(row.winRate)}% win` : "—"}</span>
+        <span className="w-12 text-right text-xs text-slate-500">{row.roi != null ? `${row.roi >= 0 ? "+" : ""}${row.roi.toFixed(0)}%` : "—"}</span>
+        <span className={"w-20 text-right font-semibold " + (row.profit >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(row.profit)}</span>
+      </div>
+    </div>
+  );
+}
+
+function BreakdownsCard({ bySport, byOdds }) {
+  return (
+    <Card>
+      <div className="p-5 md:p-6">
+        <h2 className="text-lg font-semibold md:text-xl">Where your money goes</h2>
+        <p className="text-sm text-slate-500">Profit, ROI and win rate across all your bets.</p>
+        <div className="mt-4 grid gap-6 md:grid-cols-2">
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">By sport</p>
+            {bySport.length ? bySport.map((row) => <BreakdownRow key={row.key} row={row} />) : <p className="text-sm text-slate-500">No bets yet.</p>}
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">By odds range</p>
+            {byOdds.length ? byOdds.map((row) => <BreakdownRow key={row.key} row={row} />) : <p className="text-sm text-slate-500">No bets yet.</p>}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function Button({ children, className = "", variant = "primary", ...props }) {
   const base = "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
   const styles =
@@ -1227,6 +1319,53 @@ export default function BettingTrackerWebsite() {
     return Object.values(grouped).map((item) => ({ ...item, profitLoss: Number(item.profitLoss.toFixed(2)) })).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   }, [filteredBets, chartView]);
 
+  const cumulativeData = useMemo(() => {
+    let running = 0;
+    return chartData.map((item) => {
+      running += Number(item.profitLoss || 0);
+      return { label: item.label, sortKey: item.sortKey, balance: Number(running.toFixed(2)) };
+    });
+  }, [chartData]);
+
+  const breakdowns = useMemo(() => {
+    const oddsBands = [
+      { key: "Under $1.50", test: (n) => n > 1 && n < 1.5, order: 1 },
+      { key: "$1.50 – $2.00", test: (n) => n >= 1.5 && n < 2, order: 2 },
+      { key: "$2.00 – $3.00", test: (n) => n >= 2 && n < 3, order: 3 },
+      { key: "$3.00 – $5.00", test: (n) => n >= 3 && n < 5, order: 4 },
+      { key: "$5.00+", test: (n) => n >= 5, order: 5 },
+    ];
+    const sportMap = new Map();
+    const oddsMap = new Map();
+    const add = (map, key, bet, order = 0) => {
+      if (!map.has(key)) map.set(key, { key, profit: 0, staked: 0, count: 0, wins: 0, completed: 0, order });
+      const group = map.get(key);
+      group.profit += Number(bet.profitLoss || 0);
+      group.staked += Number(bet.stake || 0);
+      group.count += 1;
+      if (bet.result === "win" || bet.result === "loss") {
+        group.completed += 1;
+        if (bet.result === "win") group.wins += 1;
+      }
+    };
+    for (const bet of bets) {
+      add(sportMap, bet.sport || "Other", bet);
+      const odds = Number(bet.odds || 0);
+      const band = oddsBands.find((entry) => entry.test(odds));
+      add(oddsMap, band ? band.key : "Unknown odds", bet, band ? band.order : 99);
+    }
+    const finalize = (map) =>
+      [...map.values()].map((group) => ({
+        ...group,
+        roi: group.staked ? (group.profit / group.staked) * 100 : null,
+        winRate: group.completed ? (group.wins / group.completed) * 100 : 0,
+      }));
+    return {
+      bySport: finalize(sportMap).sort((a, b) => b.profit - a.profit),
+      byOdds: finalize(oddsMap).sort((a, b) => a.order - b.order),
+    };
+  }, [bets]);
+
   const chartTotal = chartData.reduce((sum, item) => sum + Number(item.profitLoss || 0), 0);
   const positiveChartColor = "#2E7D5B";
   const negativeChartColor = "#A94442";
@@ -1914,6 +2053,13 @@ export default function BettingTrackerWebsite() {
           </Card>
 
           </div>
+
+          {bets.length > 0 ? (
+            <div className="mt-4 space-y-4 md:mt-6 md:space-y-6">
+              <BankrollCurveCard data={cumulativeData} />
+              <BreakdownsCard bySport={breakdowns.bySport} byOdds={breakdowns.byOdds} />
+            </div>
+          ) : null}
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
