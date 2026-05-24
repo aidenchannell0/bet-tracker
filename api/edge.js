@@ -1019,6 +1019,7 @@ function structureLegFromEnriched(p) {
     odds: p.odds,
     bookmaker: p.bookmaker || null,
     confidence: `${empPct}%`,
+    edgePct, // form hit-rate minus odds-implied probability (the value signal)
     reason: `Cleared this line in ${l10} recent games, averaging ${p.recentAvg}.`,
     details: [
       { label: "Market line", value: `Over ${p.line}` },
@@ -1054,6 +1055,8 @@ function buildStructuredMulti(computed, sport, targetOdds) {
     legs,
     combinedOdds: metrics.combinedOdds,
     combinedProbPct: metrics.combinedProbPct,
+    evPct: metrics.evPct, // combined recent-form chance vs the offered price
+    valueLegs: legs.filter((l) => typeof l.edgePct === "number" && l.edgePct > 0).length,
     targetOdds,
     oddsNote,
     risk,
@@ -1136,6 +1139,8 @@ function recomputeMultiFromLegs(base, legs, sport) {
   const combinedOdds = Number(legs.reduce((a, l) => a * Number(l.odds || 1), 1).toFixed(2));
   const combinedProb = legs.reduce((a, l) => a * legEmpirical(l), 1);
   const combinedProbPct = Math.round(combinedProb * 100);
+  const evPct = Math.round((combinedProb * combinedOdds - 1) * 100);
+  const valueLegs = legs.filter((l) => typeof l.edgePct === "number" && l.edgePct > 0).length;
   const risk = computeRiskScore(combinedProb, legs.length);
   const targetOdds = base.targetOdds;
   const targetVal = parseOddsValue(targetOdds);
@@ -1152,6 +1157,8 @@ function recomputeMultiFromLegs(base, legs, sport) {
     legs,
     combinedOdds,
     combinedProbPct,
+    evPct,
+    valueLegs,
     oddsNote,
     risk,
     riskExplanation: `A ${risk}/10 score reflects ${legs.length} legs with a combined recent-form chance of about ${combinedProbPct}%. More legs and lower individual hit rates raise the risk. This is based on historical stats only and does not guarantee the outcome.`,
@@ -2247,7 +2254,8 @@ export default async function handler(req, res) {
             });
           }
           const m = editResult.multi;
-          const reply = `Simple view:\n\n${editResult.summary} New combined odds **$${m.combinedOdds}** at about **${m.combinedProbPct}%** across **${m.legCount} leg${m.legCount === 1 ? "" : "s"}**.\n\nWhat I would check:\n\n${m.oddsNote || "The updated leg uses the best current price and recent-form hit rate. Tweak it again any time — e.g. 'swap leg 2', 'make it safer', or 'around $3'."}\n\nRisk level:\n\n${m.risk}/10 based on the new combination.\n\nImportant:\n\nThis is informational only, not betting advice.`;
+          const evText = typeof m.evPct === "number" ? ` Form value **${m.evPct >= 0 ? "+" : ""}${m.evPct}%** (recent-form chance vs the offered price).` : "";
+          const reply = `Simple view:\n\n${editResult.summary} New combined odds **$${m.combinedOdds}** at about **${m.combinedProbPct}%** across **${m.legCount} leg${m.legCount === 1 ? "" : "s"}**.${evText}\n\nWhat I would check:\n\n${m.oddsNote || "The updated leg uses the best current price and recent-form hit rate. Tweak it again any time — e.g. 'swap leg 2', 'make it safer', or 'around $3'."}\n\nRisk level:\n\n${m.risk}/10 based on the new combination.\n\nImportant:\n\nThis is informational only, not betting advice.`;
           return res.status(200).json({
             reply,
             multi: m,

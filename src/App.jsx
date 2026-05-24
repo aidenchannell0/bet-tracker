@@ -1125,6 +1125,17 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                     </div>
                   </div>
 
+                  {multiOutput && typeof multiOutput.evPct === "number" ? (
+                    <div className={"mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border px-4 py-3 " + (multiOutput.evPct > 0 ? "border-[#2E7D5B]/30 bg-[#2E7D5B]/10" : "border-slate-200 bg-slate-50")}>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Value vs market</span>
+                      <span className={"text-lg font-bold " + (multiOutput.evPct > 0 ? "text-[#2E7D5B]" : "text-slate-600")}>{multiOutput.evPct > 0 ? "+" : ""}{multiOutput.evPct}%</span>
+                      {typeof multiOutput.valueLegs === "number" ? (
+                        <span className="text-sm font-medium text-[#11203B]">{multiOutput.valueLegs} of {multiOutput.legCount} legs positive-edge</span>
+                      ) : null}
+                      <span className="w-full text-xs text-slate-500 sm:w-auto">Recent-form chance vs the odds-implied price — not a profit guarantee.</span>
+                    </div>
+                  ) : null}
+
                   <div className="mt-6 grid gap-4 md:grid-cols-3">
                     {(multiOutput?.legs || exampleLegs).map((leg, index) => (
                       <div key={`${leg.name}-${index}`} className="rounded-2xl border border-slate-200 p-4">
@@ -1134,6 +1145,9 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                         <p className="mt-2 text-sm text-slate-600">{leg.reason}</p>
                         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-[#11203B]">
                           <span>Confidence: {leg.confidence}</span>
+                          {typeof leg.edgePct === "number" ? (
+                            <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (leg.edgePct > 0 ? "bg-[#2E7D5B]/15 text-[#2E7D5B]" : "bg-slate-200 text-slate-600")}>{leg.edgePct > 0 ? `+${leg.edgePct}% value` : `${leg.edgePct}% edge`}</span>
+                          ) : null}
                           {leg.odds ? <span className="text-slate-500">Odds: ${leg.odds}{leg.bookmaker ? ` · ${leg.bookmaker}` : ""}</span> : null}
                         </div>
                         <EdgeDetailToggle leg={leg} />
