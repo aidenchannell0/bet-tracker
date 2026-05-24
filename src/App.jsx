@@ -533,7 +533,7 @@ function Footer({ setActivePage }) {
   );
 }
 
-function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup }) {
+function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode }) {
   return (
     <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
@@ -546,6 +546,26 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
               <p className="mt-2 text-sm leading-6 text-slate-600">Manage exports, backups and account-level bet data actions.</p>
 
               <div className="mt-6 space-y-5">
+                <div className="rounded-2xl border border-slate-200 p-4">
+                  <h2 className="text-lg font-semibold">Appearance</h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">Choose your preferred display mode.</p>
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setDarkMode(false)}
+                      className={"rounded-xl px-4 py-2 text-sm font-medium transition border " + (!darkMode ? "bg-[#11203B] text-white border-transparent" : "border-slate-300 bg-[#FAF7EF] text-slate-700 hover:bg-[#E8E2D4]")}
+                    >
+                      Light
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDarkMode(true)}
+                      className={"rounded-xl px-4 py-2 text-sm font-medium transition border " + (darkMode ? "bg-[#11203B] text-white border-transparent" : "border-slate-300 bg-[#FAF7EF] text-slate-700 hover:bg-[#E8E2D4]")}
+                    >
+                      Dark
+                    </button>
+                  </div>
+                </div>
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <h2 className="text-lg font-semibold">Export data</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-600">Download your bet history for spreadsheets or personal backups.</p>
@@ -740,6 +760,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
   const [saveBetMsg, setSaveBetMsg] = useState("");
   const [entitlement, setEntitlement] = useState({ subscribed: false, usage: 0, limit: 3 });
   const [upgrading, setUpgrading] = useState(false);
+  const [openingPortal, setOpeningPortal] = useState(false);
 
   React.useEffect(() => {
     if (!accessToken) return;
@@ -776,6 +797,27 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
     } catch {
       setUpgrading(false);
       setSaveBetMsg("Could not start checkout. Please try again.");
+    }
+  };
+
+  const startManageBilling = async () => {
+    if (openingPortal) return;
+    setOpeningPortal(true);
+    try {
+      const response = await fetch("/api/create-portal-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setOpeningPortal(false);
+        setSaveBetMsg(data.error || "Could not open billing portal. Please try again.");
+      }
+    } catch {
+      setOpeningPortal(false);
+      setSaveBetMsg("Could not open billing portal. Please try again.");
     }
   };
 
@@ -982,7 +1024,17 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
               <p className="mt-2 max-w-2xl text-slate-600">A smarter way to build structured example multis using market lines, recent trends and risk scoring.</p>
               <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-300 bg-[#FAF7EF] px-4 py-3 text-sm">
                 {entitlement.subscribed ? (
-                  <span className="font-semibold text-[#2E7D5B]">Grid Build Pro — unlimited builds ✓</span>
+                  <>
+                    <span className="font-semibold text-[#2E7D5B]">Grid Build Pro — unlimited builds ✓</span>
+                    <button
+                      type="button"
+                      onClick={startManageBilling}
+                      disabled={openingPortal}
+                      className="ml-auto text-xs font-medium text-slate-500 underline hover:text-slate-700 disabled:opacity-50"
+                    >
+                      {openingPortal ? "Opening…" : "Manage subscription"}
+                    </button>
+                  </>
                 ) : (
                   <>
                     <span className="font-medium text-[#11203B]">
@@ -1352,6 +1404,13 @@ function MobileBottomNav({ activePage, setActivePage, formRef }) {
 }
 
 export default function BettingTrackerWebsite() {
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
+
   const [session, setSession] = useState(null);
   const [authMode, setAuthMode] = useState("login");
   const [email, setEmail] = useState("");
@@ -1830,7 +1889,7 @@ export default function BettingTrackerWebsite() {
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
   if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} />;
-  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} />;
+  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={setDarkMode} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;

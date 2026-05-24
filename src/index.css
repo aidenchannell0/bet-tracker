@@ -1,1 +1,50 @@
 @import "tailwindcss";
+
+/* ── Dark mode ─────────────────────────────────────────────────── */
+.dark { color-scheme: dark; }
+
+/* Page / section backgrounds */
+.dark .bg-\[\#E8E2D4\]   { background-color: #0f172a; }
+.dark .bg-\[\#FAF7EF\]   { background-color: #1e293b; }
+.dark .bg-white          { background-color: #1e293b; }
+
+/* Opacity variants on surfaces */
+.dark .bg-\[\#FAF7EF\]\/95 { background-color: rgb(15 23 42 / 0.97); }
+.dark .bg-\[\#FAF7EF\]\/70 { background-color: rgb(30 41 59 / 0.7);  }
+
+/* Primary brand text: dark navy → light slate */
+.dark .text-\[\#11203B\] { color: #e2e8f0; }
+
+/* Slate text */
+.dark .text-slate-500    { color: #94a3b8; }
+.dark .text-slate-600    { color: #cbd5e1; }
+.dark .text-slate-700    { color: #e2e8f0; }
+.dark .text-slate-900    { color: #f1f5f9; }
+
+/* Slate borders */
+.dark .border-slate-100  { border-color: #1e293b; }
+.dark .border-slate-200  { border-color: #334155; }
+.dark .border-slate-300  { border-color: #475569; }
+
+/* Slate bg shades */
+.dark .bg-slate-100      { background-color: #1e293b; }
+.dark .bg-slate-200      { background-color: #334155; }
+
+/* Hover states */
+.dark .hover\:bg-\[\#E8E2D4\]:hover   { background-color: #334155; }
+.dark .hover\:bg-white\/70:hover      { background-color: rgb(30 41 59 / 0.7); }
+.dark .hover\:bg-slate-800:hover      { background-color: #0f172a; }
+
+/* Outline button: text-slate-900 hover:bg-[#E8E2D4] — covered above */
+/* Ghost button: hover:bg-[#E8E2D4] — covered above */
+
+/* Input focus ring */
+.dark .focus\:border-slate-900:focus  { border-color: #60a5fa; }
+.dark .focus\:ring-slate-200          { --tw-ring-color: #334155; }
+
+/* Danger zone section */
+.dark .bg-\[\#F3DDD7\]     { background-color: #3b1f1f; }
+.dark .border-\[\#D9A39B\] { border-color: #7f4d4d; }
+.dark .text-red-800        { color: #fca5a5; }
+.dark .text-red-900        { color: #fecaca; }
+.dark .hover\:bg-red-100:hover { background-color: #7f1d1d; }

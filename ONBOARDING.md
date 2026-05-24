@@ -59,14 +59,41 @@ afltables.com **blocks datacenter IPs** (Vercel AND GitHub Actions fail). So the
 scoreboard), dashboard (cumulative profit + drawdown, breakdowns by sport/odds/bet-type, polished
 charts), free-tier gating, Stripe subscription **in TEST mode** (full checkout→webhook→unlock verified).
 
+Billing portal endpoint (`api/create-portal-session.js`) and "Manage subscription" link (shown to
+subscribers in the Grid Build header bar) are built — need Stripe Customer Portal enabled in the
+Stripe dashboard and live keys deployed to go live.
+
 ## Pending / next
-1. **Stripe go-LIVE** (currently test keys): activate account (category *Sports forecasting or
-   prediction services*), switch to Live, recreate product/price + webhook, swap the 3 Stripe Vercel
-   vars to `sk_live_`/live `price_`/live `whsec_`, redeploy, verify with a real card + refund.
-2. **"Manage subscription"** — add a Stripe billing-portal link so subscribers can cancel/update cards
-   (offered, not yet built).
-3. Optional polish: bet-volume context on charts, rolling win-rate/ROI line; other dashboard ideas.
-4. Consider an always-on AU box for the scrape if Mac-uptime becomes an issue.
+1. **Stripe go-LIVE** — see checklist below. Code is ready; only env vars + Stripe dashboard steps needed.
+2. Optional polish: bet-volume context on charts, rolling win-rate/ROI line; other dashboard ideas.
+3. Consider an always-on AU box for the scrape if Mac-uptime becomes an issue.
+
+## Stripe go-live checklist
+Run these steps in order. All code is already deployed once env vars are swapped.
+
+**In the Stripe dashboard:**
+1. Activate account: fill in business details (category: *Sports forecasting or prediction services*),
+   bank account, identity verification.
+2. Switch to **Live mode** (toggle top-left).
+3. Products → Create product → "Grid Build Pro" → Add price → Recurring, Weekly, A$4.99.
+   Copy the new live `price_xxx` ID.
+4. Developers → Webhooks → Add endpoint:
+   - URL: `https://bettracker.tech/api/stripe-webhook`
+   - Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+   Copy the live `whsec_xxx` signing secret.
+5. Settings → Billing → **Customer portal** → Activate portal (enable cancellation + update payment method).
+   *(Required for the "Manage subscription" link to work.)*
+
+**In Vercel (bettracker.tech project → Settings → Environment Variables):**
+6. Update `STRIPE_SECRET_KEY` → `sk_live_xxx`
+7. Update `STRIPE_PRICE_ID` → live `price_xxx` from step 3
+8. Update `STRIPE_WEBHOOK_SECRET` → live `whsec_xxx` from step 4
+9. **Redeploy**: Vercel doesn't auto-redeploy on env var change — go to Deployments → Redeploy latest.
+
+**Verify:**
+10. Subscribe with a real card → confirm webhook fires → profiles.subscription_status = 'active'.
+11. Click "Manage subscription" → portal opens → cancel → confirm status reverts to 'canceled'.
+12. Refund the test charge via Stripe dashboard (Payments → find charge → Refund).
 
 ## Pricing
 Free tier = 3 Grid Build builds/week. Subscription = weekly (test product set at A$4.99/wk; revisit —
