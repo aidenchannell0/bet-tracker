@@ -1,8 +1,81 @@
 import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const supabaseAdmin =
+  (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL) && process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(
+        process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      )
+    : null;
+
+const FREE_BUILDS_PER_WEEK = 3;
+
+function startOfWeekIso() {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=Sun..6=Sat
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() - daysSinceMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+  return monday.toISOString();
+}
+
+// Check whether the caller can build a multi (subscribed = unlimited; free = 3/week).
+// Fails open (allows) if anything is misconfigured, so the feature never hard-breaks.
+async function checkGridBuildAccess(req) {
+  const open = { gated: false, usage: 0, limit: FREE_BUILDS_PER_WEEK, subscribed: false, userId: null };
+  try {
+    if (!supabaseAdmin) return open;
+    const token = (req.headers.authorization || "").replace("Bearer ", "").trim();
+    if (!token) return open;
+
+    const { data: userData } = await supabaseAdmin.auth.getUser(token);
+    const user = userData?.user;
+    if (!user) return open;
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("subscription_status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (profile?.subscription_status === "active") {
+      return { gated: false, usage: 0, limit: FREE_BUILDS_PER_WEEK, subscribed: true, userId: user.id };
+    }
+
+    const { count } = await supabaseAdmin
+      .from("grid_build_usage")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", startOfWeekIso());
+
+    const used = count || 0;
+    return {
+      gated: used >= FREE_BUILDS_PER_WEEK,
+      usage: used,
+      limit: FREE_BUILDS_PER_WEEK,
+      subscribed: false,
+      userId: user.id,
+    };
+  } catch (error) {
+    console.error("Grid Build access check error:", error);
+    return open;
+  }
+}
+
+async function recordGridBuildUsage(userId) {
+  if (!supabaseAdmin || !userId) return;
+  try {
+    await supabaseAdmin.from("grid_build_usage").insert({ user_id: userId });
+  } catch (error) {
+    console.error("Grid Build usage record error:", error);
+  }
+}
 
 const EDGE_SYSTEM_PROMPT = `
 You are Grid Build, Bet Grid's AI-powered multi builder and sports market analysis assistant.
@@ -1679,6 +1752,23 @@ export default async function handler(req, res) {
 
     // AFL multi builder: fetch real player props + Squiggle stats before sending to GPT
     if (userIntent === "multi" && sport === "AFL") {
+      // Free tier: 3 builds/week. Subscribers are unlimited. Checked before the
+      // expensive odds/stat work so a gated request costs nothing.
+      const access = await checkGridBuildAccess(req);
+      if (access.gated) {
+        return res.status(200).json({
+          reply: `Simple view:\n\nYou've used all ${access.limit} of your free Grid Build builds for this week.\n\nWhat I would check:\n\nUpgrade to keep building unlimited multis with live AFL stats and odds — your free builds reset on Monday.\n\nImportant:\n\nThis is informational only, not betting advice.`,
+          gated: true,
+          usage: access.usage,
+          limit: access.limit,
+          subscribed: false,
+          multi: null,
+          intent: "multi",
+          sport,
+          edgeContext,
+        });
+      }
+
       // No live odds (limit reached, or no games scheduled) — say so plainly. Never
       // fall through to a generic reply that invents placeholder players and stats.
       if (oddsContext.events.length === 0) {
@@ -1858,6 +1948,13 @@ export default async function handler(req, res) {
           multiCompletion.choices?.[0]?.message?.content ||
           "Grid Build could not generate a multi right now. Please try again.";
 
+        // Count this as a build only when a real multi was produced.
+        let usageAfter = access.usage;
+        if (structuredMulti && !access.subscribed && access.userId) {
+          await recordGridBuildUsage(access.userId);
+          usageAfter = access.usage + 1;
+        }
+
         return res.status(200).json({
           reply,
           multi: structuredMulti,
@@ -1865,6 +1962,9 @@ export default async function handler(req, res) {
           aflStatsConnected: aflStatsContext.available,
           gamesAnalysed: aflStatsContext.gamesAnalysed,
           propsFound: allProps.length,
+          usage: usageAfter,
+          limit: access.limit,
+          subscribed: access.subscribed,
           intent: "multi",
           sport,
           detectedTeam: detectedTeam?.team || null,

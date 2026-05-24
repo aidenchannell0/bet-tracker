@@ -720,7 +720,7 @@ function EdgeMessage({ role, children }) {
   );
 }
 
-function EdgePage({ setActivePage, onSaveMulti }) {
+function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
   const [mode, setMode] = useState("multi");
   const [sport, setSport] = useState("AFL");
   const [legs, setLegs] = useState("3");
@@ -738,6 +738,49 @@ function EdgePage({ setActivePage, onSaveMulti }) {
   const [betStake, setBetStake] = useState("");
   const [savingBet, setSavingBet] = useState(false);
   const [saveBetMsg, setSaveBetMsg] = useState("");
+  const [entitlement, setEntitlement] = useState({ subscribed: false, usage: 0, limit: 3 });
+  const [upgrading, setUpgrading] = useState(false);
+
+  React.useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/entitlement", { headers: { Authorization: `Bearer ${accessToken}` } });
+        const data = await response.json();
+        if (!cancelled) setEntitlement({ subscribed: !!data.subscribed, usage: data.usage || 0, limit: data.limit || 3 });
+      } catch {
+        /* ignore — counter just won't show until a build */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
+
+  const startUpgrade = async () => {
+    if (upgrading) return;
+    setUpgrading(true);
+    try {
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setUpgrading(false);
+        setSaveBetMsg(data.error || "Could not start checkout. Please try again.");
+      }
+    } catch {
+      setUpgrading(false);
+      setSaveBetMsg("Could not start checkout. Please try again.");
+    }
+  };
+
+  const buildsLeft = Math.max(0, entitlement.limit - entitlement.usage);
+  const gatedNow = !entitlement.subscribed && buildsLeft <= 0;
 
   const addMultiToBets = async () => {
     if (!multiOutput || savingBet || typeof onSaveMulti !== "function") return;
@@ -876,7 +919,10 @@ function EdgePage({ setActivePage, onSaveMulti }) {
     try {
       const response = await fetch("/api/edge", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           message: trimmed,
           context: {
@@ -895,6 +941,13 @@ function EdgePage({ setActivePage, onSaveMulti }) {
       const data = await response.json();
       if (data?.edgeContext) {
         setLastEdgeContext(data.edgeContext);
+      }
+      if (typeof data?.usage === "number") {
+        setEntitlement((current) => ({
+          subscribed: data.subscribed ?? current.subscribed,
+          usage: data.usage,
+          limit: data.limit ?? current.limit,
+        }));
       }
       if (data?.multi) {
         setMultiOutput(data.multi);
@@ -927,6 +980,20 @@ function EdgePage({ setActivePage, onSaveMulti }) {
               </div>
               <h1 className="mt-2 text-4xl font-bold tracking-tight md:text-6xl">Grid Build</h1>
               <p className="mt-2 max-w-2xl text-slate-600">A smarter way to build structured example multis using market lines, recent trends and risk scoring.</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-300 bg-[#FAF7EF] px-4 py-3 text-sm">
+                {entitlement.subscribed ? (
+                  <span className="font-semibold text-[#2E7D5B]">Grid Build Pro — unlimited builds ✓</span>
+                ) : (
+                  <>
+                    <span className="font-medium text-[#11203B]">
+                      {gatedNow ? "You're out of free builds this week" : `${buildsLeft} of ${entitlement.limit} free builds left this week`}
+                    </span>
+                    <Button type="button" onClick={startUpgrade} disabled={upgrading} className="ml-auto">
+                      {upgrading ? "Starting…" : "Upgrade"}
+                    </Button>
+                  </>
+                )}
+              </div>
               <div className="mt-3 inline-flex max-w-xl items-center rounded-2xl border border-[#C49A4A]/50 bg-[#C49A4A]/15 px-4 py-3 text-sm leading-6 text-[#11203B] shadow-sm">
                 <span className="mr-2">✨</span><span><span className="font-semibold">Live AFL data connected:</span> real player stats, hit rates and market lines power the multi builder.</span>
               </div>
@@ -1762,7 +1829,7 @@ export default function BettingTrackerWebsite() {
   }
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
-  if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} />;
+  if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} />;
   if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
