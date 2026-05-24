@@ -1717,10 +1717,20 @@ export default async function handler(req, res) {
       const riskProfile =
         detectRiskFromMessage(message) || getSafeString(context?.riskProfile, "Balanced");
 
-      // Probe a few upcoming games — some may not have player props posted yet.
-      // Keep props from the first games that actually return them (cap at 2 games).
-      // Limited to 3 to keep Odds API credit use down (player props are charged per market).
-      const candidateGames = oddsContext.events.slice(0, 3);
+      // Choose which game(s) to build from: a specific game (selected in the form, or
+      // named in the chat) if given; otherwise probe the first few upcoming games.
+      const requestedGameId = getSafeString(context?.gameId, "");
+      const teamsInMessage = detectAllTeamAliases(message);
+      const namedGame =
+        !requestedGameId && teamsInMessage.length
+          ? findMatchingEvent(oddsContext.events, message, teamsInMessage)
+          : null;
+      const specificGame = requestedGameId
+        ? oddsContext.events.find((e) => e.id === requestedGameId)
+        : namedGame;
+      // Keep props from the first games that actually return them (cap at 2 games when
+      // probing). Limited to 3 to keep Odds API credit use down (charged per market).
+      const candidateGames = specificGame ? [specificGame] : oddsContext.events.slice(0, 3);
 
       const eventMarketResults = await Promise.allSettled(
         candidateGames.map((game) =>
@@ -1752,10 +1762,13 @@ export default async function handler(req, res) {
         }
       }
 
-      // No player props on any probed game — say so plainly instead of inventing legs.
+      // No player props — say so plainly instead of inventing legs.
       if (allProps.length === 0) {
+        const gameLabel = specificGame
+          ? `**${specificGame.homeTeam} vs ${specificGame.awayTeam}**`
+          : `the upcoming ${sport} games`;
         return res.status(200).json({
-          reply: `Simple view:\n\nI could not find player prop markets (disposals, goals, tackles and similar) for the upcoming ${sport} games right now.\n\nWhat I would check:\n\nPlayer markets are usually posted closer to game time. Try again nearer to the round, or ask me for the available games and head-to-head odds.\n\nImportant:\n\nThis is informational only, not betting advice.`,
+          reply: `Simple view:\n\nI could not find player prop markets (disposals, goals, tackles and similar) for ${gameLabel} right now.\n\nWhat I would check:\n\nPlayer markets are usually posted closer to game time. Try again nearer to the game, pick a different game, or ask me for the available games and head-to-head odds.\n\nImportant:\n\nThis is informational only, not betting advice.`,
           multi: null,
           oddsConnected: oddsContext.available,
           aflStatsConnected: false,

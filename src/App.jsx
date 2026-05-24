@@ -406,7 +406,11 @@ function EdgeSelectField({ label, value, options, onChange }) {
     <label className="space-y-1 text-sm font-medium">
       {label}
       <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200">
-        {options.map((option) => <option key={option}>{option}</option>)}
+        {options.map((option) => {
+          const optionValue = typeof option === "object" ? option.value : option;
+          const optionLabel = typeof option === "object" ? option.label : option;
+          return <option key={optionValue} value={optionValue}>{optionLabel}</option>;
+        })}
       </select>
     </label>
   );
@@ -533,8 +537,33 @@ function EdgePage({ setActivePage }) {
   const [chatMessages, setChatMessages] = useState([]);
   const [lastEdgeContext, setLastEdgeContext] = useState(null);
   const [multiOutput, setMultiOutput] = useState(null);
+  const [games, setGames] = useState([]);
+  const [selectedGameId, setSelectedGameId] = useState("");
   const chatSectionRef = React.useRef(null);
   const outputPanelRef = React.useRef(null);
+
+  // Load the real upcoming games for the chosen sport so users can pick one
+  React.useEffect(() => {
+    let cancelled = false;
+    setSelectedGameId("");
+    setGames([]);
+    (async () => {
+      try {
+        const response = await fetch(`/api/odds?sport=${encodeURIComponent(sport)}&markets=h2h`);
+        const data = await response.json();
+        if (cancelled) return;
+        const upcoming = (data.events || [])
+          .slice(0, 12)
+          .map((event) => ({ id: event.id, label: `${event.homeTeam} vs ${event.awayTeam}` }));
+        setGames(upcoming);
+      } catch {
+        if (!cancelled) setGames([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sport]);
 
   const displayedTargetOdds = targetOdds === "Custom" && customTargetOdds ? "$" + customTargetOdds : targetOdds;
   const displayedLegs = legs === "Custom" && customLegs ? customLegs : legs;
@@ -612,7 +641,9 @@ function EdgePage({ setActivePage }) {
     if (edgeLoading) return;
     const requestPart = request.trim() ? `. Focus: ${request.trim()}` : "";
     const riskPart = riskProfile !== "Balanced" ? ` with a ${riskProfile} risk profile` : "";
-    const prompt = `Build a ${displayedLegs}-leg ${sport} example multi targeting ${displayedTargetOdds}${riskPart}${requestPart}. Use real player form and current odds to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
+    const selectedGame = games.find((game) => game.id === selectedGameId);
+    const gamePart = selectedGame ? ` for the ${selectedGame.label} game` : "";
+    const prompt = `Build a ${displayedLegs}-leg ${sport} example multi${gamePart} targeting ${displayedTargetOdds}${riskPart}${requestPart}. Use real player form and current odds to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
     sendChatMessage(prompt);
     setTimeout(() => {
       outputPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -640,6 +671,7 @@ function EdgePage({ setActivePage }) {
             targetOdds: displayedTargetOdds,
             riskProfile,
             request,
+            gameId: selectedGameId,
             previousEdgeContext: lastEdgeContext,
           },
         }),
@@ -711,7 +743,7 @@ function EdgePage({ setActivePage }) {
                 {mode === "multi" ? (
                   <div className="mt-6 space-y-5">
                     <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
-                    <EdgeSelectField label="Games" value="Tonight's games" onChange={() => {}} options={["Tonight's games", "Selected game only", "This weekend"]} />
+                    <EdgeSelectField label="Games" value={selectedGameId} onChange={setSelectedGameId} options={[{ label: games.length ? "All upcoming games" : "Loading games…", value: "" }, ...games.map((game) => ({ label: game.label, value: game.id }))]} />
                     <EdgeSelectField label="Number of legs" value={legs} onChange={setLegs} options={["Any", "2", "3", "4", "5", "Custom"]} />
                     {legs === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom number of legs<Input type="number" min="1" step="1" value={customLegs} onChange={(event) => setCustomLegs(event.target.value)} placeholder="e.g. 6" /></label> : null}
                     <EdgeSelectField label="Target odds" value={targetOdds} onChange={setTargetOdds} options={["$1.50", "$2.00", "$3.00", "$5.00", "Custom"]} />
@@ -723,7 +755,7 @@ function EdgePage({ setActivePage }) {
                 ) : (
                   <div className="mt-6 space-y-5">
                     <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
-                    <EdgeSelectField label="Game" value="Select upcoming game" onChange={() => {}} options={["Select upcoming game", "Team A vs Team B", "Team C vs Team D"]} />
+                    <EdgeSelectField label="Game" value={selectedGameId} onChange={setSelectedGameId} options={[{ label: games.length ? "Select upcoming game" : "Loading games…", value: "" }, ...games.map((game) => ({ label: game.label, value: game.id }))]} />
                     <label className="space-y-1 text-sm font-medium">Focus area<Input value="Recent form, injuries and head-to-head" readOnly /></label>
                     <div className="pt-2"><Button className="w-full rounded-2xl py-3 text-base">Preview game analysis</Button></div>
                   </div>
