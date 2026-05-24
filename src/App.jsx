@@ -263,8 +263,8 @@ function BankrollCurveCard({ data }) {
               <ComposedChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
                 <defs>
                   <linearGradient id="bankrollGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={lineColor} stopOpacity={0.25} />
-                    <stop offset="100%" stopColor={lineColor} stopOpacity={0.02} />
+                    <stop offset="0%" stopColor={lineColor} stopOpacity={0.55} />
+                    <stop offset="100%" stopColor={lineColor} stopOpacity={0.06} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -414,35 +414,35 @@ function StatCard({ title, value, helper }) {
 }
 
 function ColoredStatCard({ title, value, helper, tone = "neutral" }) {
-  const toneClass =
+  const containerClass =
     tone === "green"
-      ? "!border-[#9BCBB2] !bg-[#DDEFE5]"
+      ? "rounded-2xl border border-[#9BCBB2] bg-[#DDEFE5] shadow-sm dark:border-[#1a3d28] dark:bg-[#0d1f17]"
       : tone === "red"
-      ? "!border-[#D9A39B] !bg-[#F3DDD7]"
-      : "!border-slate-200 !bg-[#FAF7EF]";
+      ? "rounded-2xl border border-[#D9A39B] bg-[#F3DDD7] shadow-sm dark:border-[#4a1a1a] dark:bg-[#1f0d0d]"
+      : "rounded-2xl border border-slate-200 bg-[#FAF7EF] shadow-sm";
 
   const labelClass =
     tone === "green"
-      ? "text-[#2E7D5B]"
+      ? "text-[#2E7D5B] dark:text-[#4a9e74]"
       : tone === "red"
-      ? "text-[#A94442]"
+      ? "text-[#A94442] dark:text-[#c47070]"
       : "text-slate-500";
 
   const valueClass =
     tone === "green"
-      ? "text-[#2E7D5B]"
+      ? "text-[#2E7D5B] dark:text-[#4a9e74]"
       : tone === "red"
-      ? "text-[#A94442]"
+      ? "text-[#A94442] dark:text-[#c47070]"
       : "text-[#11203B]";
 
   return (
-    <Card className={toneClass}>
+    <div className={containerClass}>
       <div className="p-5">
         <p className={`text-sm font-medium ${labelClass}`}>{title}</p>
         <p className={`mt-1 text-2xl font-semibold ${valueClass}`}>{value}</p>
         {helper ? <p className={`mt-1 text-xs ${labelClass}`}>{helper}</p> : null}
       </div>
-    </Card>
+    </div>
   );
 }
 

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
 
 /* ── Dark mode ─────────────────────────────────────────────────── */
 .dark { color-scheme: dark; }
@@ -39,22 +40,7 @@
 .dark .focus\:border-slate-900:focus  { border-color: #4a7fa5; }
 .dark .focus\:ring-slate-200          { --tw-ring-color: #21293a; }
 
-/* ── Colored stat cards (green / red tones) ─────────────────────── */
-/* Green cards: !bg-[#DDEFE5] !border-[#9BCBB2] */
-.dark .\!bg-\[\#DDEFE5\]    { background-color: #0d1f17 !important; }
-.dark .\!border-\[\#9BCBB2\] { border-color: #1a3d28 !important; }
-
-/* Green text on colored cards */
-.dark .text-\[\#2E7D5B\]    { color: #4a9e74; }
-
-/* Red/salmon cards: !bg-[#F3DDD7] !border-[#D9A39B] */
-.dark .\!bg-\[\#F3DDD7\]    { background-color: #1f0d0d !important; }
-.dark .\!border-\[\#D9A39B\] { border-color: #4a1a1a !important; }
-
-/* Red text on colored cards */
-.dark .text-\[\#A94442\]    { color: #b56060; }
-
-/* Danger zone section (settings) */
+/* ── Danger zone section (settings) — red/salmon section ───────── */
 .dark .bg-\[\#F3DDD7\]      { background-color: #1f0d0d; }
 .dark .border-\[\#D9A39B\]  { border-color: #4a1a1a; }
 .dark .text-red-800         { color: #f87171; }
