@@ -155,15 +155,22 @@ async function main() {
   const currentYear = new Date().getFullYear();
   const seasons = [currentYear, currentYear - 1]; // current + previous for hit-rate depth
 
-  // Skip games we already have
-  const { data: existing, error: existingError } = await supabase
-    .from("afl_player_games")
-    .select("game_code");
-  if (existingError) {
-    console.error("Could not read existing games:", existingError.message);
-    process.exit(1);
+  // Skip games we already have. Paginate, because Supabase caps a single select
+  // (default 1000 rows) — without this the scraper re-fetches every game each run.
+  const have = new Set();
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("afl_player_games")
+      .select("game_code")
+      .range(from, from + pageSize - 1);
+    if (error) {
+      console.error("Could not read existing games:", error.message);
+      process.exit(1);
+    }
+    for (const row of data || []) have.add(row.game_code);
+    if (!data || data.length < pageSize) break;
   }
-  const have = new Set((existing || []).map((r) => r.game_code));
   console.log(`Already have ${have.size} games stored.`);
 
   let newGames = 0;
