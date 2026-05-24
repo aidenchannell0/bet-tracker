@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LineChart, Line, AreaChart, Area, ReferenceLine } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LineChart, Line, AreaChart, Area, ComposedChart, ReferenceLine } from "recharts";
 import { Analytics } from "@vercel/analytics/react";
 
 const env = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : {};
@@ -22,6 +22,37 @@ function formatCurrency(value) {
     style: "currency",
     currency: "AUD",
   }).format(Number(value || 0));
+}
+
+// Compact currency for chart axes, e.g. $50, -$1.2k
+function formatCompactCurrency(value) {
+  const number = Number(value || 0);
+  const abs = Math.abs(number);
+  const sign = number < 0 ? "-" : "";
+  if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(abs >= 10000 ? 0 : 1)}k`;
+  return `${sign}$${Math.round(abs)}`;
+}
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) return null;
+  const point = payload[0].payload || {};
+  const isBalance = payload.some((entry) => entry.dataKey === "balance");
+  const primary = isBalance ? Number(point.balance || 0) : Number(point.profitLoss ?? payload[0].value ?? 0);
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-md">
+      <p className="font-semibold text-[#11203B]">{label}</p>
+      <p className={(primary >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]") + " mt-0.5 font-medium"}>
+        {isBalance ? "Balance " : "P/L "}
+        {formatCurrency(primary)}
+      </p>
+      {isBalance && typeof point.profitLoss === "number" ? (
+        <p className="mt-0.5 text-slate-500">{point.profitLoss >= 0 ? "+" : ""}{formatCurrency(point.profitLoss)} this period</p>
+      ) : null}
+      {typeof point.count === "number" ? (
+        <p className="mt-0.5 text-slate-500">{point.count} bet{point.count === 1 ? "" : "s"}</p>
+      ) : null}
+    </div>
+  );
 }
 
 function parseBetDate(dateString) {
@@ -229,7 +260,7 @@ function BankrollCurveCard({ data }) {
         {data.length ? (
           <div className="mt-4 h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
+              <ComposedChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
                 <defs>
                   <linearGradient id="bankrollGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={lineColor} stopOpacity={0.25} />
@@ -237,12 +268,13 @@ function BankrollCurveCard({ data }) {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} width={50} />
-                <Tooltip formatter={(value) => formatCurrency(value)} />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={24} />
+                <YAxis tick={{ fontSize: 11 }} width={52} tickFormatter={formatCompactCurrency} />
+                <Tooltip content={<ChartTooltip />} />
                 <ReferenceLine y={0} stroke="#94a3b8" />
                 <Area type="monotone" dataKey="balance" stroke={lineColor} fill="url(#bankrollGradient)" strokeWidth={3} />
-              </AreaChart>
+                <Line type="monotone" dataKey="peak" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="4 4" dot={false} activeDot={false} />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         ) : (
@@ -1427,8 +1459,9 @@ export default function BettingTrackerWebsite() {
   const chartData = useMemo(() => {
     const grouped = filteredBets.reduce((acc, bet) => {
       const periodInfo = getPeriodInfo(bet.date, chartView);
-      if (!acc[periodInfo.key]) acc[periodInfo.key] = { sortKey: periodInfo.key, label: periodInfo.label, profitLoss: 0 };
+      if (!acc[periodInfo.key]) acc[periodInfo.key] = { sortKey: periodInfo.key, label: periodInfo.label, profitLoss: 0, count: 0 };
       acc[periodInfo.key].profitLoss += Number(bet.profitLoss || 0);
+      acc[periodInfo.key].count += 1;
       return acc;
     }, {});
     return Object.values(grouped).map((item) => ({ ...item, profitLoss: Number(item.profitLoss.toFixed(2)) })).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
@@ -1436,9 +1469,18 @@ export default function BettingTrackerWebsite() {
 
   const cumulativeData = useMemo(() => {
     let running = 0;
+    let peak = 0;
     return chartData.map((item) => {
       running += Number(item.profitLoss || 0);
-      return { label: item.label, sortKey: item.sortKey, balance: Number(running.toFixed(2)) };
+      peak = Math.max(peak, running);
+      return {
+        label: item.label,
+        sortKey: item.sortKey,
+        balance: Number(running.toFixed(2)),
+        peak: Number(peak.toFixed(2)),
+        profitLoss: item.profitLoss,
+        count: item.count,
+      };
     });
   }, [chartData]);
 
@@ -1814,9 +1856,9 @@ export default function BettingTrackerWebsite() {
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} width={40} />
-                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={20} />
+                        <YAxis tick={{ fontSize: 11 }} width={48} tickFormatter={formatCompactCurrency} />
+                        <Tooltip content={<ChartTooltip />} />
                         <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
                         <Bar dataKey="profitLoss" radius={[8, 8, 0, 0]}>
                           {chartData.map((entry) => <Cell key={entry.sortKey} fill={entry.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />)}
@@ -2121,18 +2163,18 @@ export default function BettingTrackerWebsite() {
                       {chartType === "line" ? (
                         <LineChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
-                          <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={24} label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
+                          <YAxis tick={{ fontSize: 11 }} tickFormatter={formatCompactCurrency} label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
+                          <Tooltip content={<ChartTooltip />} />
                           <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
                           <Line type="monotone" dataKey="profitLoss" stroke={chartColor} strokeWidth={3} dot={(props) => <circle cx={props.cx} cy={props.cy} r={4} fill={props.payload.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />} activeDot={{ r: 6 }} />
                         </LineChart>
                       ) : chartType === "area" ? (
                         <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
-                          <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={24} label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
+                          <YAxis tick={{ fontSize: 11 }} tickFormatter={formatCompactCurrency} label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
+                          <Tooltip content={<ChartTooltip />} />
                           <defs>
                             <linearGradient id="profitLossGradient" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%" stopColor={positiveChartColor} stopOpacity={0.22} />
@@ -2147,9 +2189,9 @@ export default function BettingTrackerWebsite() {
                       ) : (
                         <BarChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
-                          <YAxis label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
-                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={24} label={{ value: xAxisLabel, position: "insideBottom", offset: -10 }} />
+                          <YAxis tick={{ fontSize: 11 }} tickFormatter={formatCompactCurrency} label={{ value: "Profit/Loss ($AUD)", angle: -90, position: "insideLeft", offset: -5 }} />
+                          <Tooltip content={<ChartTooltip />} />
                           <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
                           <Bar dataKey="profitLoss" radius={[10, 10, 0, 0]}>
                             {chartData.map((entry) => <Cell key={entry.sortKey} fill={entry.profitLoss >= 0 ? positiveChartColor : negativeChartColor} />)}
