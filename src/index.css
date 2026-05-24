@@ -42,9 +42,18 @@
 .dark .focus\:border-slate-900:focus  { border-color: #4a7fa5; }
 .dark .focus\:ring-slate-200          { --tw-ring-color: #21293a; }
 
-/* ── Danger zone section (settings) — red/salmon section ───────── */
+/* ── Brand accent colors (stat tiles, P/L text) ─────────────────── */
+/* Shared by desktop ColoredStatCard AND the mobile inline tiles/cards */
+/* Green tone */
+.dark .bg-\[\#DDEFE5\]      { background-color: #0d1f17; }
+.dark .border-\[\#9BCBB2\]  { border-color: #1a3d28; }
+.dark .text-\[\#2E7D5B\]    { color: #4a9e74; }
+/* Red tone (also used by the settings danger zone) */
 .dark .bg-\[\#F3DDD7\]      { background-color: #1f0d0d; }
 .dark .border-\[\#D9A39B\]  { border-color: #4a1a1a; }
+.dark .text-\[\#A94442\]    { color: #c47070; }
+
+/* ── Danger zone red text/hover (settings) ──────────────────────── */
 .dark .text-red-800         { color: #f87171; }
 .dark .text-red-900         { color: #fca5a5; }
 .dark .hover\:bg-red-100:hover { background-color: #3b1111; }

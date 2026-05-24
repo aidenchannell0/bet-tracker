@@ -416,23 +416,23 @@ function StatCard({ title, value, helper }) {
 function ColoredStatCard({ title, value, helper, tone = "neutral" }) {
   const containerClass =
     tone === "green"
-      ? "rounded-2xl border border-[#9BCBB2] bg-[#DDEFE5] shadow-sm dark:border-[#1a3d28] dark:bg-[#0d1f17]"
+      ? "rounded-2xl border border-[#9BCBB2] bg-[#DDEFE5] shadow-sm"
       : tone === "red"
-      ? "rounded-2xl border border-[#D9A39B] bg-[#F3DDD7] shadow-sm dark:border-[#4a1a1a] dark:bg-[#1f0d0d]"
+      ? "rounded-2xl border border-[#D9A39B] bg-[#F3DDD7] shadow-sm"
       : "rounded-2xl border border-slate-200 bg-[#FAF7EF] shadow-sm";
 
   const labelClass =
     tone === "green"
-      ? "text-[#2E7D5B] dark:text-[#4a9e74]"
+      ? "text-[#2E7D5B]"
       : tone === "red"
-      ? "text-[#A94442] dark:text-[#c47070]"
+      ? "text-[#A94442]"
       : "text-slate-500";
 
   const valueClass =
     tone === "green"
-      ? "text-[#2E7D5B] dark:text-[#4a9e74]"
+      ? "text-[#2E7D5B]"
       : tone === "red"
-      ? "text-[#A94442] dark:text-[#c47070]"
+      ? "text-[#A94442]"
       : "text-[#11203B]";
 
   return (
