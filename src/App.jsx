@@ -1514,6 +1514,11 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                         <Input type="number" min="0" step="0.01" placeholder="Stake (e.g. 20)" value={betStake} onChange={(event) => setBetStake(event.target.value)} className="sm:max-w-[160px]" />
                         <Button type="button" onClick={addMultiToBets} disabled={savingBet}>{savingBet ? "Saving..." : "Add to my bets"}</Button>
                       </div>
+                      {Number(betStake) > 0 && multiOutput.combinedOdds ? (
+                        <p className="mt-2 text-xs text-slate-600">
+                          {formatCurrency(Number(betStake))} returns <span className="font-semibold text-[#2E7D5B]">{formatCurrency(Number(betStake) * multiOutput.combinedOdds)}</span> at ${multiOutput.combinedOdds} · {formatCurrency(Number(betStake) * multiOutput.combinedOdds - Number(betStake))} profit
+                        </p>
+                      ) : null}
                       {saveBetMsg ? <p className="mt-2 text-xs font-medium text-[#11203B]">{saveBetMsg}</p> : null}
                     </div>
                   ) : null}
