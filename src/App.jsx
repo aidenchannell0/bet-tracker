@@ -762,6 +762,10 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
   const [upgrading, setUpgrading] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
   const [calibration, setCalibration] = useState(null);
+  const [propsStatus, setPropsStatus] = useState(null);
+  const [propsDismissedRound, setPropsDismissedRound] = useState(() => {
+    try { return localStorage.getItem("propsDismissedRound") || ""; } catch { return ""; }
+  });
 
   React.useEffect(() => {
     let cancelled = false;
@@ -774,10 +778,25 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
         /* ignore — track-record card just won't show */
       }
     })();
+    (async () => {
+      try {
+        const response = await fetch("/api/props-status");
+        const data = await response.json();
+        if (!cancelled && data?.available) setPropsStatus(data);
+      } catch {
+        /* ignore — prop-drop notice just won't show */
+      }
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const dismissProps = () => {
+    const key = propsStatus?.roundKey || "";
+    setPropsDismissedRound(key);
+    try { localStorage.setItem("propsDismissedRound", key); } catch { /* ignore */ }
+  };
 
   React.useEffect(() => {
     if (!accessToken) return;
@@ -1031,6 +1050,17 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
     <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
+          {propsStatus && propsStatus.propsAvailable && propsStatus.roundKey !== propsDismissedRound ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-[#2E7D5B]/40 bg-[#2E7D5B]/10 px-4 py-3 text-sm">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#2E7D5B]" />
+              <span className="font-medium text-[#11203B]">Player props are live{propsStatus.game ? ` for ${propsStatus.game}` : ""} — build your multi now.</span>
+              <button type="button" onClick={dismissProps} className="ml-auto shrink-0 text-xs font-medium text-slate-500 underline hover:text-slate-700">Dismiss</button>
+            </div>
+          ) : propsStatus && propsStatus.propsAvailable === false && propsStatus.reason === "not_posted_yet" ? (
+            <div className="rounded-2xl border border-slate-300 bg-[#FAF7EF] px-4 py-3 text-sm text-slate-600">
+              Player props for the next game aren’t posted yet — they usually drop closer to game time. Check back soon.
+            </div>
+          ) : null}
           <header className="grid gap-6 lg:grid-cols-[1.35fr_0.75fr] lg:items-start">
             <div>
               <button onClick={() => setActivePage("app")} className="mb-3 text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
