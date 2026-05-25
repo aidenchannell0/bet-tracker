@@ -1850,13 +1850,24 @@ function MobileBottomNav({ activePage, setActivePage, formRef }) {
 }
 
 export default function BettingTrackerWebsite() {
-  // Dark by default — only light if the user has explicitly chosen it.
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") !== "light");
+  // Dark by default. We only ever persist a preference when the user EXPLICITLY
+  // picks one in Settings (via chooseTheme). The "bg-theme" key is deliberately
+  // fresh — the old "theme" key got auto-written on every visit, which silently
+  // stuck early users on light; ignoring it resets everyone to the dark default.
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("bg-theme") !== "light");
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
-    localStorage.setItem("theme", darkMode ? "dark" : "light");
   }, [darkMode]);
+
+  const chooseTheme = (dark) => {
+    setDarkMode(dark);
+    try {
+      localStorage.setItem("bg-theme", dark ? "dark" : "light");
+    } catch (e) {
+      /* ignore storage errors */
+    }
+  };
 
   const [session, setSession] = useState(null);
   const [authMode, setAuthMode] = useState("login");
@@ -2337,7 +2348,7 @@ export default function BettingTrackerWebsite() {
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
   if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} />;
-  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={setDarkMode} />;
+  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;

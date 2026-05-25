@@ -7,9 +7,9 @@
     <title>bet-tracker</title>
     <script>
       // Apply theme before first paint to avoid a flash. Dark is the default;
-      // only light if the user explicitly chose it. Mirrors App.jsx init.
+      // only light if the user explicitly chose it in Settings. Mirrors App.jsx init.
       try {
-        if (localStorage.getItem("theme") !== "light") {
+        if (localStorage.getItem("bg-theme") !== "light") {
           document.documentElement.classList.add("dark");
         }
       } catch (e) {}
