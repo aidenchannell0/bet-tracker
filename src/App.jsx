@@ -225,6 +225,44 @@ function runBasicTests() {
   console.assert(typeof hasSupabaseKeys === "boolean", "Supabase key detection test failed");
 }
 
+// AFL club colours for the per-leg team badge. Keyed by lowercase name; matched
+// loosely (longest name first) so "North Melbourne" and "Greater Western Sydney"
+// resolve before "Melbourne"/"Sydney".
+const AFL_TEAM_COLORS = {
+  "adelaide": { primary: "#002b5c", secondary: "#e21937" },
+  "brisbane lions": { primary: "#a30046", secondary: "#fdbb30" },
+  "brisbane": { primary: "#a30046", secondary: "#fdbb30" },
+  "carlton": { primary: "#031a29", secondary: "#a7b7d6" },
+  "collingwood": { primary: "#000000", secondary: "#ffffff" },
+  "essendon": { primary: "#cc2031", secondary: "#000000" },
+  "fremantle": { primary: "#2a0d54", secondary: "#ffffff" },
+  "geelong": { primary: "#002b5c", secondary: "#ffffff" },
+  "gold coast": { primary: "#d6001c", secondary: "#f8d000" },
+  "greater western sydney": { primary: "#f47920", secondary: "#2b2b2b" },
+  "gws": { primary: "#f47920", secondary: "#2b2b2b" },
+  "hawthorn": { primary: "#4d2004", secondary: "#fbbf15" },
+  "melbourne": { primary: "#061a33", secondary: "#cc2031" },
+  "north melbourne": { primary: "#013b9f", secondary: "#ffffff" },
+  "kangaroos": { primary: "#013b9f", secondary: "#ffffff" },
+  "port adelaide": { primary: "#008aab", secondary: "#000000" },
+  "richmond": { primary: "#000000", secondary: "#ffd200" },
+  "st kilda": { primary: "#ed0f05", secondary: "#000000" },
+  "sydney": { primary: "#ed171f", secondary: "#ffffff" },
+  "west coast": { primary: "#062e6f", secondary: "#f2a900" },
+  "western bulldogs": { primary: "#014896", secondary: "#e1251b" },
+  "bulldogs": { primary: "#014896", secondary: "#e1251b" },
+};
+
+function teamBadge(team) {
+  if (!team) return null;
+  const key = String(team).toLowerCase().trim();
+  const names = Object.keys(AFL_TEAM_COLORS).sort((a, b) => b.length - a.length);
+  for (const name of names) {
+    if (key === name || key.includes(name)) return { ...AFL_TEAM_COLORS[name], name: team };
+  }
+  return null;
+}
+
 function Card({ children, className = "" }) {
   return <div className={"rounded-2xl border border-slate-200 bg-[#FAF7EF] shadow-sm " + className}>{children}</div>;
 }
@@ -1215,10 +1253,20 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                   ) : null}
 
                   <div className="mt-6 grid gap-4 md:grid-cols-3">
-                    {(multiOutput?.legs || exampleLegs).map((leg, index) => (
-                      <div key={`${leg.name}-${index}`} className="rounded-2xl border border-slate-200 p-4">
+                    {(multiOutput?.legs || exampleLegs).map((leg, index) => {
+                      const badge = teamBadge(leg.team);
+                      return (
+                      <div key={`${leg.name}-${index}`} className="relative rounded-2xl border border-slate-200 p-4">
+                        {badge ? (
+                          <span
+                            title={badge.name}
+                            aria-label={badge.name}
+                            className="absolute right-3 top-3 h-5 w-5 rounded-full shadow-sm ring-1 ring-black/10"
+                            style={{ background: `linear-gradient(90deg, ${badge.primary} 0 50%, ${badge.secondary} 50% 100%)` }}
+                          />
+                        ) : null}
                         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Leg {index + 1}</p>
-                        <h3 className="mt-1 font-semibold">{leg.name}</h3>
+                        <h3 className="mt-1 pr-7 font-semibold">{leg.name}</h3>
                         {leg.game ? <p className="mt-0.5 text-xs text-slate-500">{leg.game}</p> : null}
                         <p className="mt-2 text-sm text-slate-600">{leg.reason}</p>
                         {leg.matchupFactor && leg.matchupFactor !== 1 && leg.opponent ? (
@@ -1235,7 +1283,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                         </div>
                         <EdgeDetailToggle leg={leg} />
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="mt-6 rounded-2xl bg-slate-50 p-4">
