@@ -33,6 +33,12 @@ function formatCompactCurrency(value) {
   return `${sign}$${Math.round(abs)}`;
 }
 
+// Odds always show two decimals ($1.40, not $1.4). Leaves non-numeric values as-is.
+function formatOdds(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n.toFixed(2) : String(value ?? "");
+}
+
 // e.g. "2026-05-07" -> "7 May 2026" (for the per-leg form-freshness label)
 function formatFormDate(iso) {
   const d = new Date(String(iso) + "T00:00:00");
@@ -529,14 +535,14 @@ function PendingBetsCard({ bets, onSettle, onDelete }) {
             <div key={bet.id} className="rounded-2xl border border-slate-200 p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-[#11203B]">{bet.betType || "Bet"} · {bet.sport || "Other"} @ ${bet.odds}</p>
+                  <p className="font-semibold text-[#11203B]">{bet.betType || "Bet"} · {bet.sport || "Other"} @ ${formatOdds(bet.odds)}</p>
                   <p className="text-xs text-slate-500">{bet.date} · {formatCurrency(bet.stake)} stake{bet.source === "grid_build" ? " · from Grid Build" : ""}</p>
                 </div>
                 <p className="text-sm font-medium text-[#11203B]">Returns {formatCurrency(Number(bet.stake || 0) * Number(bet.odds || 0))}</p>
               </div>
               {Array.isArray(bet.legs) && bet.legs.length ? (
                 <ul className="mt-2 space-y-0.5 text-xs text-slate-600">
-                  {bet.legs.map((leg, index) => <li key={index}>• {leg.name || leg.player}{leg.odds ? ` @ $${leg.odds}` : ""}</li>)}
+                  {bet.legs.map((leg, index) => <li key={index}>• {leg.name || leg.player}{leg.odds ? ` @ $${formatOdds(leg.odds)}` : ""}</li>)}
                 </ul>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
@@ -1426,7 +1432,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                     </div>
                     <div className="rounded-2xl bg-[#11203B] px-4 py-3 text-white">
                       <p className="text-xs uppercase tracking-wide text-slate-300">{multiOutput ? "Combined odds" : "Target odds"}</p>
-                      <p className="text-2xl font-semibold">{multiOutput ? `$${multiOutput.combinedOdds}` : displayedTargetOdds}</p>
+                      <p className="text-2xl font-semibold">{multiOutput ? `$${formatOdds(multiOutput.combinedOdds)}` : displayedTargetOdds}</p>
                       {multiOutput ? <p className="mt-0.5 text-xs text-slate-300">~{multiOutput.combinedProbPct}% combined chance</p> : null}
                       {multiOutput && multiOutput.correlated && typeof multiOutput.independentProbPct === "number" ? (
                         <p className="mt-0.5 text-[11px] leading-4 text-emerald-300">Correlation-adjusted (vs {multiOutput.independentProbPct}% if treated as independent)</p>
@@ -1480,7 +1486,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                           {typeof leg.edgePct === "number" ? (
                             <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (leg.edgePct > 0 ? "bg-[#2E7D5B]/15 text-[#2E7D5B]" : "bg-slate-200 text-slate-600")}>{leg.edgePct > 0 ? `+${leg.edgePct}% value` : `${leg.edgePct}% edge`}</span>
                           ) : null}
-                          {leg.odds ? <span className="text-slate-500">Odds: ${leg.odds}{leg.bookmaker ? ` · ${leg.bookmaker}` : ""}</span> : null}
+                          {leg.odds ? <span className="text-slate-500">Odds: ${formatOdds(leg.odds)}{leg.bookmaker ? ` · ${leg.bookmaker}` : ""}</span> : null}
                         </div>
                         <EdgeDetailToggle leg={leg} />
                       </div>
@@ -1517,7 +1523,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                       </div>
                       {Number(betStake) > 0 && multiOutput.combinedOdds ? (
                         <p className="mt-2 text-xs text-slate-600">
-                          {formatCurrency(Number(betStake))} returns <span className="font-semibold text-[#2E7D5B]">{formatCurrency(Number(betStake) * multiOutput.combinedOdds)}</span> at ${multiOutput.combinedOdds} · {formatCurrency(Number(betStake) * multiOutput.combinedOdds - Number(betStake))} profit
+                          {formatCurrency(Number(betStake))} returns <span className="font-semibold text-[#2E7D5B]">{formatCurrency(Number(betStake) * multiOutput.combinedOdds)}</span> at ${formatOdds(multiOutput.combinedOdds)} · {formatCurrency(Number(betStake) * multiOutput.combinedOdds - Number(betStake))} profit
                         </p>
                       ) : null}
                       {saveBetMsg ? <p className="mt-2 text-xs font-medium text-[#11203B]">{saveBetMsg}</p> : null}

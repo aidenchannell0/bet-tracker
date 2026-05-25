@@ -1359,7 +1359,7 @@ function structureLegFromEnriched(p) {
 
   const details = [
     { label: "Market line", value: `${Math.ceil(Number(p.line))}+` },
-    { label: "Best odds", value: p.bookmaker ? `$${p.odds} (${p.bookmaker})` : `$${p.odds}` },
+    { label: "Best odds", value: p.bookmaker ? `$${Number(p.odds).toFixed(2)} (${p.bookmaker})` : `$${Number(p.odds).toFixed(2)}` },
     { label: "Recent average", value: `${p.recentAvg}` },
     { label: "Last 5 hit rate", value: l5 },
     { label: "Last 10 hit rate", value: l10 },
@@ -1736,7 +1736,7 @@ INSTRUCTIONS FOR GRID BUILD:
       const l5 = p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : "N/A";
       const l10 = p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "N/A";
       const marginStr = p.margin != null ? `${p.margin >= 0 ? "+" : ""}${p.margin}` : "N/A";
-      return `LEG ${i + 1}: ${p.playerName} — ${Math.ceil(Number(p.line))}+ ${p.metric} @ $${p.odds}${p.bookmaker ? ` (best at ${p.bookmaker})` : ""} (${p.gameLabel})
+      return `LEG ${i + 1}: ${p.playerName} — ${Math.ceil(Number(p.line))}+ ${p.metric} @ $${Number(p.odds).toFixed(2)}${p.bookmaker ? ` (best at ${p.bookmaker})` : ""} (${p.gameLabel})
    Recent average: ${p.recentAvg} (clears the line by ${marginStr})
    Hit rate L5: ${l5} | L10: ${l10} (from ${p.sampleSize} games)
    Recent-form chance: ${fmtPct(p.empirical)} | Odds imply: ${fmtPct(p.implied)} | Form edge: ${fmtEdge(p.edge)}
@@ -1751,7 +1751,7 @@ INSTRUCTIONS FOR GRID BUILD:
     .slice(0, 5)
     .map(
       (p) =>
-        `• ${p.playerName} — ${Math.ceil(Number(p.line))}+ ${p.metric} @ $${p.odds} | form chance ${fmtPct(p.empirical)} | edge ${fmtEdge(p.edge)}`
+        `• ${p.playerName} — ${Math.ceil(Number(p.line))}+ ${p.metric} @ $${Number(p.odds).toFixed(2)} | form chance ${fmtPct(p.empirical)} | edge ${fmtEdge(p.edge)}`
     )
     .join("\n");
 
