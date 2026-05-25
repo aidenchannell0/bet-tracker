@@ -33,6 +33,13 @@ function formatCompactCurrency(value) {
   return `${sign}$${Math.round(abs)}`;
 }
 
+// e.g. "2026-05-07" -> "7 May 2026" (for the per-leg form-freshness label)
+function formatFormDate(iso) {
+  const d = new Date(String(iso) + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return String(iso || "");
+  return d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+}
+
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload || !payload.length) return null;
   const point = payload[0].payload || {};
@@ -1425,6 +1432,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                             Matchup: {leg.opponent} concedes {Math.round((leg.matchupFactor - 1) * 100) >= 0 ? "+" : ""}{Math.round((leg.matchupFactor - 1) * 100)}% on this stat
                           </p>
                         ) : null}
+                        {leg.formAsOf ? <p className="mt-1 text-xs text-slate-500">Form as of {formatFormDate(leg.formAsOf)} · completed games only</p> : null}
                         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-[#11203B]">
                           <span>Confidence: {leg.confidence}</span>
                           {typeof leg.edgePct === "number" ? (

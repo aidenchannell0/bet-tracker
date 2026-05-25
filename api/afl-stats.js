@@ -118,7 +118,12 @@ export default async function handler(req, res) {
         };
       }
 
-      return { player, team: rows[0]?.team || null, metrics: metricsOut };
+      return {
+        player,
+        team: rows[0]?.team || null,
+        lastGameDate: rows[0]?.game_date || null,
+        metrics: metricsOut,
+      };
     });
 
     const anyAvailable = playerSummaries.some((p) =>
