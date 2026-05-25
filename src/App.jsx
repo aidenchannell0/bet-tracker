@@ -1146,6 +1146,11 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                         <h3 className="mt-1 font-semibold">{leg.name}</h3>
                         {leg.game ? <p className="mt-0.5 text-xs text-slate-500">{leg.game}</p> : null}
                         <p className="mt-2 text-sm text-slate-600">{leg.reason}</p>
+                        {leg.matchupFactor && leg.matchupFactor !== 1 && leg.opponent ? (
+                          <p className={"mt-1 text-xs font-medium " + (leg.matchupFactor > 1 ? "text-[#2E7D5B]" : "text-[#A94442]")}>
+                            Matchup: {leg.opponent} concedes {Math.round((leg.matchupFactor - 1) * 100) >= 0 ? "+" : ""}{Math.round((leg.matchupFactor - 1) * 100)}% on this stat
+                          </p>
+                        ) : null}
                         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-[#11203B]">
                           <span>Confidence: {leg.confidence}</span>
                           {typeof leg.edgePct === "number" ? (

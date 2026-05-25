@@ -690,6 +690,21 @@ async function fetchAFLStatsContext(req, team1, team2, players, metrics) {
   }
 }
 
+// Per-team defensive factors for the current season (cached server-side).
+async function fetchDefenseContext(req) {
+  try {
+    const baseUrl = buildBaseUrl(req);
+    const url = new URL("/api/afl-defense", baseUrl);
+    const response = await fetch(url.toString());
+    const data = await response.json();
+    if (!response.ok || !data.available) return { available: false, factors: null };
+    return { available: true, factors: data.factors || null, season: data.season };
+  } catch (error) {
+    console.error("AFL defense context error:", error);
+    return { available: false, factors: null };
+  }
+}
+
 function extractPlayerPropsFromEvent(event) {
   const props = [];
   const overMarketKeys = [
@@ -792,27 +807,59 @@ function matchStatsForProp(prop, statsMap) {
 }
 
 // Attach probability, edge and recent-form numbers to each prop
-function enrichProps(props, aflStats) {
+function enrichProps(props, aflStats, factors = null) {
   const statsMap = new Map();
   for (const ps of aflStats?.players || []) {
     statsMap.set(String(ps.player || "").toLowerCase(), ps);
   }
 
-  return props.map((prop) => {
-    const matched = matchStatsForProp(prop, statsMap);
+  // Pass 1: match each prop to its stats (gives the player's team) and map each
+  // game to the teams in it, so a player's opponent is the other team in the game.
+  const matchedList = props.map((prop) => matchStatsForProp(prop, statsMap));
+  const gameTeams = new Map();
+  props.forEach((prop, i) => {
+    const team = matchedList[i]?.team;
+    if (!team) return;
+    if (!gameTeams.has(prop.gameLabel)) gameTeams.set(prop.gameLabel, new Set());
+    gameTeams.get(prop.gameLabel).add(team);
+  });
+
+  // Pass 2: enrich. The displayed hit rates stay ACTUAL; only the confidence
+  // (empirical probability) is matchup-adjusted for the opponent's defence.
+  return props.map((prop, i) => {
+    const matched = matchedList[i];
     const ms = matched?.metrics?.[prop.metric];
 
     if (!ms?.available) return { ...prop, statsAvailable: false };
 
+    // Actual recent-form hit rates (shown in leg details as-is)
     const hr5 = computeHitRate(ms.last5Values, prop.line);
     const hr10 = computeHitRate(ms.last10Values, prop.line);
     const implied = impliedProbFromOdds(prop.odds);
 
+    // Opponent = the other team in this game; factor = how much they concede on
+    // this metric vs league average (1 = neutral / unknown).
+    let opponent = null;
+    let matchupFactor = 1;
+    if (matched?.team && gameTeams.has(prop.gameLabel)) {
+      const teams = [...gameTeams.get(prop.gameLabel)];
+      if (teams.length === 2) opponent = teams.find((t) => t !== matched.team) || null;
+    }
+    if (factors && opponent && factors[opponent] && factors[opponent][prop.metric] != null) {
+      matchupFactor = factors[opponent][prop.metric];
+    }
+
+    // Matchup-adjusted hit rates feed the confidence/empirical only
+    const scaleVals = (vals) =>
+      matchupFactor === 1 ? vals || [] : (vals || []).map((v) => v * matchupFactor);
+    const adjHr5 = computeHitRate(scaleVals(ms.last5Values), prop.line);
+    const adjHr10 = computeHitRate(scaleVals(ms.last10Values), prop.line);
+
     // Laplace-smoothed probabilities (rule of succession) so small samples and
     // perfect records don't read as a literal 100% / 0% chance.
     const smoothed = (hr) => (hr ? (hr.hits + 1) / (hr.total + 2) : null);
-    const p5 = smoothed(hr5);
-    const p10 = smoothed(hr10);
+    const p5 = smoothed(adjHr5);
+    const p10 = smoothed(adjHr10);
 
     // Blend recent (last 5) with the larger, steadier sample (last 10)
     let empirical = null;
@@ -826,6 +873,8 @@ function enrichProps(props, aflStats) {
       ...prop,
       statsAvailable: true,
       team: matched?.team || null,
+      opponent,
+      matchupFactor,
       recentAvg: ms.recentAvg,
       avg10: ms.avg10,
       last5Values: ms.last5Values || [],
@@ -1130,8 +1179,8 @@ function detectMultiMetricFilter(message, context) {
 }
 
 // Shared computation: enrich props, select legs, compute combined metrics + risk
-function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile) {
-  const enriched = enrichProps(props, aflStats);
+function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile, factors = null) {
+  const enriched = enrichProps(props, aflStats, factors);
   const targetOddsValue = parseOddsValue(targetOdds);
   const selected = selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile);
   const dataSource = aflStats?.available
@@ -1154,28 +1203,39 @@ function structureLegFromEnriched(p) {
   const edgePct = p.edge != null ? Math.round(p.edge * 100) : null;
   const l5 = p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : "N/A";
   const l10 = p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "N/A";
+  const matchupPct = p.matchupFactor && p.matchupFactor !== 1 ? Math.round((p.matchupFactor - 1) * 100) : 0;
+
+  const details = [
+    { label: "Market line", value: `Over ${p.line}` },
+    { label: "Best odds", value: p.bookmaker ? `$${p.odds} (${p.bookmaker})` : `$${p.odds}` },
+    { label: "Recent average", value: `${p.recentAvg}` },
+    { label: "Last 5 hit rate", value: l5 },
+    { label: "Last 10 hit rate", value: l10 },
+    { label: "Form edge", value: edgePct != null ? `${edgePct >= 0 ? "+" : ""}${edgePct}%` : "N/A" },
+  ];
+  if (matchupPct !== 0 && p.opponent) {
+    details.push({
+      label: "Matchup",
+      value: `vs ${p.opponent}: concedes ${matchupPct >= 0 ? "+" : ""}${matchupPct}% ${metricLabel(p.metric)}`,
+    });
+  }
 
   return {
     name: `${p.playerName} Over ${p.line} ${metricLabel(p.metric)}`,
     player: p.playerName,
     metric: p.metric,
     team: p.team || null,
+    opponent: p.opponent || null,
+    matchupFactor: p.matchupFactor || 1,
     game: p.gameLabel,
     odds: p.odds,
     bookmaker: p.bookmaker || null,
     confidence: `${empPct}%`,
     edgePct, // form hit-rate minus odds-implied probability (the value signal)
     reason: `Cleared this line in ${l10} recent games, averaging ${p.recentAvg}.`,
-    details: [
-      { label: "Market line", value: `Over ${p.line}` },
-      { label: "Best odds", value: p.bookmaker ? `$${p.odds} (${p.bookmaker})` : `$${p.odds}` },
-      { label: "Recent average", value: `${p.recentAvg}` },
-      { label: "Last 5 hit rate", value: l5 },
-      { label: "Last 10 hit rate", value: l10 },
-      { label: "Form edge", value: edgePct != null ? `${edgePct >= 0 ? "+" : ""}${edgePct}%` : "N/A" },
-    ],
+    details,
     trend: `Last 5 results: ${(p.last5Values || []).join(", ")}.`,
-    extraReason: `Recent-form chance ${empPct}%${impPct != null ? ` vs odds-implied ${impPct}%` : ""}. Based on ${p.sampleSize} recent games.`,
+    extraReason: `Recent-form chance ${empPct}%${impPct != null ? ` vs odds-implied ${impPct}%` : ""}${matchupPct !== 0 && p.opponent ? `, matchup-adjusted for ${p.opponent} (${matchupPct >= 0 ? "+" : ""}${matchupPct}% ${metricLabel(p.metric)})` : ""}. Based on ${p.sampleSize} recent games.`,
   };
 }
 
@@ -2389,9 +2449,13 @@ export default async function handler(req, res) {
           source: "AFL Tables (afltables.com)",
         };
 
+        // Opponent defensive factors (current season) to matchup-adjust each leg
+        const defenseContext = await fetchDefenseContext(req);
+        const defenseFactors = defenseContext?.factors || null;
+
         // Edit path: refine the current build in place using the fresh pool, no GPT call.
         if (editAction) {
-          const enrichedPool = enrichProps(allProps, aflStatsContext);
+          const enrichedPool = enrichProps(allProps, aflStatsContext, defenseFactors);
           const editResult = editAFLMulti(enrichedPool, currentMulti, editAction, { sport });
           if (!editResult.ok) {
             return res.status(200).json({
@@ -2431,7 +2495,8 @@ export default async function handler(req, res) {
           aflStatsContext,
           targetLegs,
           targetOdds,
-          riskProfile
+          riskProfile,
+          defenseFactors
         );
         const dataBlock = buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile);
         const structuredMulti = buildStructuredMulti(computed, sport, targetOdds);
