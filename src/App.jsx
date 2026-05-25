@@ -1433,6 +1433,13 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                     </div>
                   </div>
 
+                  {edgeLoading ? (
+                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm text-slate-600">
+                      <span className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-[#11203B]" />
+                      <span>Crunching live odds, recent form and market lines…</span>
+                    </div>
+                  ) : null}
+
                   {multiOutput && typeof multiOutput.evPct === "number" ? (
                     <div className={"mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border px-4 py-3 " + (multiOutput.evPct > 0 ? "border-[#2E7D5B]/30 bg-[#2E7D5B]/10" : "border-slate-200 bg-slate-50")}>
                       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Value vs market</span>
