@@ -524,7 +524,7 @@ function BreakdownsCard({ bySport, byOdds, byType }) {
   );
 }
 
-function PendingBetsCard({ bets, onSettle, onDelete }) {
+function PendingBetsCard({ bets, onSettle, onDelete, onEdit }) {
   return (
     <Card>
       <div className="p-5 md:p-6">
@@ -548,6 +548,7 @@ function PendingBetsCard({ bets, onSettle, onDelete }) {
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button onClick={() => onSettle(bet.id, "win")} className="bg-[#2E7D5B] hover:bg-[#27684c]">Won</Button>
                 <Button onClick={() => onSettle(bet.id, "loss")} className="bg-[#A94442] hover:bg-[#8f3a38]">Lost</Button>
+                {onEdit ? <Button variant="outline" onClick={() => onEdit(bet)}>Edit</Button> : null}
                 <Button variant="ghost" onClick={() => onDelete(bet.id)}>Delete</Button>
               </div>
             </div>
@@ -2194,7 +2195,14 @@ export default function BettingTrackerWebsite() {
     });
 
     if (editingBetId) {
-      const { data, error } = await supabase.from("bets").update(betToDatabaseRow(betPayload, session.user.id)).eq("id", editingBetId).eq("user_id", session.user.id).select().single();
+      // Preserve multi-only fields the form doesn't expose (legs, source) so editing
+      // a Grid Build multi keeps its legs and "from Grid Build" tag.
+      const original = bets.find((bet) => bet.id === editingBetId);
+      const rowPayload = betToDatabaseRow(
+        { ...betPayload, legs: original?.legs || null, source: original?.source || "manual" },
+        session.user.id
+      );
+      const { data, error } = await supabase.from("bets").update(rowPayload).eq("id", editingBetId).eq("user_id", session.user.id).select().single();
       if (error) {
         setMessage("Could not update bet: " + error.message);
         return;
@@ -2866,7 +2874,7 @@ export default function BettingTrackerWebsite() {
 
           {bets.length > 0 ? (
             <div className="mt-4 space-y-4 md:mt-6 md:space-y-6">
-              {pendingBets.length > 0 ? <PendingBetsCard bets={pendingBets} onSettle={settlePendingBet} onDelete={deleteBet} /> : null}
+              {pendingBets.length > 0 ? <PendingBetsCard bets={pendingBets} onSettle={settlePendingBet} onDelete={deleteBet} onEdit={startEditingBet} /> : null}
               <BankrollCurveCard data={cumulativeData} />
               {gridBuildStats.count > 0 ? <GridBuildScoreCard stats={gridBuildStats} /> : null}
               <BreakdownsCard bySport={breakdowns.bySport} byOdds={breakdowns.byOdds} byType={breakdowns.byType} />
