@@ -2290,7 +2290,7 @@ function extractMarketRead(event) {
   return read;
 }
 
-// Compact analysis leg from an enriched prop
+// Compact analysis leg from an enriched prop (with form detail for depth)
 function analysisLeg(p) {
   return {
     player: p.playerName,
@@ -2300,6 +2300,9 @@ function analysisLeg(p) {
     confidence: Math.round((p.empirical ?? 0) * 100),
     edgePct: p.edge != null ? Math.round(p.edge * 100) : null,
     recentAvg: p.recentAvg ?? null,
+    hr10: p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : null,
+    matchupPct: p.matchupFactor && p.matchupFactor !== 1 ? Math.round((p.matchupFactor - 1) * 100) : 0,
+    opponent: p.opponent || null,
     odds: p.odds,
     bookmaker: p.bookmaker || null,
   };
@@ -2338,21 +2341,26 @@ function topValuePlays(enriched, n = 5) {
     .map(analysisLeg);
 }
 
-// Matchup angles from defence factors: the stat each team concedes most
+// Matchup angles from defence factors: the stat each team concedes most AND the
+// stat each team defends best, vs league average.
 function buildMatchupAngles(factors, home, away) {
   if (!factors) return [];
   const angles = [];
   for (const team of [home, away]) {
     const f = factors[team];
     if (!f) continue;
-    let topMetric = null, topVal = 1;
+    let topMetric = null, topVal = 1, lowMetric = null, lowVal = 1;
     for (const m of ANALYSIS_METRICS) {
-      if (f[m] != null && f[m] > topVal) { topVal = f[m]; topMetric = m; }
+      if (f[m] == null) continue;
+      if (f[m] > topVal) { topVal = f[m]; topMetric = m; }
+      if (f[m] < lowVal) { lowVal = f[m]; lowMetric = m; }
     }
+    const opp = team === home ? away : home;
     if (topMetric) {
-      const pct = Math.round((topVal - 1) * 100);
-      const opp = team === home ? away : home;
-      angles.push(`${team} concedes +${pct}% ${metricLabel(topMetric)} vs league average — favours ${opp}'s ${metricLabel(topMetric)} scorers.`);
+      angles.push(`${team} concedes +${Math.round((topVal - 1) * 100)}% ${metricLabel(topMetric)} vs league average — favours ${opp}'s ${metricLabel(topMetric)} scorers.`);
+    }
+    if (lowMetric && lowMetric !== topMetric) {
+      angles.push(`${team} defends ${metricLabel(lowMetric)} well (${Math.round((lowVal - 1) * 100)}% vs average) — tougher for ${opp} there.`);
     }
   }
   return angles;
@@ -2363,7 +2371,7 @@ function buildAnalysisDataBlock(analysis) {
   const out = [`GAME: ${analysis.game}`];
   const mr = analysis.marketRead;
   if (mr?.favourite) out.push(`MARKET: ${mr.favourite} favoured at $${mr.favPrice.toFixed(2)} (~${mr.favPct}% implied) over ${mr.underdog} $${mr.dogPrice.toFixed(2)} (~${mr.dogPct}%).${mr.totalLine != null ? ` Total points line ${mr.totalLine}.` : ""}${mr.spreadLine != null ? ` Line ${mr.spreadFav} -${mr.spreadLine}.` : ""}`);
-  const fmt = (l) => `${l.player} (${l.team || "?"}) ${l.label} @ $${Number(l.odds).toFixed(2)} — form ${l.confidence}%${l.edgePct != null ? `, edge ${l.edgePct >= 0 ? "+" : ""}${l.edgePct}%` : ""}, recent avg ${l.recentAvg}`;
+  const fmt = (l) => `${l.player} (${l.team || "?"}) ${l.label} @ $${Number(l.odds).toFixed(2)} — form ${l.confidence}%${l.hr10 ? `, cleared ${l.hr10}` : ""}, recent avg ${l.recentAvg}${l.edgePct != null ? `, edge ${l.edgePct >= 0 ? "+" : ""}${l.edgePct}%` : ""}${l.matchupPct ? `, vs ${l.opponent} ${l.matchupPct >= 0 ? "+" : ""}${l.matchupPct}% on this stat` : ""}`;
   if (analysis.keyPlayers?.home?.length) out.push(`KEY ${analysis.homeTeam}:\n` + analysis.keyPlayers.home.map((l) => "• " + fmt(l)).join("\n"));
   if (analysis.keyPlayers?.away?.length) out.push(`KEY ${analysis.awayTeam}:\n` + analysis.keyPlayers.away.map((l) => "• " + fmt(l)).join("\n"));
   if (analysis.valuePlays?.length) out.push(`VALUE PLAYS (recent-form chance beats the odds-implied price):\n` + analysis.valuePlays.map((l) => "• " + fmt(l)).join("\n"));
@@ -2502,11 +2510,24 @@ export default async function handler(req, res) {
             { role: "system", content: EDGE_SYSTEM_PROMPT },
             {
               role: "user",
-              content: `Task: write an in-depth AFL match analysis (NOT a multi) using ONLY the data below. Do not invent players, injuries, scores or head-to-head history — none are provided. Use ONLY these section labels exactly:\nSimple view:\nWhat I would check:\nImportant:\n\nIn "Simple view", give a flowing analytical read of the match — the market favourite, the standout players and their recent form, and the key matchup angles. Keep it concise and specific to the numbers provided.\n\n${buildAnalysisDataBlock(analysis)}`,
+              content: `Task: write a detailed, realistic AFL match analysis (NOT a multi) using ONLY the data below.
+Rules:
+- Ground EVERY claim in the numbers provided — name specific players and cite their hit rate (e.g. cleared 9/10), recent average, the market price, edge and the matchup factors.
+- Do NOT invent injuries, team news, scores, head-to-head history, weather, venue, ladder position or anything not in the data.
+- Be measured and realistic: recent form is not a guarantee, samples are small, and bookmaker prices already reflect a lot — note the uncertainty and variance rather than hyping it.
+- Write 3 to 5 short paragraphs of genuine analysis, not filler.
+Use ONLY these section labels exactly:
+Simple view:
+What I would check:
+Important:
+
+In "Simple view", weave together: the market read (favourite, implied %, total/line), each team's standout players with their specific form numbers, where the genuine value is (form chance vs the price), and the key matchup angles. In "What I would check", list the concrete things a person should confirm before relying on this (team news, late mail, line moves, role/positional changes).
+
+${buildAnalysisDataBlock(analysis)}`,
             },
           ],
           temperature: 0.3,
-          max_tokens: 750,
+          max_tokens: 1100,
         });
         reply = completion.choices?.[0]?.message?.content || "";
       } catch (error) {

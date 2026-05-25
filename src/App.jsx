@@ -1010,9 +1010,18 @@ function GameAnalysisOutput({ analysis, loading }) {
                   </div>
                   <ul className="mt-2 space-y-1.5 text-sm">
                     {(analysis.keyPlayers[side] || []).map((l, i) => (
-                      <li key={i} className="flex items-center justify-between gap-2">
-                        <span className="min-w-0 truncate text-[#11203B]">{l.player} <span className="text-slate-500">{l.label}</span></span>
-                        <span className="shrink-0 text-xs text-slate-500">{l.confidence}% · ${formatOdds(l.odds)}</span>
+                      <li key={i} className="rounded-lg border border-slate-200 bg-[#FAF7EF] px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate text-sm font-medium text-[#11203B]">{l.player} <span className="font-normal text-slate-500">{l.label}</span></span>
+                          <span className="shrink-0 text-xs text-slate-500">${formatOdds(l.odds)}</span>
+                        </div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
+                          <span>{l.confidence}% conf</span>
+                          {l.hr10 ? <span>· cleared {l.hr10}</span> : null}
+                          {l.recentAvg != null ? <span>· avg {l.recentAvg}</span> : null}
+                          {typeof l.edgePct === "number" ? <span className={l.edgePct > 0 ? "text-[#2E7D5B]" : ""}>· {l.edgePct >= 0 ? "+" : ""}{l.edgePct}% edge</span> : null}
+                          {l.matchupPct ? <span className={l.matchupPct > 0 ? "text-[#2E7D5B]" : "text-[#A94442]"}>· vs {l.opponent} {l.matchupPct >= 0 ? "+" : ""}{l.matchupPct}%</span> : null}
+                        </div>
                       </li>
                     ))}
                     {!(analysis.keyPlayers[side] || []).length ? <li className="text-xs text-slate-500">No player markets posted yet.</li> : null}
@@ -1028,12 +1037,20 @@ function GameAnalysisOutput({ analysis, loading }) {
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Standout value</p>
             <ul className="mt-2 space-y-1.5">
               {analysis.valuePlays.map((l, i) => (
-                <li key={i} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-[#FAF7EF] px-3 py-2 text-sm">
-                  <span className="min-w-0 truncate text-[#11203B]">{l.player} <span className="text-slate-500">{l.label}</span></span>
-                  <span className="flex shrink-0 items-center gap-2 text-xs">
-                    <span className="rounded-full bg-[#2E7D5B]/15 px-2 py-0.5 font-semibold text-[#2E7D5B]">+{l.edgePct}% value</span>
-                    <span className="text-slate-500">${formatOdds(l.odds)}</span>
-                  </span>
+                <li key={i} className="rounded-xl border border-slate-200 bg-[#FAF7EF] px-3 py-2">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate text-[#11203B]">{l.player} <span className="text-slate-500">{l.label}</span></span>
+                    <span className="flex shrink-0 items-center gap-2 text-xs">
+                      <span className="rounded-full bg-[#2E7D5B]/15 px-2 py-0.5 font-semibold text-[#2E7D5B]">+{l.edgePct}% value</span>
+                      <span className="text-slate-500">${formatOdds(l.odds)}</span>
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
+                    <span>{l.confidence}% conf</span>
+                    {l.hr10 ? <span>· cleared {l.hr10}</span> : null}
+                    {l.recentAvg != null ? <span>· avg {l.recentAvg}</span> : null}
+                    {l.matchupPct ? <span className={l.matchupPct > 0 ? "text-[#2E7D5B]" : "text-[#A94442]"}>· vs {l.opponent} {l.matchupPct >= 0 ? "+" : ""}{l.matchupPct}%</span> : null}
+                  </div>
                 </li>
               ))}
             </ul>
