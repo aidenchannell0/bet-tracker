@@ -1610,11 +1610,12 @@ function LandingPage({ setActivePage, setAuthMode }) {
           <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div className="space-y-6">
               <div>
-                <h2 className="text-4xl font-bold tracking-tight md:text-6xl">Know if you are actually winning.</h2>
-                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">Bet Grid helps you record every bet, review your profit and loss, monitor your win rate, and understand your performance over time.</p>
+                <span className="inline-flex rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">AI multi builder + bet tracker</span>
+                <h2 className="mt-3 text-4xl font-bold tracking-tight md:text-6xl">Build smarter AFL multis, backed by real data.</h2>
+                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">Grid Build turns real AFL form, live market lines and a transparent edge model into structured example multis — then Bet Grid tracks how every bet actually performs. Data-driven analysis, not a tips service.</p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Start tracking</Button>
+                <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try Grid Build free</Button>
                 <Button variant="outline" onClick={() => openAuth("login")} className="w-full sm:w-auto">I already have an account</Button>
               </div>
               <p className="text-sm text-slate-500">Built for tracking and informational use. Bet Grid does not accept bets or guarantee outcomes.</p>
@@ -1696,7 +1697,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
           <section className="grid gap-4 md:grid-cols-3">
             <Card><div className="p-5"><h3 className="text-lg font-semibold">Track every bet</h3><p className="mt-2 text-sm leading-6 text-slate-600">Record stakes, odds, returns, sports, results and notes so your betting history is easy to review.</p></div></Card>
             <Card><div className="p-5"><h3 className="text-lg font-semibold">Understand performance</h3><p className="mt-2 text-sm leading-6 text-slate-600">See profit/loss, ROI, win rate, streaks and weekly, monthly or yearly trends.</p></div></Card>
-            <Card><div className="p-5"><h3 className="text-lg font-semibold">Meet Grid Build</h3><p className="mt-2 text-sm leading-6 text-slate-600">Grid Build helps create structured example multis using market lines, recent trends and risk scoring. It is an educational multi builder, not a betting tips service.</p><button onClick={() => openAuth("signup")} className="mt-3 text-sm font-medium text-[#11203B] underline">Join to preview Grid Build</button></div></Card>
+            <Card><div className="p-5"><h3 className="text-lg font-semibold">Free to start</h3><p className="mt-2 text-sm leading-6 text-slate-600">Create a free account to track unlimited bets and get 3 Grid Build builds every week. Subscribe for unlimited builds whenever you’re ready.</p><button onClick={() => openAuth("signup")} className="mt-3 text-sm font-medium text-[#11203B] underline">Create free account</button></div></Card>
           </section>
         </div>
       </main>
