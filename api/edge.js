@@ -825,6 +825,7 @@ function enrichProps(props, aflStats) {
     return {
       ...prop,
       statsAvailable: true,
+      team: matched?.team || null,
       recentAvg: ms.recentAvg,
       avg10: ms.avg10,
       last5Values: ms.last5Values || [],
@@ -979,11 +980,35 @@ function cholesky(matrix) {
   return L;
 }
 
-// Structural pairwise correlation between two legs (same-game game-pace effect)
+// Structural pairwise correlation between two legs. Different games => independent.
+// Same game splits on team: teammates' possession volume rises together (team
+// controls the ball); opponents' possession is partly zero-sum; teammates both
+// kicking goals substitute for each other. Team is unknown when the player didn't
+// match our stats — then we fall back to the neutral same-game game-pace estimate.
 function pairCorrelation(a, b) {
   if (!a.game || !b.game || a.game !== b.game) return 0;
+
+  const teamA = String(a.team || "").toLowerCase();
+  const teamB = String(b.team || "").toLowerCase();
+  const teamsKnown = Boolean(teamA && teamB);
+  const sameTeam = teamsKnown && teamA === teamB;
+  const opposing = teamsKnown && teamA !== teamB;
+
   const bothPossession = POSSESSION_METRICS.has(a.metric) && POSSESSION_METRICS.has(b.metric);
-  return bothPossession ? 0.28 : 0.1;
+  const bothGoals = a.metric === "goals" && b.metric === "goals";
+
+  if (bothPossession) {
+    if (sameTeam) return 0.35;
+    if (opposing) return -0.1;
+    return 0.28; // team unknown — neutral same-game game-pace estimate
+  }
+  if (bothGoals) {
+    if (sameTeam) return -0.1; // compete for the same goals
+    return 0.05; // opposing / unknown — shared high-scoring game
+  }
+  // Mixed markets (one possession + one goals, tackles, etc.)
+  if (opposing) return 0.02;
+  return 0.08;
 }
 
 // P(all legs hit) under a Gaussian copula. items: [{prob, game, metric}].
@@ -1002,7 +1027,7 @@ function correlationAdjustedProb(items) {
 
   const thresholds = items.map((it) => probit(Math.max(1e-6, Math.min(1 - 1e-6, it.prob || 0))));
   const L = cholesky(R);
-  const seed = hashSeed(items.map((it) => `${it.game}|${it.metric}|${Math.round((it.prob || 0) * 1000)}`).join("~"));
+  const seed = hashSeed(items.map((it) => `${it.game}|${it.team || ""}|${it.metric}|${Math.round((it.prob || 0) * 1000)}`).join("~"));
   const rand = mulberry32(seed);
   const nextNormal = () => {
     let u = 0, v = 0;
@@ -1031,7 +1056,7 @@ function computeCombinedMetrics(selected) {
   const combinedOdds = selected.reduce((acc, p) => acc * Number(p.odds), 1);
   const independentProb = selected.reduce((acc, p) => acc * (p.empirical ?? 0), 1);
   const combinedProb = correlationAdjustedProb(
-    selected.map((p) => ({ prob: p.empirical ?? 0, game: p.gameLabel, metric: p.metric }))
+    selected.map((p) => ({ prob: p.empirical ?? 0, game: p.gameLabel, metric: p.metric, team: p.team }))
   );
   const ev = combinedProb * combinedOdds - 1;
   return {
@@ -1134,6 +1159,7 @@ function structureLegFromEnriched(p) {
     name: `${p.playerName} Over ${p.line} ${metricLabel(p.metric)}`,
     player: p.playerName,
     metric: p.metric,
+    team: p.team || null,
     game: p.gameLabel,
     odds: p.odds,
     bookmaker: p.bookmaker || null,
@@ -1260,7 +1286,7 @@ function recomputeMultiFromLegs(base, legs, sport) {
   const combinedOdds = Number(legs.reduce((a, l) => a * Number(l.odds || 1), 1).toFixed(2));
   const independentProb = legs.reduce((a, l) => a * legEmpirical(l), 1);
   const combinedProb = correlationAdjustedProb(
-    legs.map((l) => ({ prob: legEmpirical(l), game: l.game, metric: legMetricOf(l) }))
+    legs.map((l) => ({ prob: legEmpirical(l), game: l.game, metric: legMetricOf(l), team: l.team }))
   );
   const combinedProbPct = Math.round(combinedProb * 100);
   const independentProbPct = Math.round(independentProb * 100);
