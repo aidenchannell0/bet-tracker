@@ -1799,6 +1799,7 @@ export default function BettingTrackerWebsite() {
   const [loadingBets, setLoadingBets] = useState(false);
   const [editingBetId, setEditingBetId] = useState(null);
   const [showAllBets, setShowAllBets] = useState(false);
+  const [mobileBetsOpen, setMobileBetsOpen] = useState(false);
   const [selectedSportFilter, setSelectedSportFilter] = useState("All sports");
   const fileInputRef = useRef(null);
   const formRef = useRef(null);
@@ -2278,7 +2279,6 @@ export default function BettingTrackerWebsite() {
             <header className="space-y-1">
               <p className="text-sm font-medium text-slate-500">Online account version</p>
               <h1 className="text-3xl font-bold tracking-tight">Bet Grid</h1>
-              <p className="text-sm text-slate-500">Logged in as {session.user.email}</p>
             </header>
 
             {message ? <Card><div className="p-4 text-sm text-slate-700">{message}</div></Card> : null}
@@ -2462,39 +2462,47 @@ export default function BettingTrackerWebsite() {
 
             <Card>
               <div className="p-4">
-                <div className="flex items-end justify-between gap-3">
+                <button type="button" onClick={() => setMobileBetsOpen((current) => !current)} className="flex w-full items-center justify-between gap-3 text-left">
                   <div>
                     <h2 className="text-lg font-semibold">Recent bets</h2>
-                    <p className="text-xs text-slate-500">Showing {visibleBets.length} of {filteredBets.length}</p>
+                    <p className="text-xs text-slate-500">{filteredBets.length} bet{filteredBets.length === 1 ? "" : "s"}{selectedSportFilter !== "All sports" ? " · " + selectedSportFilter : ""} · tap to {mobileBetsOpen ? "hide" : "view"}</p>
                   </div>
-                  {filteredBets.length > 5 ? <button type="button" onClick={() => setShowAllBets((current) => !current)} className="text-sm font-semibold text-[#11203B] underline">{showAllBets ? "Show less" : "View all"}</button> : null}
-                </div>
+                  <span className="text-2xl leading-none text-slate-500">{mobileBetsOpen ? "−" : "+"}</span>
+                </button>
 
-                <div className="mt-4 space-y-3">
-                  {visibleBets.map((bet) => (
-                    <div key={bet.id} className={"rounded-2xl border border-slate-200 p-4 " + (editingBetId === bet.id ? "bg-slate-50" : "bg-[#FAF7EF]")}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-[#11203B]">{bet.sport || "Other"} · {bet.date}</p>
-                          <p className="mt-1 text-xs capitalize text-slate-500">{bet.result} · Stake {formatCurrency(bet.stake)} · Odds {bet.odds || "-"}</p>
+                {mobileBetsOpen ? (
+                  <>
+                    <div className="mt-4 space-y-3">
+                      {visibleBets.map((bet) => (
+                        <div key={bet.id} className={"rounded-2xl border border-slate-200 p-4 " + (editingBetId === bet.id ? "bg-slate-50" : "bg-[#FAF7EF]")}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-[#11203B]">{bet.sport || "Other"} · {bet.date}</p>
+                              <p className="mt-1 text-xs capitalize text-slate-500">{bet.result} · Stake {formatCurrency(bet.stake)} · Odds {bet.odds || "-"}</p>
+                            </div>
+                            <p className={"text-base font-bold " + (bet.profitLoss >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(bet.profitLoss)}</p>
+                          </div>
+                          {bet.notes ? <p className="mt-3 text-sm text-slate-600">{bet.notes}</p> : null}
+                          <div className="mt-4 grid grid-cols-2 gap-2">
+                            <Button variant="outline" onClick={() => startEditingBet(bet)} className="w-full">Edit</Button>
+                            <Button variant="ghost" onClick={() => deleteBet(bet.id)} className="w-full">Delete</Button>
+                          </div>
                         </div>
-                        <p className={"text-base font-bold " + (bet.profitLoss >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(bet.profitLoss)}</p>
-                      </div>
-                      {bet.notes ? <p className="mt-3 text-sm text-slate-600">{bet.notes}</p> : null}
-                      <div className="mt-4 grid grid-cols-2 gap-2">
-                        <Button variant="outline" onClick={() => startEditingBet(bet)} className="w-full">Edit</Button>
-                        <Button variant="ghost" onClick={() => deleteBet(bet.id)} className="w-full">Delete</Button>
-                      </div>
+                      ))}
+                      {!bets.length ? <div className="rounded-2xl bg-[#E8E2D4] p-8 text-center text-sm text-slate-500">No bets added yet.</div> : null}
                     </div>
-                  ))}
-                  {!bets.length ? <div className="rounded-2xl bg-[#E8E2D4] p-8 text-center text-sm text-slate-500">No bets added yet.</div> : null}
-                </div>
+                    {filteredBets.length > 5 ? <div className="mt-4 flex justify-center"><button type="button" onClick={() => setShowAllBets((current) => !current)} className="text-sm font-semibold text-[#11203B] underline">{showAllBets ? "Show less" : `View all ${filteredBets.length}`}</button></div> : null}
+                  </>
+                ) : null}
               </div>
             </Card>
 
             <Card>
               <div className="space-y-3 p-4">
-                <p className="text-sm font-semibold text-[#11203B]">Account and feedback</p>
+                <div>
+                  <p className="text-sm font-semibold text-[#11203B]">Account and feedback</p>
+                  <p className="mt-1 text-xs text-slate-500">Logged in as {session.user.email}</p>
+                </div>
                 <a
                   href="mailto:aidenchannell0@gmail.com?subject=Bet%20Grid%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Grid%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Grid%20Build%20with%20live%20sports%20data%3F"
                   className="block rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm font-medium text-[#11203B]"
@@ -2502,7 +2510,7 @@ export default function BettingTrackerWebsite() {
                   Give feedback
                 </a>
                 <button type="button" onClick={() => setActivePage("settings")} className="w-full rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-left text-sm font-medium text-[#11203B]">Settings</button>
-                <button type="button" onClick={handleLogout} className="w-full rounded-xl border border-red-300 bg-red-100 px-4 py-3 text-left text-sm font-medium text-red-900">Log out</button>
+                <button type="button" onClick={handleLogout} className="w-full rounded-xl border border-[#D9A39B] bg-[#F3DDD7] px-4 py-3 text-left text-sm font-medium text-[#A94442]">Log out</button>
               </div>
             </Card>
           </div>
