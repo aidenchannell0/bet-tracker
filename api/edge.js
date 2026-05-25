@@ -946,58 +946,93 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   );
 
   const minHit = riskProfile === "Safer" ? 0.7 : riskProfile === "Aggressive" ? 0.45 : 0.58;
+  const scoreOf = (p) => (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5;
 
-  // Keep the single best-scoring prop per player (a multi can't repeat a player)
-  const byPlayer = new Map();
+  // Keep up to a few candidate LINES per player (not just the single highest-score
+  // one). A player's top-score line is often an ultra-short deep line (e.g. a mid
+  // Over 16.5 disposals @ $1.03) that can't combine toward a normal target, which
+  // used to force the build onto whatever DID fit (forwards' goal legs). Holding a
+  // few lines per player lets the combo search pick the one that actually fits.
+  // A multi still never repeats a player.
+  const PER_PLAYER = 3;
+  const linesByPlayer = new Map();
   for (const p of candidates) {
-    const score = (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5;
-    const current = byPlayer.get(p.playerName);
-    if (!current || score > current.score) byPlayer.set(p.playerName, { ...p, score });
+    const arr = linesByPlayer.get(p.playerName) || [];
+    arr.push({ ...p, score: scoreOf(p) });
+    linesByPlayer.set(p.playerName, arr);
+  }
+  const perPlayerLines = [];
+  const bestPerPlayer = [];
+  for (const arr of linesByPlayer.values()) {
+    arr.sort((a, b) => b.score - a.score);
+    bestPerPlayer.push(arr[0]);
+    perPlayerLines.push(...arr.slice(0, PER_PLAYER));
   }
 
-  const ranked = [...byPlayer.values()];
   const ordered = [
-    ...ranked.filter((p) => p.empirical >= minHit).sort((a, b) => b.score - a.score),
-    ...ranked.filter((p) => p.empirical < minHit).sort((a, b) => b.score - a.score),
+    ...bestPerPlayer.filter((p) => p.empirical >= minHit).sort((a, b) => b.score - a.score),
+    ...bestPerPlayer.filter((p) => p.empirical < minHit).sort((a, b) => b.score - a.score),
   ];
 
   const wantCount =
     targetLegs === "Any" || !targetLegs ? null : Math.max(1, parseInt(targetLegs, 10) || 3);
 
-  // No target odds: just honour the requested leg count by quality
+  // No target odds: just honour the requested leg count by quality (one per player)
   if (!targetOddsValue) {
     return ordered.slice(0, wantCount || 3);
   }
 
-  // Target odds set: search combinations across leg counts and return one whose combined
-  // odds land within a tolerance of the target (e.g. $2 -> $1.80–$2.20). Tolerance widens
-  // only if no tighter combo exists. Prefer the requested leg count, then highest chance.
-  const shortlist = ordered.slice(0, Math.min(ordered.length, 14));
-  if (!shortlist.length) return [];
+  // Target odds set: search combinations (one leg per player) whose combined odds
+  // land within a tolerance of the target. Tolerance widens only if no tighter combo
+  // exists. Prefer requested leg count, then market variety, then highest chance.
+  const shortlist = perPlayerLines
+    .sort((a, b) => (b.empirical >= minHit) - (a.empirical >= minHit) || b.score - a.score)
+    .slice(0, 24);
+  if (!shortlist.length) return ordered.slice(0, wantCount || 3);
 
   const minLegs = 2;
-  const maxLegs = Math.min(7, shortlist.length);
+  const maxLegs = Math.min(7, new Set(shortlist.map((p) => p.playerName)).size);
+
+  // Size of the largest single-metric block in a combo (5 goals => 5)
+  const metricDominance = (legs) => {
+    const counts = {};
+    let max = 0;
+    for (const l of legs) {
+      counts[l.metric] = (counts[l.metric] || 0) + 1;
+      if (counts[l.metric] > max) max = counts[l.metric];
+    }
+    return max;
+  };
 
   const combos = [];
   let closest = null;
-  const choose = (start, acc) => {
+  const choose = (start, acc, players, accOdds) => {
     if (acc.length >= minLegs) {
-      const odds = acc.reduce((a, p) => a * Number(p.odds), 1);
+      const diff = Math.abs(accOdds - targetOddsValue);
       const prob = acc.reduce((a, p) => a * (p.empirical ?? 0), 1);
-      const diff = Math.abs(odds - targetOddsValue);
       const legPenalty = wantCount ? Math.abs(acc.length - wantCount) : 0;
-      const cand = { legs: [...acc], prob, diff, legPenalty };
+      // Diversity: discourage stacking one metric (e.g. all goals). Allow up to
+      // ~half the legs in any single market before penalising.
+      const diversityPenalty = Math.max(0, metricDominance(acc) - Math.ceil(acc.length / 2));
+      const cand = { legs: [...acc], prob, diff, legPenalty, diversityPenalty };
       combos.push(cand);
       if (!closest || diff < closest.diff) closest = cand;
     }
     if (acc.length >= maxLegs) return;
+    // Odds only grow as legs are added; once we've overshot the target there's no
+    // point going deeper. Keeps the search bounded even with many lines per player.
+    if (accOdds > targetOddsValue * 1.6) return;
     for (let i = start; i < shortlist.length; i++) {
-      acc.push(shortlist[i]);
-      choose(i + 1, acc);
+      const cand = shortlist[i];
+      if (players.has(cand.playerName)) continue; // never repeat a player
+      acc.push(cand);
+      players.add(cand.playerName);
+      choose(i + 1, acc, players, accOdds * Number(cand.odds));
+      players.delete(cand.playerName);
       acc.pop();
     }
   };
-  choose(0, []);
+  choose(0, [], new Set(), 1);
 
   // Tightest tolerance band that contains at least one combo
   let pool = [];
@@ -1008,8 +1043,14 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   if (!pool.length) pool = closest ? [closest] : [];
   if (!pool.length) return ordered.slice(0, wantCount || 3);
 
-  // Prefer requested leg count, then highest combined chance, then closest to target
-  pool.sort((a, b) => a.legPenalty - b.legPenalty || b.prob - a.prob || a.diff - b.diff);
+  // Prefer requested leg count, then market variety, then highest chance, then closeness
+  pool.sort(
+    (a, b) =>
+      a.legPenalty - b.legPenalty ||
+      a.diversityPenalty - b.diversityPenalty ||
+      b.prob - a.prob ||
+      a.diff - b.diff
+  );
   return pool[0].legs.sort((a, b) => b.score - a.score);
 }
 
