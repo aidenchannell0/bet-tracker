@@ -2497,22 +2497,6 @@ export default function BettingTrackerWebsite() {
               </div>
             </Card>
 
-            <Card>
-              <div className="space-y-3 p-4">
-                <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Account and feedback</p>
-                  <p className="mt-1 text-xs text-slate-500">Logged in as {session.user.email}</p>
-                </div>
-                <a
-                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Grid%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Grid%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Grid%20Build%20with%20live%20sports%20data%3F"
-                  className="block rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm font-medium text-[#11203B]"
-                >
-                  Give feedback
-                </a>
-                <button type="button" onClick={() => setActivePage("settings")} className="w-full rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-left text-sm font-medium text-[#11203B]">Settings</button>
-                <button type="button" onClick={handleLogout} className="w-full rounded-xl border border-[#D9A39B] bg-[#F3DDD7] px-4 py-3 text-left text-sm font-medium text-[#A94442]">Log out</button>
-              </div>
-            </Card>
           </div>
 
 
@@ -2796,6 +2780,25 @@ export default function BettingTrackerWebsite() {
               <BreakdownsCard bySport={breakdowns.bySport} byOdds={breakdowns.byOdds} byType={breakdowns.byType} />
             </div>
           ) : null}
+
+          <div className="mt-4 md:hidden">
+            <Card>
+              <div className="space-y-3 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-[#11203B]">Account and feedback</p>
+                  <p className="mt-1 text-xs text-slate-500">Logged in as {session.user.email}</p>
+                </div>
+                <a
+                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Grid%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Grid%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Grid%20Build%20with%20live%20sports%20data%3F"
+                  className="block rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm font-medium text-[#11203B]"
+                >
+                  Give feedback
+                </a>
+                <button type="button" onClick={() => setActivePage("settings")} className="w-full rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-left text-sm font-medium text-[#11203B]">Settings</button>
+                <button type="button" onClick={handleLogout} className="w-full rounded-xl border border-[#D9A39B] bg-[#F3DDD7] px-4 py-3 text-left text-sm font-medium text-[#A94442]">Log out</button>
+              </div>
+            </Card>
+          </div>
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
