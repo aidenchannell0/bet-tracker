@@ -1394,6 +1394,29 @@ function structureLegFromEnriched(p) {
   };
 }
 
+// Same-game multi detection + conservative value. Bookmakers price same-game legs
+// as a Same-Game Multi with a correlation discount, so multiplying single-leg prices
+// overstates BOTH the odds and the value. We flag it, and haircut the odds (~15% per
+// extra same-game leg) when computing EV so the displayed value isn't overstated.
+function sameGameAdjust(legs, combinedOdds, combinedProb) {
+  const counts = {};
+  let maxGroup = 1;
+  for (const l of legs) {
+    const g = l.game;
+    if (!g) continue;
+    counts[g] = (counts[g] || 0) + 1;
+    if (counts[g] > maxGroup) maxGroup = counts[g];
+  }
+  const sameGameCount = maxGroup >= 2 ? maxGroup : 0;
+  const sgmFactor = Math.pow(0.85, Math.max(0, maxGroup - 1));
+  const effectiveOdds = combinedOdds * sgmFactor;
+  const evPct = Math.round((combinedProb * effectiveOdds - 1) * 100);
+  const sameGameNote = sameGameCount
+    ? `${sameGameCount} legs are from the same game. Bookmakers price same-game legs as a Same-Game Multi with a correlation discount, so your real price (and value) will be lower than the $${combinedOdds.toFixed(2)} shown — that figure just multiplies the single-leg prices.`
+    : null;
+  return { evPct, sameGameCount, sameGameNote };
+}
+
 // Structured multi for the output panel (separate from the GPT narration)
 function buildStructuredMulti(computed, sport, targetOdds) {
   if (!computed.selected.length) return null;
@@ -1409,6 +1432,8 @@ function buildStructuredMulti(computed, sport, targetOdds) {
     oddsNote = `These legs combine below your ${targetOdds} target — for higher odds, add more legs.`;
   }
 
+  const sg = sameGameAdjust(legs, metrics.combinedOdds, metrics.combinedProb);
+
   return {
     sport,
     legCount: selected.length,
@@ -1417,7 +1442,9 @@ function buildStructuredMulti(computed, sport, targetOdds) {
     combinedProbPct: metrics.combinedProbPct,
     independentProbPct: metrics.independentProbPct,
     correlated: metrics.correlated,
-    evPct: metrics.evPct, // combined recent-form chance vs the offered price
+    evPct: sg.evPct, // value vs market — conservative for same-game legs (SGM repricing)
+    sameGameCount: sg.sameGameCount,
+    sameGameNote: sg.sameGameNote,
     valueLegs: legs.filter((l) => typeof l.edgePct === "number" && l.edgePct > 0).length,
     targetOdds,
     oddsNote,
@@ -1505,7 +1532,8 @@ function recomputeMultiFromLegs(base, legs, sport) {
   );
   const combinedProbPct = Math.round(combinedProb * 100);
   const independentProbPct = Math.round(independentProb * 100);
-  const evPct = Math.round((combinedProb * combinedOdds - 1) * 100);
+  const sg = sameGameAdjust(legs, combinedOdds, combinedProb);
+  const evPct = sg.evPct;
   const valueLegs = legs.filter((l) => typeof l.edgePct === "number" && l.edgePct > 0).length;
   const correlated = Math.abs(combinedProb - independentProb) >= 0.005;
   const risk = computeRiskScore(combinedProb, legs.length);
@@ -1527,6 +1555,8 @@ function recomputeMultiFromLegs(base, legs, sport) {
     independentProbPct,
     correlated,
     evPct,
+    sameGameCount: sg.sameGameCount,
+    sameGameNote: sg.sameGameNote,
     valueLegs,
     oddsNote,
     risk,

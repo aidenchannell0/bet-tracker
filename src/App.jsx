@@ -1429,6 +1429,9 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                       {multiOutput?.bookmakerNote ? (
                         <p className="mt-2 inline-flex rounded-lg border border-[#C49A4A]/40 bg-[#C49A4A]/15 px-3 py-2 text-xs leading-5 text-[#11203B]">{multiOutput.bookmakerNote}</p>
                       ) : null}
+                      {multiOutput?.sameGameNote ? (
+                        <p className="mt-2 inline-flex rounded-lg border border-[#C49A4A]/40 bg-[#C49A4A]/15 px-3 py-2 text-xs leading-5 text-[#11203B]">{multiOutput.sameGameNote}</p>
+                      ) : null}
                     </div>
                     <div className="rounded-2xl bg-[#11203B] px-4 py-3 text-white">
                       <p className="text-xs uppercase tracking-wide text-slate-300">{multiOutput ? "Combined odds" : "Target odds"}</p>
@@ -1454,7 +1457,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                       {typeof multiOutput.valueLegs === "number" ? (
                         <span className="text-sm font-medium text-[#11203B]">{multiOutput.valueLegs} of {multiOutput.legCount} legs positive-edge</span>
                       ) : null}
-                      <span className="w-full text-xs text-slate-500 sm:w-auto">Recent-form chance vs the odds-implied price — not a profit guarantee.</span>
+                      <span className="w-full text-xs text-slate-500 sm:w-auto">Recent-form chance vs the odds-implied price{multiOutput.sameGameCount ? ", with a same-game-multi discount applied" : ""} — not a profit guarantee.</span>
                     </div>
                   ) : null}
 
