@@ -1470,7 +1470,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                           const stale = ageDays >= 10;
                           return (
                             <p className={"mt-1 text-xs " + (stale ? "font-medium text-[#C49A4A]" : "text-slate-500")}>
-                              Form as of {formatFormDate(leg.formAsOf)}{ageDays >= 0 ? ` · ${ageDays}d ago` : ""}{stale ? " — may trail this round" : " · completed games only"}
+                              Form as of {formatFormDate(leg.formAsOf)}{stale ? ` · ${ageDays}d ago` : " · completed games only"}
                             </p>
                           );
                         })() : null}
