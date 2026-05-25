@@ -1708,64 +1708,69 @@ function LegalPage({ page, setActivePage }) {
 }
 
 
+const NAV_ICONS = {
+  home: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+      <path d="M3 11.5 12 4l9 7.5" />
+      <path d="M5.5 10.5V20h13v-9.5" />
+      <path d="M9.5 20v-5h5v5" />
+    </svg>
+  ),
+  add: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  ),
+  // 2x2 grid — on-brand for "Grid Build" (assembling blocks)
+  build: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.6" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.6" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.6" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.6" />
+    </svg>
+  ),
+  // sliders — clean line-icon for settings (matches the others, not an emoji)
+  settings: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+      <line x1="4" y1="8" x2="20" y2="8" />
+      <circle cx="9" cy="8" r="2.3" />
+      <line x1="4" y1="16" x2="20" y2="16" />
+      <circle cx="15" cy="16" r="2.3" />
+    </svg>
+  ),
+};
+
 function MobileBottomNav({ activePage, setActivePage, formRef }) {
-  const navButtonClass =
-    "flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-xs font-semibold transition";
-
-  const inactiveClass = "text-slate-500 hover:bg-[#E8E2D4] hover:text-[#11203B]";
-  const activeClass = "bg-[#11203B] text-white shadow-sm";
-
   const goToDashboard = () => {
     setActivePage("app");
-    window.setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 50);
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
   };
-
   const goToAddBet = () => {
     setActivePage("app");
-    window.setTimeout(() => {
-      formRef?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 80);
+    window.setTimeout(() => formRef?.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
 
+  // Color-only active state (no chunky pills) — even, clean, and theme-aware:
+  // text-[#11203B] flips to light in dark mode via the global CSS override.
+  const tab = (active) =>
+    "flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition active:scale-95 " +
+    (active ? "font-semibold text-[#11203B]" : "font-medium text-slate-400");
+
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-[#FAF7EF]/95 px-3 pb-[env(safe-area-inset-bottom)] pt-2 shadow-[0_-8px_25px_rgba(15,23,42,0.12)] backdrop-blur md:hidden">
-      <div className="mx-auto flex max-w-xl gap-2 rounded-3xl">
-        <button
-          type="button"
-          onClick={goToDashboard}
-          className={`${navButtonClass} ${activePage === "app" ? activeClass : inactiveClass}`}
-        >
-          <span className="text-lg">⌂</span>
-          <span>Home</span>
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-[#FAF7EF]/95 px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] shadow-[0_-4px_16px_rgba(0,0,0,0.12)] backdrop-blur md:hidden">
+      <div className="mx-auto flex max-w-md items-stretch">
+        <button type="button" onClick={goToDashboard} className={tab(activePage === "app")}>
+          {NAV_ICONS.home}<span>Home</span>
         </button>
-
-        <button
-          type="button"
-          onClick={goToAddBet}
-          className={`${navButtonClass} bg-[#C49A4A]/20 text-[#11203B] hover:bg-[#C49A4A]/30`}
-        >
-          <span className="text-lg">＋</span>
-          <span>Add</span>
+        <button type="button" onClick={goToAddBet} className="flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-[11px] font-semibold text-[#C49A4A] transition active:scale-95">
+          {NAV_ICONS.add}<span>Add</span>
         </button>
-
-        <button
-          type="button"
-          onClick={() => setActivePage("edge")}
-          className={`${navButtonClass} ${activePage === "edge" ? activeClass : inactiveClass}`}
-        >
-          <span className="text-lg">◇</span>
-          <span>Build</span>
+        <button type="button" onClick={() => setActivePage("edge")} className={tab(activePage === "edge")}>
+          {NAV_ICONS.build}<span>Build</span>
         </button>
-
-        <button
-          type="button"
-          onClick={() => setActivePage("settings")}
-          className={`${navButtonClass} ${activePage === "settings" ? activeClass : inactiveClass}`}
-        >
-          <span className="text-lg">⚙</span>
-          <span>Settings</span>
+        <button type="button" onClick={() => setActivePage("settings")} className={tab(activePage === "settings")}>
+          {NAV_ICONS.settings}<span>Settings</span>
         </button>
       </div>
     </nav>
