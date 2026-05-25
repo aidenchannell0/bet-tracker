@@ -1004,6 +1004,16 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
     return max;
   };
 
+  // How evenly priced the legs are (std dev of log-odds, bucketed). Discourages
+  // "one long leg + filler near-locks" (e.g. a $1.86 leg carrying four $1.03s) in
+  // favour of legs that spread the risk more evenly across the multi.
+  const balanceBucket = (legs) => {
+    const logs = legs.map((l) => Math.log(Number(l.odds)));
+    const mean = logs.reduce((a, b) => a + b, 0) / logs.length;
+    const variance = logs.reduce((a, b) => a + (b - mean) ** 2, 0) / logs.length;
+    return Math.round(Math.sqrt(variance) / 0.1);
+  };
+
   const combos = [];
   let closest = null;
   const choose = (start, acc, players, accOdds) => {
@@ -1014,7 +1024,7 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
       // Diversity: discourage stacking one metric (e.g. all goals). Allow up to
       // ~half the legs in any single market before penalising.
       const diversityPenalty = Math.max(0, metricDominance(acc) - Math.ceil(acc.length / 2));
-      const cand = { legs: [...acc], prob, diff, legPenalty, diversityPenalty };
+      const cand = { legs: [...acc], prob, diff, legPenalty, diversityPenalty, balance: balanceBucket(acc) };
       combos.push(cand);
       if (!closest || diff < closest.diff) closest = cand;
     }
@@ -1043,10 +1053,12 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   if (!pool.length) pool = closest ? [closest] : [];
   if (!pool.length) return ordered.slice(0, wantCount || 3);
 
-  // Prefer requested leg count, then market variety, then highest chance, then closeness
+  // Prefer requested leg count, then evenly-priced legs (avoid one long leg + filler
+  // near-locks), then market variety, then highest chance, then closeness to target
   pool.sort(
     (a, b) =>
       a.legPenalty - b.legPenalty ||
+      a.balance - b.balance ||
       a.diversityPenalty - b.diversityPenalty ||
       b.prob - a.prob ||
       a.diff - b.diff
@@ -2403,8 +2415,12 @@ export default async function handler(req, res) {
       // Prefer values stated in the message (e.g. "give me a 3 leg multi"), fall back to the form
       const targetLegs =
         detectLegCountFromMessage(message) || getSafeString(context?.legs, "3");
-      const targetOdds =
+      // Fall back to $2.00 when the target is missing/unparseable (e.g. "Custom"
+      // selected with an empty field) so the balanced combo search runs instead of
+      // the plain top-by-score path, which can produce lopsided builds.
+      let targetOdds =
         detectTargetOddsFromMessage(message) || getSafeString(context?.targetOdds, "$2.00");
+      if (!parseOddsValue(targetOdds)) targetOdds = "$2.00";
       const riskProfile =
         detectRiskFromMessage(message) || getSafeString(context?.riskProfile, "Balanced");
 
