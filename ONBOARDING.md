@@ -40,7 +40,10 @@ plus an AI **multi builder ("Grid Build")**. This note lets a new session pick u
 ## AFL data refresh (important)
 afltables.com **blocks datacenter IPs** (Vercel AND GitHub Actions fail). So the scrape runs from a
 **residential/AU IP — the owner's Mac** via macOS **launchd**:
-- Plist: `~/Library/LaunchAgents/tech.bettracker.scrape-afl.plist` (daily 9am + 6pm).
+- Plist: `~/Library/LaunchAgents/tech.bettracker.scrape-afl.plist` (6×/day: 8/11/14/17/20/23h,
+  for prompt post-game refresh; bounded by afltables' own posting lag + Mac uptime). Logs to
+  `~/Library/Logs/bettracker-scrape-afl.log` (run.sh echoes start/finish timestamps). After editing
+  the plist, reload: `launchctl unload <plist> && launchctl load <plist>`.
 - Runs a **self-contained copy** at `~/.bettracker-cron/` (outside `~/Desktop`, which macOS TCC blocks
   for launchd). **The repo `scripts/scrape-afl-stats.mjs` is the source of truth — re-copy it to
   `~/.bettracker-cron/` if you change it.**
