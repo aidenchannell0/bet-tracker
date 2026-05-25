@@ -748,7 +748,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
   const [customTargetOdds, setCustomTargetOdds] = useState("2.20");
   const [customLegs, setCustomLegs] = useState("6");
   const [riskProfile, setRiskProfile] = useState("Balanced");
-  const [request, setRequest] = useState("Disposals only");
+  const [request, setRequest] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [edgeLoading, setEdgeLoading] = useState(false);
   const [showRiskExplanation, setShowRiskExplanation] = useState(false);
