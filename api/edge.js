@@ -910,23 +910,37 @@ function enrichProps(props, aflStats, factors = null) {
       matchupFactor = factors[opponent][prop.metric];
     }
 
-    // Matchup-adjusted hit rates feed the confidence/empirical only
+    // Laplace-smoothed probabilities (rule of succession) so small samples and
+    // perfect records don't read as a literal 100% / 0% chance. Blend recent
+    // (last 5) with the larger, steadier sample (last 10).
+    const smoothed = (hr) => (hr ? (hr.hits + 1) / (hr.total + 2) : null);
+    const blend = (a, b) => (a != null && b != null ? a * 0.4 + b * 0.6 : b != null ? b : a);
+
+    // Base (unadjusted) empirical from the actual hit rates
+    const empBase = blend(smoothed(hr5), smoothed(hr10));
+
+    // Matchup-adjusted via value-scaling — accurate for continuous lines (e.g. ~25
+    // disposals), where nudging the values flips some games across the line.
     const scaleVals = (vals) =>
       matchupFactor === 1 ? vals || [] : (vals || []).map((v) => v * matchupFactor);
-    const adjHr5 = computeHitRate(scaleVals(ms.last5Values), prop.line);
-    const adjHr10 = computeHitRate(scaleVals(ms.last10Values), prop.line);
+    const empScaled = blend(
+      smoothed(computeHitRate(scaleVals(ms.last5Values), prop.line)),
+      smoothed(computeHitRate(scaleVals(ms.last10Values), prop.line))
+    );
 
-    // Laplace-smoothed probabilities (rule of succession) so small samples and
-    // perfect records don't read as a literal 100% / 0% chance.
-    const smoothed = (hr) => (hr ? (hr.hits + 1) / (hr.total + 2) : null);
-    const p5 = smoothed(adjHr5);
-    const p10 = smoothed(adjHr10);
-
-    // Blend recent (last 5) with the larger, steadier sample (last 10)
-    let empirical = null;
-    if (p5 != null && p10 != null) empirical = p5 * 0.4 + p10 * 0.6;
-    else if (p10 != null) empirical = p10;
-    else if (p5 != null) empirical = p5;
+    let empirical = empScaled;
+    // Value-scaling can't move binary/low lines (integer goals never cross a 0.5
+    // line), which would show a matchup that does nothing. In that case apply the
+    // factor in probability space so the matchup actually counts — and the displayed
+    // "concedes ±X%" stays truthful.
+    if (
+      matchupFactor !== 1 &&
+      empBase != null &&
+      empScaled != null &&
+      Math.abs(empScaled - empBase) < 1e-9
+    ) {
+      empirical = Math.max(0.02, Math.min(0.98, empBase * matchupFactor));
+    }
 
     const edge = empirical != null && implied != null ? empirical - implied : null;
 
