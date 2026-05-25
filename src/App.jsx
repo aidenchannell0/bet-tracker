@@ -1455,7 +1455,15 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                             Matchup: {leg.opponent} concedes {Math.round((leg.matchupFactor - 1) * 100) >= 0 ? "+" : ""}{Math.round((leg.matchupFactor - 1) * 100)}% on this stat
                           </p>
                         ) : null}
-                        {leg.formAsOf ? <p className="mt-1 text-xs text-slate-500">Form as of {formatFormDate(leg.formAsOf)} · completed games only</p> : null}
+                        {leg.formAsOf ? (() => {
+                          const ageDays = Math.floor((Date.now() - new Date(leg.formAsOf + "T00:00:00").getTime()) / 86400000);
+                          const stale = ageDays >= 10;
+                          return (
+                            <p className={"mt-1 text-xs " + (stale ? "font-medium text-[#C49A4A]" : "text-slate-500")}>
+                              Form as of {formatFormDate(leg.formAsOf)}{ageDays >= 0 ? ` · ${ageDays}d ago` : ""}{stale ? " — may trail this round" : " · completed games only"}
+                            </p>
+                          );
+                        })() : null}
                         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-[#11203B]">
                           <span>Confidence: {leg.confidence}</span>
                           {typeof leg.edgePct === "number" ? (
