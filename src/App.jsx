@@ -1419,6 +1419,9 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                       {multiOutput?.oddsNote ? (
                         <p className="mt-2 inline-flex rounded-lg border border-[#C49A4A]/40 bg-[#C49A4A]/15 px-3 py-2 text-xs leading-5 text-[#11203B]">{multiOutput.oddsNote}</p>
                       ) : null}
+                      {multiOutput?.bookmakerNote ? (
+                        <p className="mt-2 inline-flex rounded-lg border border-[#C49A4A]/40 bg-[#C49A4A]/15 px-3 py-2 text-xs leading-5 text-[#11203B]">{multiOutput.bookmakerNote}</p>
+                      ) : null}
                     </div>
                     <div className="rounded-2xl bg-[#11203B] px-4 py-3 text-white">
                       <p className="text-xs uppercase tracking-wide text-slate-300">{multiOutput ? "Combined odds" : "Target odds"}</p>

@@ -765,6 +765,20 @@ function bookmakerMatches(bookmaker, preferredBook) {
   return norm(bookmaker.key) === want || norm(bookmaker.title) === want;
 }
 
+// Display name for a chosen bookmaker key (null/"" => no specific book chosen)
+const BOOKMAKER_LABELS = {
+  sportsbet: "Sportsbet",
+  tab: "TAB",
+  ladbrokes_au: "Ladbrokes",
+  neds: "Neds",
+  pointsbetau: "PointsBet",
+  unibet: "Unibet",
+};
+function bookmakerLabel(preferredBook) {
+  if (!preferredBook || preferredBook === "best") return null;
+  return BOOKMAKER_LABELS[preferredBook] || preferredBook;
+}
+
 function extractPlayerPropsFromEvent(event, preferredBook = null) {
   const props = [];
   const overMarketKeys = [
@@ -2534,8 +2548,12 @@ export default async function handler(req, res) {
         const gameLabel = specificGame
           ? `**${specificGame.homeTeam} vs ${specificGame.awayTeam}**`
           : `the upcoming ${sport} games`;
+        const bookLabel = bookmakerLabel(preferredBook);
+        const checkLine = bookLabel
+          ? `You've pinned odds to **${bookLabel}**, which may not price player markets for ${gameLabel} yet. Switch the bookmaker to **Best available** for the widest pool, or try again closer to game time.`
+          : `Player markets are usually posted closer to game time. Try again nearer to the game, pick a different game, or ask me for the available games and head-to-head odds.`;
         return res.status(200).json({
-          reply: `Simple view:\n\nI could not find player prop markets (disposals, goals, tackles and similar) for ${gameLabel} right now.\n\nWhat I would check:\n\nPlayer markets are usually posted closer to game time. Try again nearer to the game, pick a different game, or ask me for the available games and head-to-head odds.\n\nImportant:\n\nThis is informational only, not betting advice.`,
+          reply: `Simple view:\n\nI could not find player prop markets (disposals, goals, tackles and similar)${bookLabel ? ` at **${bookLabel}**` : ""} for ${gameLabel} right now.\n\nWhat I would check:\n\n${checkLine}\n\nImportant:\n\nThis is informational only, not betting advice.`,
           multi: null,
           oddsConnected: oddsContext.available,
           aflStatsConnected: false,
@@ -2649,6 +2667,15 @@ export default async function handler(req, res) {
         );
         const dataBlock = buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile);
         const structuredMulti = buildStructuredMulti(computed, sport, targetOdds);
+
+        // Flag when a pinned bookmaker limited the pool below the requested leg count
+        const bookLabelUsed = bookmakerLabel(preferredBook);
+        if (structuredMulti && bookLabelUsed) {
+          const wantLegs = parseInt(targetLegs, 10);
+          if (Number.isFinite(wantLegs) && structuredMulti.legCount < wantLegs) {
+            structuredMulti.bookmakerNote = `Only ${structuredMulti.legCount} of ${wantLegs} legs are available at ${bookLabelUsed} for these games — switch the bookmaker to “Best available” for more options.`;
+          }
+        }
 
         const multiCompletion = await openai.chat.completions.create({
           model: "gpt-4.1-mini",
