@@ -2239,6 +2239,138 @@ Important:
 `;
 }
 
+// ── Game analysis ────────────────────────────────────────────────────────
+const ANALYSIS_METRICS = ["disposals", "goals", "marks", "tackles"];
+const ANALYSIS_PLAYER_MARKETS = [
+  "player_disposals_over",
+  "player_goals_scored_over",
+  "player_marks_over",
+  "player_tackles_over",
+  "player_afl_fantasy_points_over",
+  "player_kicks_over",
+  "player_handballs_over",
+  "player_clearances_over",
+];
+
+// Best h2h price per team -> normalised implied win %, plus total + spread lines
+function extractMarketRead(event) {
+  if (!event) return null;
+  const home = event.homeTeam;
+  const away = event.awayTeam;
+  let bestHome = null, bestAway = null, totalLine = null, spreadLine = null, spreadFav = null;
+  for (const bk of event.bookmakers || []) {
+    for (const m of bk.markets || []) {
+      if (m.key === "h2h") {
+        for (const o of m.outcomes || []) {
+          if (o.name === home && (bestHome == null || o.price > bestHome)) bestHome = o.price;
+          if (o.name === away && (bestAway == null || o.price > bestAway)) bestAway = o.price;
+        }
+      } else if (m.key === "totals" && totalLine == null) {
+        const over = (m.outcomes || []).find((o) => /over/i.test(o.name));
+        if (over?.point != null) totalLine = over.point;
+      } else if (m.key === "spreads" && spreadLine == null) {
+        const neg = (m.outcomes || []).find((o) => Number(o.point) < 0);
+        if (neg) { spreadLine = Math.abs(Number(neg.point)); spreadFav = neg.name; }
+      }
+    }
+  }
+  const read = { home, away, totalLine, spreadLine, spreadFav, favourite: null, favPrice: null, favPct: null, underdog: null, dogPrice: null, dogPct: null };
+  if (bestHome && bestAway) {
+    const ih = 1 / bestHome, ia = 1 / bestAway, tot = ih + ia;
+    const homePct = Math.round((ih / tot) * 100);
+    const awayPct = Math.round((ia / tot) * 100);
+    if (bestHome <= bestAway) {
+      read.favourite = home; read.favPrice = bestHome; read.favPct = homePct;
+      read.underdog = away; read.dogPrice = bestAway; read.dogPct = awayPct;
+    } else {
+      read.favourite = away; read.favPrice = bestAway; read.favPct = awayPct;
+      read.underdog = home; read.dogPrice = bestHome; read.dogPct = homePct;
+    }
+  }
+  return read;
+}
+
+// Compact analysis leg from an enriched prop
+function analysisLeg(p) {
+  return {
+    player: p.playerName,
+    team: p.team || null,
+    label: `${Math.ceil(Number(p.line))}+ ${metricLabel(p.metric)}`,
+    metric: p.metric,
+    confidence: Math.round((p.empirical ?? 0) * 100),
+    edgePct: p.edge != null ? Math.round(p.edge * 100) : null,
+    recentAvg: p.recentAvg ?? null,
+    odds: p.odds,
+    bookmaker: p.bookmaker || null,
+  };
+}
+
+// Top in-form players per team (one best line per player)
+function topKeyPlayersByTeam(enriched, home, away, perTeam = 4) {
+  const eligible = enriched.filter((p) => p.statsAvailable && p.empirical != null && p.sampleSize >= 3 && Number(p.odds) > 1);
+  const best = new Map();
+  for (const p of eligible) {
+    const score = (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5;
+    const cur = best.get(p.playerName);
+    if (!cur || score > cur.score) best.set(p.playerName, { ...p, score });
+  }
+  const byTeam = (team) =>
+    [...best.values()]
+      .filter((p) => (p.team || "").toLowerCase() === (team || "").toLowerCase())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, perTeam)
+      .map(analysisLeg);
+  return { home: byTeam(home), away: byTeam(away) };
+}
+
+// Top value plays by edge (one best line per player, positive edge only)
+function topValuePlays(enriched, n = 5) {
+  const eligible = enriched.filter((p) => p.statsAvailable && p.edge != null && p.sampleSize >= 3 && Number(p.odds) > 1);
+  const best = new Map();
+  for (const p of eligible) {
+    const cur = best.get(p.playerName);
+    if (!cur || (p.edge ?? -1) > (cur.edge ?? -1)) best.set(p.playerName, p);
+  }
+  return [...best.values()]
+    .filter((p) => (p.edge ?? 0) > 0)
+    .sort((a, b) => (b.edge ?? 0) - (a.edge ?? 0))
+    .slice(0, n)
+    .map(analysisLeg);
+}
+
+// Matchup angles from defence factors: the stat each team concedes most
+function buildMatchupAngles(factors, home, away) {
+  if (!factors) return [];
+  const angles = [];
+  for (const team of [home, away]) {
+    const f = factors[team];
+    if (!f) continue;
+    let topMetric = null, topVal = 1;
+    for (const m of ANALYSIS_METRICS) {
+      if (f[m] != null && f[m] > topVal) { topVal = f[m]; topMetric = m; }
+    }
+    if (topMetric) {
+      const pct = Math.round((topVal - 1) * 100);
+      const opp = team === home ? away : home;
+      angles.push(`${team} concedes +${pct}% ${metricLabel(topMetric)} vs league average — favours ${opp}'s ${metricLabel(topMetric)} scorers.`);
+    }
+  }
+  return angles;
+}
+
+// Plain-text data block fed to the model for the narrated summary
+function buildAnalysisDataBlock(analysis) {
+  const out = [`GAME: ${analysis.game}`];
+  const mr = analysis.marketRead;
+  if (mr?.favourite) out.push(`MARKET: ${mr.favourite} favoured at $${mr.favPrice.toFixed(2)} (~${mr.favPct}% implied) over ${mr.underdog} $${mr.dogPrice.toFixed(2)} (~${mr.dogPct}%).${mr.totalLine != null ? ` Total points line ${mr.totalLine}.` : ""}${mr.spreadLine != null ? ` Line ${mr.spreadFav} -${mr.spreadLine}.` : ""}`);
+  const fmt = (l) => `${l.player} (${l.team || "?"}) ${l.label} @ $${Number(l.odds).toFixed(2)} — form ${l.confidence}%${l.edgePct != null ? `, edge ${l.edgePct >= 0 ? "+" : ""}${l.edgePct}%` : ""}, recent avg ${l.recentAvg}`;
+  if (analysis.keyPlayers?.home?.length) out.push(`KEY ${analysis.homeTeam}:\n` + analysis.keyPlayers.home.map((l) => "• " + fmt(l)).join("\n"));
+  if (analysis.keyPlayers?.away?.length) out.push(`KEY ${analysis.awayTeam}:\n` + analysis.keyPlayers.away.map((l) => "• " + fmt(l)).join("\n"));
+  if (analysis.valuePlays?.length) out.push(`VALUE PLAYS (recent-form chance beats the odds-implied price):\n` + analysis.valuePlays.map((l) => "• " + fmt(l)).join("\n"));
+  if (analysis.matchupAngles?.length) out.push(`MATCHUP:\n` + analysis.matchupAngles.map((a) => "• " + a).join("\n"));
+  return out.join("\n\n");
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -2302,6 +2434,96 @@ export default async function handler(req, res) {
       detectedTeam,
       dateWindow,
     };
+
+    // ── Game analysis: full data-backed read of one match ──────────────────
+    if (context?.analysisRequest) {
+      if (sport !== "AFL") {
+        return res.status(200).json({
+          reply: "Simple view:\n\nGame analysis currently supports AFL only.\n\nImportant:\n\nInformational only, not betting advice.",
+          analysis: null, intent: "game_analysis", sport, edgeContext,
+        });
+      }
+      if (!oddsContext.events.length) {
+        return res.status(200).json({
+          reply: "Simple view:\n\nI couldn't load live AFL games right now, so I can't analyse a match.\n\nWhat I would check:\n\nThe odds feed may be between updates — try again shortly.\n\nImportant:\n\nInformational only, not betting advice.",
+          analysis: null, intent: "game_analysis", sport, edgeContext,
+        });
+      }
+
+      const requestedGameId = getSafeString(context?.gameId, "");
+      const teamsInMessage = detectAllTeamAliases(message);
+      const game =
+        (requestedGameId ? oddsContext.events.find((e) => e.id === requestedGameId) : null) ||
+        (teamsInMessage.length ? findMatchingEvent(oddsContext.events, message, teamsInMessage) : null) ||
+        oddsContext.events[0];
+
+      if (!game) {
+        return res.status(200).json({
+          reply: "Simple view:\n\nI couldn't match that game. Pick one from the Game dropdown and try again.\n\nImportant:\n\nInformational only, not betting advice.",
+          analysis: null, intent: "game_analysis", sport, edgeContext,
+        });
+      }
+
+      const analysisMarkets = { label: "AFL analysis", markets: ["h2h", "totals", "spreads", ...ANALYSIS_PLAYER_MARKETS] };
+      const eventCtx = await fetchEventOddsContext(req, sport, game.id, analysisMarkets);
+      const event = eventCtx.event || { homeTeam: game.homeTeam, awayTeam: game.awayTeam, bookmakers: [] };
+      const marketRead = extractMarketRead(event);
+
+      const allProps = extractPlayerPropsFromEvent(event);
+      let enriched = [];
+      let statsAvailable = false;
+      let defenseFactors = null;
+      if (allProps.length) {
+        const players = [...new Set(allProps.map((p) => p.playerName))].slice(0, 40);
+        const metrics = [...new Set(allProps.map((p) => p.metric))];
+        const aflStatsContext = await fetchAFLStatsContext(req, game.homeTeam, game.awayTeam, players, metrics);
+        statsAvailable = aflStatsContext.available;
+        const defenseContext = await fetchDefenseContext(req);
+        defenseFactors = defenseContext.factors;
+        enriched = enrichProps(allProps, aflStatsContext, defenseFactors);
+      }
+
+      const analysis = {
+        game: `${game.homeTeam} vs ${game.awayTeam}`,
+        homeTeam: game.homeTeam,
+        awayTeam: game.awayTeam,
+        marketRead,
+        keyPlayers: topKeyPlayersByTeam(enriched, game.homeTeam, game.awayTeam),
+        valuePlays: topValuePlays(enriched, 5),
+        matchupAngles: buildMatchupAngles(defenseFactors, game.homeTeam, game.awayTeam),
+        propsFound: allProps.length,
+      };
+
+      let reply;
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages: [
+            { role: "system", content: EDGE_SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: `Task: write an in-depth AFL match analysis (NOT a multi) using ONLY the data below. Do not invent players, injuries, scores or head-to-head history — none are provided. Use ONLY these section labels exactly:\nSimple view:\nWhat I would check:\nImportant:\n\nIn "Simple view", give a flowing analytical read of the match — the market favourite, the standout players and their recent form, and the key matchup angles. Keep it concise and specific to the numbers provided.\n\n${buildAnalysisDataBlock(analysis)}`,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 750,
+        });
+        reply = completion.choices?.[0]?.message?.content || "";
+      } catch (error) {
+        console.error("Game analysis narration error:", error);
+        reply = "Simple view:\n\nHere's the data-backed read for this match.\n\nImportant:\n\nInformational only, not betting advice.";
+      }
+
+      return res.status(200).json({
+        reply,
+        analysis,
+        intent: "game_analysis",
+        sport,
+        oddsConnected: oddsContext.available,
+        aflStatsConnected: statsAvailable,
+        edgeContext,
+      });
+    }
 
     if (!editAction && userIntent === "market_stats_comparison" && requestedMarket?.metric) {
       const matchedEvent = findMatchingEvent(

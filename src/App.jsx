@@ -959,6 +959,107 @@ function EdgeMessage({ role, children }) {
   );
 }
 
+function GameAnalysisOutput({ analysis, loading }) {
+  if (!analysis) {
+    return (
+      <Card>
+        <div className="flex items-center gap-3 p-6 text-sm text-slate-600">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#11203B]" />
+          Analysing the match — pulling odds, recent form and matchup data…
+        </div>
+      </Card>
+    );
+  }
+  if (analysis.error) {
+    return <Card><div className="p-6 text-sm text-slate-600">{analysis.error}</div></Card>;
+  }
+
+  const mr = analysis.marketRead;
+  const sides = [["home", analysis.homeTeam], ["away", analysis.awayTeam]];
+
+  return (
+    <Card>
+      <div className="space-y-5 p-5 md:p-6">
+        <div>
+          <p className="text-sm font-medium text-slate-500">Game analysis</p>
+          <h2 className="mt-1 text-2xl font-semibold">{analysis.game}</h2>
+          <p className="mt-1 text-xs text-slate-500">A data-backed read of the match — informational only, not betting advice.</p>
+        </div>
+
+        {mr && (mr.favourite || mr.totalLine != null || mr.spreadLine != null) ? (
+          <div className="rounded-2xl border border-slate-200 bg-[#FAF7EF] p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Market read</p>
+            <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              {mr.favourite ? <div><span className="font-semibold text-[#11203B]">{mr.favourite}</span> favoured <span className="text-slate-500">${formatOdds(mr.favPrice)} · ~{mr.favPct}%</span></div> : null}
+              {mr.underdog ? <div><span className="font-medium text-[#11203B]">{mr.underdog}</span> <span className="text-slate-500">${formatOdds(mr.dogPrice)} · ~{mr.dogPct}%</span></div> : null}
+              {mr.totalLine != null ? <div className="text-slate-600">Total <span className="font-semibold text-[#11203B]">{mr.totalLine}</span></div> : null}
+              {mr.spreadLine != null ? <div className="text-slate-600">Line <span className="font-semibold text-[#11203B]">{mr.spreadFav} -{mr.spreadLine}</span></div> : null}
+            </div>
+          </div>
+        ) : null}
+
+        {analysis.keyPlayers && (analysis.keyPlayers.home?.length || analysis.keyPlayers.away?.length) ? (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Key players to watch</p>
+            <div className="mt-2 grid gap-4 md:grid-cols-2">
+              {sides.map(([side, team]) => (
+                <div key={side} className="rounded-2xl border border-slate-200 p-4">
+                  <div className="flex items-center gap-2">
+                    <TeamCrest team={team} className="h-5 w-5" />
+                    <p className="text-sm font-semibold text-[#11203B]">{team}</p>
+                  </div>
+                  <ul className="mt-2 space-y-1.5 text-sm">
+                    {(analysis.keyPlayers[side] || []).map((l, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate text-[#11203B]">{l.player} <span className="text-slate-500">{l.label}</span></span>
+                        <span className="shrink-0 text-xs text-slate-500">{l.confidence}% · ${formatOdds(l.odds)}</span>
+                      </li>
+                    ))}
+                    {!(analysis.keyPlayers[side] || []).length ? <li className="text-xs text-slate-500">No player markets posted yet.</li> : null}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {analysis.valuePlays?.length ? (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Standout value</p>
+            <ul className="mt-2 space-y-1.5">
+              {analysis.valuePlays.map((l, i) => (
+                <li key={i} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-[#FAF7EF] px-3 py-2 text-sm">
+                  <span className="min-w-0 truncate text-[#11203B]">{l.player} <span className="text-slate-500">{l.label}</span></span>
+                  <span className="flex shrink-0 items-center gap-2 text-xs">
+                    <span className="rounded-full bg-[#2E7D5B]/15 px-2 py-0.5 font-semibold text-[#2E7D5B]">+{l.edgePct}% value</span>
+                    <span className="text-slate-500">${formatOdds(l.odds)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {analysis.matchupAngles?.length ? (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Matchup angles</p>
+            <ul className="mt-2 space-y-1 text-sm text-slate-600">
+              {analysis.matchupAngles.map((a, i) => <li key={i}>• {a}</li>)}
+            </ul>
+          </div>
+        ) : null}
+
+        {analysis.summary ? (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Summary</p>
+            <div className="mt-2"><EdgeMessage role="edge">{analysis.summary}</EdgeMessage></div>
+          </div>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
 function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
   const [mode, setMode] = useState("multi");
   const [sport, setSport] = useState("AFL");
@@ -975,6 +1076,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
   const [chatMessages, setChatMessages] = useState([]);
   const [lastEdgeContext, setLastEdgeContext] = useState(null);
   const [multiOutput, setMultiOutput] = useState(null);
+  const [analysisOutput, setAnalysisOutput] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
   const [betStake, setBetStake] = useState("");
   const [savingBet, setSavingBet] = useState(false);
   const [saveBetMsg, setSaveBetMsg] = useState("");
@@ -1193,8 +1296,40 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
     setChatInput(prompt);
   };
 
+  const previewAnalysis = async () => {
+    if (edgeLoading) return;
+    const selectedGame = games.find((game) => game.id === selectedGameId);
+    setEdgeLoading(true);
+    setAnalyzing(true);
+    setAnalysisOutput(null);
+    setTimeout(() => outputPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    try {
+      const response = await fetch("/api/edge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+        body: JSON.stringify({
+          message: `Give me a full analysis of ${selectedGame ? selectedGame.label : "the selected AFL game"}.`,
+          context: { mode: "analysis", analysisRequest: true, sport, gameId: selectedGameId },
+        }),
+      });
+      const data = await response.json();
+      if (data?.analysis) {
+        setMultiOutput(null);
+        setAnalysisOutput({ ...data.analysis, summary: data.reply });
+      } else {
+        setAnalysisOutput({ error: data?.reply || "Could not analyse this game right now." });
+      }
+    } catch {
+      setAnalysisOutput({ error: "Could not analyse this game right now." });
+    } finally {
+      setEdgeLoading(false);
+      setAnalyzing(false);
+    }
+  };
+
   const previewMulti = () => {
     if (edgeLoading) return;
+    setAnalysisOutput(null);
     const requestPart = request.trim() ? `. Focus: ${request.trim()}` : "";
     const riskPart = riskProfile !== "Balanced" ? ` with a ${riskProfile} risk profile` : "";
     const selectedGame = games.find((game) => game.id === selectedGameId);
@@ -1401,14 +1536,17 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                   <div className="mt-6 space-y-5">
                     <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
                     <EdgeSelectField label="Game" value={selectedGameId} onChange={setSelectedGameId} options={[{ label: games.length ? "Select upcoming game" : "Loading games…", value: "" }, ...games.map((game) => ({ label: game.label, value: game.id }))]} />
-                    <label className="space-y-1 text-sm font-medium">Focus area<Input value="Recent form, injuries and head-to-head" readOnly /></label>
-                    <div className="pt-2"><Button className="w-full rounded-2xl py-3 text-base">Preview game analysis</Button></div>
+                    <label className="space-y-1 text-sm font-medium">Focus area<Input value="Form, market read, key players & value" readOnly /></label>
+                    <div className="pt-2"><Button onClick={previewAnalysis} disabled={edgeLoading || !selectedGameId} className="w-full rounded-2xl py-3 text-base">{edgeLoading ? "Analysing..." : "Preview game analysis"}</Button></div>
                   </div>
                 )}
               </div>
             </Card>
 
             <div className="space-y-6" ref={outputPanelRef}>
+              {analysisOutput || analyzing ? (
+                <GameAnalysisOutput analysis={analysisOutput} loading={analyzing} />
+              ) : (
               <Card>
                 <div className="p-5 md:p-6">
                   <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
@@ -1535,6 +1673,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                   ) : null}
                 </div>
               </Card>
+              )}
             </div>
           </section>
 
