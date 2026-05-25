@@ -1358,7 +1358,7 @@ function structureLegFromEnriched(p) {
   const matchupPct = p.matchupFactor && p.matchupFactor !== 1 ? Math.round((p.matchupFactor - 1) * 100) : 0;
 
   const details = [
-    { label: "Market line", value: `Over ${p.line}` },
+    { label: "Market line", value: `${Math.ceil(Number(p.line))}+` },
     { label: "Best odds", value: p.bookmaker ? `$${p.odds} (${p.bookmaker})` : `$${p.odds}` },
     { label: "Recent average", value: `${p.recentAvg}` },
     { label: "Last 5 hit rate", value: l5 },
@@ -1373,7 +1373,7 @@ function structureLegFromEnriched(p) {
   }
 
   return {
-    name: `${p.playerName} Over ${p.line} ${metricLabel(p.metric)}`,
+    name: `${p.playerName} ${Math.ceil(Number(p.line))}+ ${metricLabel(p.metric)}`,
     player: p.playerName,
     metric: p.metric,
     team: p.team || null,
@@ -1736,7 +1736,7 @@ INSTRUCTIONS FOR GRID BUILD:
       const l5 = p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : "N/A";
       const l10 = p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "N/A";
       const marginStr = p.margin != null ? `${p.margin >= 0 ? "+" : ""}${p.margin}` : "N/A";
-      return `LEG ${i + 1}: ${p.playerName} — ${p.metric} Over ${p.line} @ $${p.odds}${p.bookmaker ? ` (best at ${p.bookmaker})` : ""} (${p.gameLabel})
+      return `LEG ${i + 1}: ${p.playerName} — ${Math.ceil(Number(p.line))}+ ${p.metric} @ $${p.odds}${p.bookmaker ? ` (best at ${p.bookmaker})` : ""} (${p.gameLabel})
    Recent average: ${p.recentAvg} (clears the line by ${marginStr})
    Hit rate L5: ${l5} | L10: ${l10} (from ${p.sampleSize} games)
    Recent-form chance: ${fmtPct(p.empirical)} | Odds imply: ${fmtPct(p.implied)} | Form edge: ${fmtEdge(p.edge)}
@@ -1751,7 +1751,7 @@ INSTRUCTIONS FOR GRID BUILD:
     .slice(0, 5)
     .map(
       (p) =>
-        `• ${p.playerName} — ${p.metric} Over ${p.line} @ $${p.odds} | form chance ${fmtPct(p.empirical)} | edge ${fmtEdge(p.edge)}`
+        `• ${p.playerName} — ${Math.ceil(Number(p.line))}+ ${p.metric} @ $${p.odds} | form chance ${fmtPct(p.empirical)} | edge ${fmtEdge(p.edge)}`
     )
     .join("\n");
 
