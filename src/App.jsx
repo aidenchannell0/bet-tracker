@@ -1638,21 +1638,26 @@ function LandingPage({ setActivePage, setAuthMode }) {
             </Card>
           </section>
 
-          <section className="space-y-7 rounded-3xl border border-[#C49A4A]/30 bg-[#FAF7EF] p-6 md:p-10">
-            <div className="max-w-2xl">
-              <span className="inline-flex rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">AI multi builder</span>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Meet Grid Build</h2>
-              <p className="mt-3 text-base leading-7 text-slate-600">Build structured example multis from real AFL form, live market lines and a transparent edge model — then track how they perform. It’s a data-driven analysis tool, not a betting tips service.</p>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-              <ul className="space-y-3 text-sm leading-6 text-slate-700">
+          <section className="rounded-3xl border border-[#C49A4A]/30 bg-[#FAF7EF] p-6 md:p-10">
+            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+              <div className="space-y-6">
+                <div>
+                  <span className="inline-flex rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">AI multi builder</span>
+                  <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Meet Grid Build</h2>
+                  <p className="mt-3 text-base leading-7 text-slate-600">Build structured example multis from real AFL form, live market lines and a transparent edge model — then track how they perform. It’s a data-driven analysis tool, not a betting tips service.</p>
+                </div>
+                <ul className="space-y-3 text-sm leading-6 text-slate-700">
                 <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Real recent form</span> — last-5 / last-10 hit rates from AFL game logs.</span></li>
                 <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Value vs the market</span> — each leg’s form chance compared to the bookmaker’s implied price.</span></li>
                 <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Correlation-aware odds</span> — same-game legs priced honestly, not just multiplied.</span></li>
                 <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Matchup-adjusted</span> — factors in how the opponent concedes on each stat.</span></li>
                 <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Refine by chat</span> — “swap leg 2”, “make it safer”, “around $3”.</span></li>
-              </ul>
+                </ul>
+                <div className="flex flex-col items-start gap-3 pt-1 sm:flex-row sm:items-center">
+                  <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try Grid Build — 3 free builds a week</Button>
+                  <p className="text-sm text-slate-500">Free to start. 18+ · Gamble responsibly.</p>
+                </div>
+              </div>
 
               <Card>
                 <div className="p-5">
@@ -1701,11 +1706,6 @@ function LandingPage({ setActivePage, setAuthMode }) {
                   <p className="mt-3 text-[11px] leading-4 text-slate-500">Illustrative example with placeholder players. Informational analysis only — not betting advice or a guarantee of results.</p>
                 </div>
               </Card>
-            </div>
-
-            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-              <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try Grid Build — 3 free builds a week</Button>
-              <p className="text-sm text-slate-500">Free to start. 18+ · Gamble responsibly.</p>
             </div>
           </section>
 
