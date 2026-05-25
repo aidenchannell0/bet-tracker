@@ -1044,12 +1044,21 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   };
   choose(0, [], new Set(), 1);
 
-  // Tightest tolerance band that contains at least one combo
-  let pool = [];
-  for (const tol of [0.2, 0.35, 0.5, 0.75, 1.0, Infinity]) {
-    pool = combos.filter((c) => c.diff <= tol);
-    if (pool.length) break;
-  }
+  // Tightest tolerance band (within a filter) that contains at least one combo
+  const tightestPool = (filterFn) => {
+    for (const tol of [0.2, 0.35, 0.5, 0.75, 1.0, Infinity]) {
+      const p = combos.filter((c) => filterFn(c) && c.diff <= tol);
+      if (p.length) return p;
+    }
+    return [];
+  };
+
+  // Honour the requested leg count FIRST. Otherwise a shorter combo that happens to
+  // land closer to the target (e.g. a 3-leg combo within $0.20) would crowd out the
+  // 4-leg combos the user actually asked for, since the tolerance band is chosen
+  // before leg count. Only fall back to other counts if no wantCount combo exists.
+  let pool = wantCount ? tightestPool((c) => c.legs.length === wantCount) : [];
+  if (!pool.length) pool = tightestPool(() => true);
   if (!pool.length) pool = closest ? [closest] : [];
   if (!pool.length) return ordered.slice(0, wantCount || 3);
 
@@ -1586,8 +1595,9 @@ function editAFLMulti(enriched, currentMulti, action, ctx = {}) {
     if (i == null || i < 0 || i >= legs.length) return { ok: false, message: "I couldn't tell which leg to swap — try 'swap leg 2' or name the player." };
     const old = legs[i];
     const metric = legMetricOf(old);
+    // Exclude every current player INCLUDING the one being swapped out, so the
+    // replacement is a genuinely different player — never swap a player for himself.
     const used = usedPlayers();
-    used.delete((old.player || "").toLowerCase());
     const repl = pickReplacement(enriched, used, metric, Number(old.odds));
     if (!repl) return { ok: false, message: `I couldn't find a suitable replacement for **${old.player}** in the ${metric ? metricLabel(metric) + " " : ""}markets available right now.` };
     legs[i] = structureLegFromEnriched(repl);
@@ -1600,8 +1610,8 @@ function editAFLMulti(enriched, currentMulti, action, ctx = {}) {
   } else if (action.action === "safer") {
     const i = weakestLegIndex(legs);
     const old = legs[i];
+    // Exclude the swapped-out player too, so "make it safer" brings in a new name.
     const used = usedPlayers();
-    used.delete((old.player || "").toLowerCase());
     const cands = eligibleCandidates(enriched, used, legMetricOf(old));
     const safer =
       cands.filter((c) => Number(c.odds) <= Number(old.odds)).sort((a, b) => (b.empirical ?? 0) - (a.empirical ?? 0))[0] ||
