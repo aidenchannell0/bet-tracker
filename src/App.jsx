@@ -843,7 +843,30 @@ function EdgeDetailToggle({ leg }) {
           </div>
           <div>
             <p className="font-medium text-slate-900">Recent trend</p>
-            <p className="mt-1 leading-6">{leg.trend}</p>
+            {Array.isArray(leg.last5Values) && leg.last5Values.length ? (
+              <>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {[...leg.last5Values].reverse().map((value, index, arr) => {
+                    const isLatest = index === arr.length - 1;
+                    return (
+                      <span
+                        key={index}
+                        title={isLatest ? "Latest game" : undefined}
+                        className={
+                          "inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-sm font-semibold " +
+                          (isLatest ? "bg-[#11203B] text-white ring-2 ring-[#C49A4A]" : "bg-[#FAF7EF] text-[#11203B]")
+                        }
+                      >
+                        {value}
+                      </span>
+                    );
+                  })}
+                </div>
+                <p className="mt-1 text-xs text-slate-500">Oldest → latest (boxed){typeof leg.line === "number" ? ` · line: Over ${leg.line}` : ""}</p>
+              </>
+            ) : (
+              <p className="mt-1 leading-6">{leg.trend}</p>
+            )}
           </div>
           <div>
             <p className="font-medium text-slate-900">Why Grid Build included it</p>

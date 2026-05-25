@@ -1359,6 +1359,8 @@ function structureLegFromEnriched(p) {
     edgePct, // form hit-rate minus odds-implied probability (the value signal)
     reason: `Cleared this line in ${l10} recent games, averaging ${p.recentAvg}.`,
     details,
+    last5Values: p.last5Values || [], // most-recent-first; UI highlights the latest game
+    line: p.line,
     trend: `Last 5 results: ${(p.last5Values || []).join(", ")}.`,
     extraReason: `Recent-form chance ${empPct}%${impPct != null ? ` vs odds-implied ${impPct}%` : ""}${matchupPct !== 0 && p.opponent ? `, matchup-adjusted for ${p.opponent} (${matchupPct >= 0 ? "+" : ""}${matchupPct}% ${metricLabel(p.metric)})` : ""}. Based on ${p.sampleSize} recent games.`,
   };
