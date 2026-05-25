@@ -755,7 +755,17 @@ async function fetchDefenseContext(req) {
   }
 }
 
-function extractPlayerPropsFromEvent(event) {
+// Does a bookmaker match the user's chosen book? Matches on The Odds API key or a
+// normalised title, so "pointsbetau"/"PointsBet (AU)" and "ladbrokes_au"/"Ladbrokes"
+// both resolve. Empty/"best" => match everything (best price across books).
+function bookmakerMatches(bookmaker, preferredBook) {
+  if (!preferredBook || preferredBook === "best") return true;
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const want = norm(preferredBook);
+  return norm(bookmaker.key) === want || norm(bookmaker.title) === want;
+}
+
+function extractPlayerPropsFromEvent(event, preferredBook = null) {
   const props = [];
   const overMarketKeys = [
     "player_disposals_over",
@@ -784,6 +794,7 @@ function extractPlayerPropsFromEvent(event) {
   const bestByKey = new Map();
 
   for (const bookmaker of event?.bookmakers || []) {
+    if (!bookmakerMatches(bookmaker, preferredBook)) continue;
     for (const market of bookmaker.markets || []) {
       if (!overMarketKeys.includes(market.key)) continue;
 
@@ -2433,6 +2444,9 @@ export default async function handler(req, res) {
       if (!parseOddsValue(targetOdds)) targetOdds = "$2.00";
       const riskProfile =
         detectRiskFromMessage(message) || getSafeString(context?.riskProfile, "Balanced");
+      // Optional: pin all legs to one bookmaker so the multi is placeable there.
+      // Empty/"best" keeps the default best-price-across-books behaviour.
+      const preferredBook = getSafeString(context?.bookmaker, "");
 
       // Choose which game(s) to build from: a specific game (selected in the form, or
       // named in the chat) if given; otherwise probe the first few upcoming games.
@@ -2476,7 +2490,7 @@ export default async function handler(req, res) {
       for (const result of eventMarketResults) {
         if (gamesUsed >= 2) break;
         if (result.status === "fulfilled" && result.value?.event) {
-          const gameProps = extractPlayerPropsFromEvent(result.value.event);
+          const gameProps = extractPlayerPropsFromEvent(result.value.event, preferredBook);
           if (gameProps.length > 0) {
             allProps.push(...gameProps);
             gamesUsed += 1;

@@ -929,6 +929,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
   const [customTargetOdds, setCustomTargetOdds] = useState("2.20");
   const [customLegs, setCustomLegs] = useState("6");
   const [riskProfile, setRiskProfile] = useState("Balanced");
+  const [bookmaker, setBookmaker] = useState("");
   const [request, setRequest] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [edgeLoading, setEdgeLoading] = useState(false);
@@ -1190,6 +1191,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
             legs: displayedLegs,
             targetOdds: displayedTargetOdds,
             riskProfile,
+            bookmaker,
             request,
             gameId: selectedGameId,
             previousEdgeContext: lastEdgeContext,
@@ -1340,6 +1342,20 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                     <EdgeSelectField label="Target odds" value={targetOdds} onChange={setTargetOdds} options={["$1.50", "$2.00", "$3.00", "$5.00", "Custom"]} />
                     {targetOdds === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom target odds<Input type="number" min="1" step="0.01" value={customTargetOdds} onChange={(event) => setCustomTargetOdds(event.target.value)} placeholder="e.g. 2.20" /></label> : null}
                     <EdgeSelectField label="Risk profile" value={riskProfile} onChange={setRiskProfile} options={["Safer", "Balanced", "Aggressive"]} />
+                    <EdgeSelectField
+                      label="Bookmaker"
+                      value={bookmaker}
+                      onChange={setBookmaker}
+                      options={[
+                        { label: "Best available", value: "" },
+                        { label: "Sportsbet", value: "sportsbet" },
+                        { label: "TAB", value: "tab" },
+                        { label: "Ladbrokes", value: "ladbrokes_au" },
+                        { label: "Neds", value: "neds" },
+                        { label: "PointsBet", value: "pointsbetau" },
+                        { label: "Unibet", value: "unibet" },
+                      ]}
+                    />
                     <label className="space-y-1 text-sm font-medium">Optional request<Input value={request} onChange={(event) => setRequest(event.target.value)} placeholder="e.g. Disposals only, no same-game legs" /></label>
                     <div className="pt-2"><Button onClick={previewMulti} disabled={edgeLoading} className="w-full rounded-2xl py-3 text-base">{edgeLoading ? "Analysing..." : "Preview example multi"}</Button></div>
                   </div>
