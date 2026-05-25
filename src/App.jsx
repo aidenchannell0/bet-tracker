@@ -1637,6 +1637,62 @@ function LandingPage({ setActivePage, setAuthMode }) {
             </Card>
           </section>
 
+          <section className="space-y-7 rounded-3xl border border-[#C49A4A]/30 bg-[#FAF7EF] p-6 md:p-10">
+            <div className="max-w-2xl">
+              <span className="inline-flex rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">AI multi builder</span>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Meet Grid Build</h2>
+              <p className="mt-3 text-base leading-7 text-slate-600">Build structured example multis from real AFL form, live market lines and a transparent edge model — then track how they perform. It’s a data-driven analysis tool, not a betting tips service.</p>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+              <ul className="space-y-3 text-sm leading-6 text-slate-700">
+                <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Real recent form</span> — last-5 / last-10 hit rates from AFL game logs.</span></li>
+                <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Value vs the market</span> — each leg’s form chance compared to the bookmaker’s implied price.</span></li>
+                <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Correlation-aware odds</span> — same-game legs priced honestly, not just multiplied.</span></li>
+                <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Matchup-adjusted</span> — factors in how the opponent concedes on each stat.</span></li>
+                <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Refine by chat</span> — “swap leg 2”, “make it safer”, “around $3”.</span></li>
+              </ul>
+
+              <Card>
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Grid Build output · Example</p>
+                      <h3 className="mt-1 text-xl font-semibold">3-leg AFL multi</h3>
+                    </div>
+                    <div className="shrink-0 rounded-2xl bg-[#11203B] px-4 py-2 text-right text-white">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-300">Combined</p>
+                      <p className="text-xl font-semibold">$2.12</p>
+                      <p className="text-[10px] text-slate-300">~48% chance</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 inline-flex rounded-lg bg-[#2E7D5B]/15 px-2.5 py-1 text-xs font-semibold text-[#2E7D5B]">Value vs market +4% · 2 of 3 legs positive-edge</div>
+                  <div className="mt-4 space-y-2">
+                    {[
+                      { name: "Midfielder A — 25+ disposals", conf: "79%", chip: "+7% value", up: true, odds: "$1.38" },
+                      { name: "Forward B — 1+ goals", conf: "84%", chip: "+3% value", up: true, odds: "$1.30" },
+                      { name: "Midfielder C — 20+ disposals", conf: "76%", chip: "−2% edge", up: false, odds: "$1.18" },
+                    ].map((leg) => (
+                      <div key={leg.name} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-[#FAF7EF] px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-[#11203B]">{leg.name}</p>
+                          <p className="text-xs text-slate-500">Confidence {leg.conf} · {leg.odds}</p>
+                        </div>
+                        <span className={"shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold " + (leg.up ? "bg-[#2E7D5B]/15 text-[#2E7D5B]" : "bg-slate-200 text-slate-600")}>{leg.chip}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-[11px] leading-4 text-slate-500">Illustrative example with placeholder players. Informational analysis only — not betting advice or a guarantee of results.</p>
+                </div>
+              </Card>
+            </div>
+
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+              <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try Grid Build — 3 free builds a week</Button>
+              <p className="text-sm text-slate-500">Free to start. 18+ · Gamble responsibly.</p>
+            </div>
+          </section>
+
           <section className="grid gap-4 md:grid-cols-3">
             <Card><div className="p-5"><h3 className="text-lg font-semibold">Track every bet</h3><p className="mt-2 text-sm leading-6 text-slate-600">Record stakes, odds, returns, sports, results and notes so your betting history is easy to review.</p></div></Card>
             <Card><div className="p-5"><h3 className="text-lg font-semibold">Understand performance</h3><p className="mt-2 text-sm leading-6 text-slate-600">See profit/loss, ROI, win rate, streaks and weekly, monthly or yearly trends.</p></div></Card>
