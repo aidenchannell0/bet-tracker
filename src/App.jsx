@@ -1660,26 +1660,41 @@ function LandingPage({ setActivePage, setAuthMode }) {
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Grid Build output · Example</p>
                       <h3 className="mt-1 text-xl font-semibold">3-leg AFL multi</h3>
+                      <p className="text-xs text-slate-500">Geelong Cats vs Carlton Blues</p>
                     </div>
                     <div className="shrink-0 rounded-2xl bg-[#11203B] px-4 py-2 text-right text-white">
                       <p className="text-[10px] uppercase tracking-wide text-slate-300">Combined</p>
                       <p className="text-xl font-semibold">$2.12</p>
                       <p className="text-[10px] text-slate-300">~48% chance</p>
+                      <p className="text-[10px] text-emerald-300">correlation-adjusted</p>
                     </div>
                   </div>
                   <div className="mt-3 inline-flex rounded-lg bg-[#2E7D5B]/15 px-2.5 py-1 text-xs font-semibold text-[#2E7D5B]">Value vs market +4% · 2 of 3 legs positive-edge</div>
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-4 space-y-3">
                     {[
-                      { name: "Midfielder A — 25+ disposals", conf: "79%", chip: "+7% value", up: true, odds: "$1.38" },
-                      { name: "Forward B — 1+ goals", conf: "84%", chip: "+3% value", up: true, odds: "$1.30" },
-                      { name: "Midfielder C — 20+ disposals", conf: "76%", chip: "−2% edge", up: false, odds: "$1.18" },
-                    ].map((leg) => (
-                      <div key={leg.name} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-[#FAF7EF] px-3 py-2.5">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-[#11203B]">{leg.name}</p>
-                          <p className="text-xs text-slate-500">Confidence {leg.conf} · {leg.odds}</p>
+                      { team: "Geelong Cats", name: "Midfielder A — 25+ disposals", hit: "9/10", avg: "28.4", matchup: { text: "Carlton concedes +9% disposals", up: true }, last5: [31, 26, 24, 29, 27], conf: "79%", chip: "+7% value", up: true, odds: "$1.38", book: "Sportsbet" },
+                      { team: "Carlton Blues", name: "Forward B — 1+ goals", hit: "8/10", avg: "1.8", matchup: { text: "Geelong concedes −6% goals", up: false }, last5: [2, 1, 0, 2, 1], conf: "84%", chip: "+3% value", up: true, odds: "$1.30", book: "TAB" },
+                      { team: "Geelong Cats", name: "Midfielder C — 20+ disposals", hit: "8/10", avg: "23.1", matchup: null, last5: [22, 25, 19, 24, 21], conf: "76%", chip: "−2% edge", up: false, odds: "$1.18", book: "Ladbrokes" },
+                    ].map((leg, i) => (
+                      <div key={leg.name} className="relative rounded-2xl border border-slate-200 bg-[#FAF7EF] p-4">
+                        <TeamCrest team={leg.team} className="absolute right-3 top-3 h-6 w-6 drop-shadow-sm" />
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Leg {i + 1}</p>
+                        <h4 className="mt-0.5 pr-8 text-sm font-semibold text-[#11203B]">{leg.name}</h4>
+                        <p className="mt-1.5 text-xs text-slate-600">Cleared this line {leg.hit} recent games · avg {leg.avg}</p>
+                        {leg.matchup ? (
+                          <p className={"mt-0.5 text-xs font-medium " + (leg.matchup.up ? "text-[#2E7D5B]" : "text-[#A94442]")}>Matchup: {leg.matchup.text}</p>
+                        ) : null}
+                        <div className="mt-2 flex flex-wrap items-center gap-1">
+                          {leg.last5.map((v, idx, arr) => (
+                            <span key={idx} className={"inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1 text-[11px] font-semibold " + (idx === arr.length - 1 ? "bg-[#11203B] text-white ring-1 ring-[#C49A4A]" : "bg-[#E8E2D4] text-[#11203B]")}>{v}</span>
+                          ))}
+                          <span className="ml-1 text-[10px] text-slate-500">last 5</span>
                         </div>
-                        <span className={"shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold " + (leg.up ? "bg-[#2E7D5B]/15 text-[#2E7D5B]" : "bg-slate-200 text-slate-600")}>{leg.chip}</span>
+                        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-[#11203B]">
+                          <span>Confidence {leg.conf}</span>
+                          <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (leg.up ? "bg-[#2E7D5B]/15 text-[#2E7D5B]" : "bg-slate-200 text-slate-600")}>{leg.chip}</span>
+                          <span className="text-slate-500">{leg.odds} · {leg.book}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
