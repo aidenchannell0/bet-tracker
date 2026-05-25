@@ -1748,7 +1748,8 @@ function MobileBottomNav({ activePage, setActivePage, formRef }) {
 }
 
 export default function BettingTrackerWebsite() {
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
+  // Dark by default — only light if the user has explicitly chosen it.
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") !== "light");
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
