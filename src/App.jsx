@@ -786,6 +786,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
       </main>
       <Footer setActivePage={setActivePage} />
       <Analytics />
+      <MobileBottomNav activePage="settings" setActivePage={setActivePage} />
     </div>
   );
 }
@@ -1580,6 +1581,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
       </main>
       <Footer setActivePage={setActivePage} />
       <Analytics />
+      <MobileBottomNav activePage="edge" setActivePage={setActivePage} />
     </div>
   );
 }
@@ -2263,7 +2265,7 @@ export default function BettingTrackerWebsite() {
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
 
   return (
-    <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
+    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl">
 
@@ -2785,6 +2787,7 @@ export default function BettingTrackerWebsite() {
       </main>
       <Footer setActivePage={setActivePage} />
       <Analytics />
+      <MobileBottomNav activePage={activePage} setActivePage={setActivePage} formRef={formRef} />
     </div>
   );
 }
