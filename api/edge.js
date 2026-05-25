@@ -77,6 +77,56 @@ async function recordGridBuildUsage(userId) {
   }
 }
 
+function nameKeyFromName(full) {
+  const words = String(full || "")
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length) return "";
+  return `${words[0][0]}_${words[words.length - 1]}`;
+}
+
+function isoWeekKey(d = new Date()) {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+// Log each rated leg (deduped to one per leg per round) for later calibration.
+async function recordPredictions(selected, season, userId) {
+  if (!supabaseAdmin || !selected?.length) return;
+  try {
+    const week = isoWeekKey();
+    const rows = selected
+      .filter((p) => p.playerName && p.metric && p.line != null && p.empirical != null)
+      .map((p) => {
+        const nk = nameKeyFromName(p.playerName);
+        return {
+          user_id: userId || null,
+          player_name: p.playerName,
+          name_key: nk,
+          metric: p.metric,
+          line: p.line,
+          predicted_prob: Number((p.empirical ?? 0).toFixed(4)),
+          odds: Number(p.odds) || null,
+          game_label: p.gameLabel || null,
+          season: season || null,
+          dedupe_key: `${nk}|${p.metric}|${p.line}|${week}`,
+        };
+      });
+    if (rows.length) {
+      await supabaseAdmin.from("grid_build_predictions").upsert(rows, { onConflict: "dedupe_key" });
+    }
+  } catch (error) {
+    console.error("record predictions error:", error);
+  }
+}
+
 const EDGE_SYSTEM_PROMPT = `
 You are Grid Build, Bet Grid's AI-powered multi builder and sports market analysis assistant.
 
@@ -2523,6 +2573,11 @@ export default async function handler(req, res) {
         if (structuredMulti && !access.subscribed && access.userId) {
           await recordGridBuildUsage(access.userId);
           usageAfter = access.usage + 1;
+        }
+
+        // Log the rated legs for calibration (compare predictions vs outcomes later)
+        if (structuredMulti && computed.selected?.length) {
+          await recordPredictions(computed.selected, defenseContext?.season, access.userId);
         }
 
         return res.status(200).json({

@@ -761,6 +761,23 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
   const [entitlement, setEntitlement] = useState({ subscribed: false, usage: 0, limit: 3 });
   const [upgrading, setUpgrading] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
+  const [calibration, setCalibration] = useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/calibration");
+        const data = await response.json();
+        if (!cancelled && data?.available) setCalibration(data);
+      } catch {
+        /* ignore — track-record card just won't show */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!accessToken) return;
@@ -1066,6 +1083,34 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
               </div>
             </div>
           </header>
+
+          {calibration && calibration.resolved >= 10 ? (
+            <Card className="mb-6">
+              <div className="p-5 md:p-6">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Model track record</p>
+                    <h2 className="mt-1 text-xl font-semibold">How our ratings have held up</h2>
+                  </div>
+                  {calibration.overall ? (
+                    <p className="text-sm text-slate-600">Across <span className="font-semibold text-[#11203B]">{calibration.overall.n}</span> resolved legs we predicted <span className="font-semibold text-[#11203B]">{calibration.overall.predicted}%</span> and they hit <span className="font-semibold text-[#2E7D5B]">{calibration.overall.actual}%</span>.</p>
+                  ) : null}
+                </div>
+                <div className="mt-4 space-y-2">
+                  {calibration.buckets.map((bucket) => (
+                    <div key={bucket.label} className="flex items-center gap-3 text-sm">
+                      <span className="w-24 shrink-0 font-medium text-[#11203B]">Rated {bucket.label}</span>
+                      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                        <div className="absolute inset-y-0 left-0 rounded-full bg-[#2E7D5B]" style={{ width: `${Math.min(100, bucket.actual)}%` }} />
+                      </div>
+                      <span className="w-28 shrink-0 text-right text-slate-600">hit {bucket.actual}% <span className="text-slate-400">({bucket.n})</span></span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-slate-500">We log every leg Grid Build rates and check it against the actual result. Well-calibrated means predicted ≈ actual.</p>
+              </div>
+            </Card>
+          ) : null}
 
           <section className="grid items-start gap-6 lg:grid-cols-[380px_1fr]">
             <Card className="h-fit">
