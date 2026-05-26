@@ -230,6 +230,37 @@ const TEAM_ALIAS_MAP = [
   { aliases: ["knights", "newcastle knights"], sport: "NRL", team: "Newcastle Knights" },
   { aliases: ["warriors", "nz warriors", "new zealand warriors"], sport: "NRL", team: "New Zealand Warriors" },
   { aliases: ["tigers", "wests tigers"], sport: "NRL", team: "Wests Tigers" },
+
+  { aliases: ["hawks", "atlanta hawks"], sport: "NBA", team: "Atlanta Hawks" },
+  { aliases: ["celtics", "boston celtics"], sport: "NBA", team: "Boston Celtics" },
+  { aliases: ["nets", "brooklyn nets"], sport: "NBA", team: "Brooklyn Nets" },
+  { aliases: ["hornets", "charlotte hornets"], sport: "NBA", team: "Charlotte Hornets" },
+  { aliases: ["bulls", "chicago bulls"], sport: "NBA", team: "Chicago Bulls" },
+  { aliases: ["cavs", "cavaliers", "cleveland cavaliers"], sport: "NBA", team: "Cleveland Cavaliers" },
+  { aliases: ["mavs", "mavericks", "dallas mavericks"], sport: "NBA", team: "Dallas Mavericks" },
+  { aliases: ["nuggets", "denver nuggets"], sport: "NBA", team: "Denver Nuggets" },
+  { aliases: ["pistons", "detroit pistons"], sport: "NBA", team: "Detroit Pistons" },
+  { aliases: ["warriors", "golden state", "golden state warriors", "gsw"], sport: "NBA", team: "Golden State Warriors" },
+  { aliases: ["rockets", "houston rockets"], sport: "NBA", team: "Houston Rockets" },
+  { aliases: ["pacers", "indiana pacers"], sport: "NBA", team: "Indiana Pacers" },
+  { aliases: ["clippers", "la clippers", "los angeles clippers"], sport: "NBA", team: "LA Clippers" },
+  { aliases: ["lakers", "la lakers", "los angeles lakers"], sport: "NBA", team: "Los Angeles Lakers" },
+  { aliases: ["grizzlies", "memphis grizzlies"], sport: "NBA", team: "Memphis Grizzlies" },
+  { aliases: ["heat", "miami heat"], sport: "NBA", team: "Miami Heat" },
+  { aliases: ["bucks", "milwaukee bucks"], sport: "NBA", team: "Milwaukee Bucks" },
+  { aliases: ["timberwolves", "wolves", "minnesota timberwolves"], sport: "NBA", team: "Minnesota Timberwolves" },
+  { aliases: ["pelicans", "pels", "new orleans pelicans"], sport: "NBA", team: "New Orleans Pelicans" },
+  { aliases: ["knicks", "ny knicks", "new york knicks"], sport: "NBA", team: "New York Knicks" },
+  { aliases: ["thunder", "okc", "oklahoma city", "oklahoma city thunder"], sport: "NBA", team: "Oklahoma City Thunder" },
+  { aliases: ["magic", "orlando magic"], sport: "NBA", team: "Orlando Magic" },
+  { aliases: ["sixers", "76ers", "philadelphia 76ers", "philly"], sport: "NBA", team: "Philadelphia 76ers" },
+  { aliases: ["phoenix suns", "phoenix"], sport: "NBA", team: "Phoenix Suns" },
+  { aliases: ["trail blazers", "blazers", "portland trail blazers"], sport: "NBA", team: "Portland Trail Blazers" },
+  { aliases: ["kings", "sacramento kings"], sport: "NBA", team: "Sacramento Kings" },
+  { aliases: ["spurs", "san antonio spurs", "sas"], sport: "NBA", team: "San Antonio Spurs" },
+  { aliases: ["raptors", "toronto raptors"], sport: "NBA", team: "Toronto Raptors" },
+  { aliases: ["jazz", "utah jazz"], sport: "NBA", team: "Utah Jazz" },
+  { aliases: ["wizards", "washington wizards"], sport: "NBA", team: "Washington Wizards" },
 ];
 
 function buildBaseUrl(req) {
@@ -771,16 +802,18 @@ const PLAYER_MARKETS_BY_SPORT = {
 };
 
 // Per-team defensive factors for the current season (cached server-side).
-async function fetchDefenseContext(req) {
+// Sport-aware — calls the merged /api/defense endpoint.
+async function fetchDefenseContext(req, sport = "AFL") {
   try {
     const baseUrl = buildBaseUrl(req);
-    const url = new URL("/api/afl-defense", baseUrl);
+    const url = new URL("/api/defense", baseUrl);
+    url.searchParams.set("sport", sport);
     const response = await fetch(url.toString());
     const data = await response.json();
     if (!response.ok || !data.available) return { available: false, factors: null };
     return { available: true, factors: data.factors || null, season: data.season };
   } catch (error) {
-    console.error("AFL defense context error:", error);
+    console.error(`${sport} defense context error:`, error);
     return { available: false, factors: null };
   }
 }
@@ -2949,7 +2982,9 @@ ${buildAnalysisDataBlock(analysis)}`,
         };
 
         // Defence factors: AFL only — NBA has no per-team matchup data yet (Phase 2).
-        const defenseContext = sport === "AFL" ? await fetchDefenseContext(req) : { available: false, factors: null };
+        // Defence factors are now sport-aware; the /api/defense endpoint dispatches
+        // off ?sport= and falls back to neutral factors when data is sparse.
+        const defenseContext = await fetchDefenseContext(req, sport);
         const defenseFactors = defenseContext?.factors || null;
 
         // Edit path: refine the current build in place using the fresh pool, no GPT call.
