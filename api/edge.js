@@ -1148,13 +1148,22 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   if (!pool.length) pool = closest ? [closest] : [];
   if (!pool.length) return ordered.slice(0, wantCount || 3);
 
-  // Prefer requested leg count, then evenly-priced legs (avoid one long leg + filler
-  // near-locks), then market variety, then highest chance, then closeness to target
+  // Prefer requested leg count, then closeness-to-target (bucketed coarsely so form
+  // still matters between near-equivalent overshoots), then evenly-priced legs (no
+  // one-long-leg + filler), market variety, highest chance, then fine-grained diff.
+  //
+  // The bucketed diff matters most when the tolerance band fell through to Infinity
+  // (target unreachable with available lines). Without it, the cheapest achievable
+  // combo loses to a middle-priced combo on `prob` even though it's much closer to
+  // the user's target — e.g. NBA $2.00 target with no sub-$1.59 lines gets a $5.86
+  // build instead of the $4.12 floor. $0.50 buckets keep tight builds unaffected.
+  const diffBucket = (c) => Math.floor(c.diff / 0.5);
   pool.sort(
     (a, b) =>
       a.legPenalty - b.legPenalty ||
-      a.balance - b.balance ||
+      diffBucket(a) - diffBucket(b) ||
       a.diversityPenalty - b.diversityPenalty ||
+      a.balance - b.balance ||
       b.prob - a.prob ||
       a.diff - b.diff
   );
