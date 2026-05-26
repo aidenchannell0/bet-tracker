@@ -1,8 +1,9 @@
 # Bet Grid — project handoff
 
-A Vite + React + Supabase app on Vercel (**bettracker.tech**): an AFL bet **tracker**
-plus an AI **multi builder ("Grid Build")** and a data-backed **Game Analysis**.
-This note lets a new session pick up cold.
+A Vite + React + Supabase app on Vercel (**bettracker.tech**): an AFL + NBA bet
+**tracker** plus an AI **multi builder ("Grid Build")** and a data-backed
+**Game Analysis** (AFL only — NBA Game Analysis is Phase 2). This note lets a
+new session pick up cold.
 
 ## Stack & deploy
 - **Frontend:** single big file `src/App.jsx` (React 19, Tailwind v4, recharts). Vite build.
@@ -13,24 +14,34 @@ This note lets a new session pick up cold.
 
 ## Key files
 ### Grid Build & analysis
-- `api/edge.js` — Grid Build brain + Game Analysis brain. Big file (~2800 lines). Branches by intent
+- `api/edge.js` — Grid Build brain + Game Analysis brain. Big file (~2900 lines). Branches by intent
   (multi build, multi edit, game analysis, market stats, event markets, player stats, available games).
-  Pulls odds (`/api/event-odds`) + AFL stats (`/api/afl-stats`) + defence factors (`/api/afl-defense`),
-  computes implied/edge/correlation-adjusted prob, builds legs, GPT only narrates.
+  Sport-aware: pulls odds (`/api/event-odds`) + player stats (`/api/stats?sport=...`) + defence
+  factors (`/api/defense?sport=...`), computes implied/edge/correlation-adjusted prob, builds legs,
+  GPT only narrates. `PLAYER_MARKETS_BY_SPORT` + `TEAM_ALIAS_MAP` cover AFL, NRL (teams only), NBA.
 - `api/odds.js`, `api/event-odds.js` — The Odds API wrappers (sport key map, market lists per sport).
-- `api/afl-stats.js`, `api/afl-defense.js` — read scraped AFL data from Supabase.
-- `api/nba-stats.js` — **NEW (Phase 1 WIP)**, mirrors afl-stats shape; reads from `nba_player_games`.
-  Not yet consumed by edge.js — that's the remaining NBA work.
+- `api/stats.js` — sport-aware player game-stats endpoint. Dispatches AFL vs NBA via `?sport=` to
+  the matching Supabase table (`afl_player_games` / `nba_player_games`). Returns uniform last-5 /
+  last-10 hit rates + averages. Replaced the per-sport `afl-stats.js` + `nba-stats.js`.
+- `api/defense.js` — sport-aware per-team defensive factors (how much each team concedes per stat
+  vs league avg). Dispatches via `?sport=`. Opponent derived from the two teams in each game key
+  (`game_code` for AFL, `game_id` for NBA). Replaces `afl-defense.js`.
 - `scripts/scrape-afl-stats.mjs` — afltables → `afl_player_games` (residential Mac via launchd; see below).
-- `scripts/scrape-nba-stats.mjs` — **NEW (Phase 1 WIP)**, balldontlie.io → `nba_player_games`.
-  Not IP-blocked, so can run from Vercel cron / GitHub Action (no Mac dependency).
+- `scripts/scrape-nba-stats.mjs` — balldontlie.io → `nba_player_games`. Runs daily via
+  `.github/workflows/scrape-nba.yml` (also `workflow_dispatch` for manual runs). balldontlie isn't
+  IP-blocked, so GHA is reliable — no Mac dependency. Workflow needs three repo secrets:
+  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `BALLDONTLIE_API_KEY`. Note: the workflow file
+  currently exists as `main.yml` on `main` (named via GitHub web UI when the PAT lacked workflow
+  scope) — content is identical to the committed `scrape-nba.yml`; rename later when convenient.
 - `api/calibration.js` — leg-level "predicted vs actual" scoreboard (logs every rated leg on build,
-  joins to `afl_player_games` to compute hit rates per confidence bucket).
+  joins to `afl_player_games` to compute hit rates per confidence bucket — NBA calibration is on
+  the punch-list, not wired yet).
 - `api/create-checkout-session.js`, `api/create-portal-session.js`, `api/stripe-webhook.js`,
   `api/entitlement.js` — Stripe subscription billing + portal + entitlement.
-- `db/*.sql` — schemas (run once in Supabase SQL editor): `afl_player_games.sql`, `nba_player_games.sql`
-  (NEW), `billing.sql`, and the calibration table SQL (the user has run all of these except
-  possibly `nba_player_games.sql`).
+- `db/*.sql` — schemas (run once in Supabase SQL editor): `afl_player_games.sql`,
+  `nba_player_games.sql`, `billing.sql`, `grid_build_predictions.sql`. **Vercel Hobby plan caps
+  serverless functions at 12 per deploy** — the sport-aware merges above are what keeps us under
+  that limit. Adding a 13th `api/*.js` will fail the build.
 
 ### Frontend (`src/App.jsx`)
 Single file, but key components: `EdgePage` (the build/analysis UI), `EdgeMessage` (sectioned chat
@@ -43,18 +54,22 @@ pages with `pb-24 md:pb-0` to clear it), `TeamCrest` (SVG guernsey-style club ba
 - `bets` — user bets (`bookmaker`, `bet_type`, `source` ('manual'|'grid_build'), `status` ('settled'|
   'pending'), `legs` (jsonb)).
 - `afl_player_games` — scraped AFL player game logs (~14k rows).
-- `nba_player_games` — **NEW**, NBA player game logs from balldontlie. *User must run
-  `db/nba_player_games.sql` in Supabase.*
+- `nba_player_games` — NBA player game logs from balldontlie (~36k rows, 180-day window). Backfill
+  is a manual one-shot (`NBA_DAYS=180 node scripts/scrape-nba-stats.mjs`); daily incremental top-ups
+  are handled by the GitHub Action.
 - `profiles` — `subscription_status`, stripe ids, period end (stripe-webhook writes).
 - `grid_build_usage` — one row per build, for the weekly free-tier count.
 - `grid_build_predictions` — every rated leg logged on build (player, line, predicted prob, etc.),
   joined to `afl_player_games` on read for calibration buckets.
 
 ## Env vars (Vercel)
-`ODDS_API_KEY` (20K paid plan), `OPENAI_API_KEY`, `SUPABASE_URL`/`VITE_SUPABASE_URL`,
+`ODDS_API_KEY` (The Odds API, **$30/mo / 20K credits** — note the free tier is 500 credits and
+gets blown through fast once player-prop builds run), `OPENAI_API_KEY`, `SUPABASE_URL`/`VITE_SUPABASE_URL`,
 `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`,
-`STRIPE_WEBHOOK_SECRET`. **For NBA (when ready):** `BALLDONTLIE_API_KEY` (free from balldontlie.io).
-Local `.env` (gitignored) holds the same.
+`STRIPE_WEBHOOK_SECRET`, `BALLDONTLIE_API_KEY` (balldontlie.io **ALL-STAR plan**, $9.99 USD/mo — the
+free tier does NOT include `/stats` despite earlier docs suggesting it does). Local `.env`
+(gitignored) holds the same. GitHub Actions needs `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+`BALLDONTLIE_API_KEY` as repo secrets (same values).
 
 ## AFL data refresh
 afltables.com **blocks datacenter IPs** (Vercel AND GitHub Actions fail), so the scrape runs on the
@@ -78,9 +93,15 @@ afltables.com **blocks datacenter IPs** (Vercel AND GitHub Actions fail), so the
 - **Correlation-aware odds**: Gaussian-copula MC (`correlationAdjustedProb`) with a structural
   per-pair matrix (same game + possession-family → +0.28; same game otherwise → +0.10; different
   game → 0). Seeded, deterministic. UI shows "Correlation-adjusted (vs X% if independent)".
-- **Matchup adjustment**: per-team defence factors (`/api/afl-defense`) scale historical values.
-  For binary/low lines (e.g. "Over 0.5 goals") where value-scaling can't move the number, it falls
-  back to a clamped probability-space adjustment so the displayed matchup is truthful.
+- **Matchup adjustment**: per-team defence factors (`/api/defense?sport=...`) scale historical
+  values. Sport-aware — AFL factors derived from `afl_player_games`, NBA from `nba_player_games`,
+  both clamped to ±15% to tame small samples. For binary/low lines (e.g. "Over 0.5 goals") where
+  value-scaling can't move the number, it falls back to a clamped probability-space adjustment so
+  the displayed matchup is truthful.
+- **Sport-aware Grid Build**: AFL and NBA both flow through the same extract → enrich → select
+  pipeline. NBA player markets fetched via `PLAYER_MARKETS_BY_SPORT.NBA` (single-key markets like
+  `player_points` — Over/Under live as outcomes within each, no `_over` variants). NBA team aliases
+  in `TEAM_ALIAS_MAP` ("spurs", "okc", "phoenix") so edit-in-place works for NBA too.
 - **Same-Game Multi (SGM) honesty**: when 2+ legs share a game, a note flags it and the EV uses a
   conservative haircut (0.85^extra legs) on the combined odds — bookmakers SGM-discount these and
   The Odds API only exposes single-leg prices, so the naive product overstates both odds and value.
@@ -94,10 +115,10 @@ afltables.com **blocks datacenter IPs** (Vercel AND GitHub Actions fail), so the
   payout, saved bets, GPT data block).
 - **Calibration scoreboard** (`/api/calibration` + UI): logs every leg's predicted prob on build,
   joins to actuals to show "legs we rate 75%+ have hit X%". Honesty lever for trust.
-- **Game Analysis** (NEW): switch to the Game Analysis tab, pick a game, get a full structured read:
+- **Game Analysis**: switch to the Game Analysis tab, pick a game, get a full structured read:
   market read (favourite + implied %, total line, spread), key players per team (with form, hit rate,
   matchup), standout +edge value plays, matchup angles (top-conceded + best-defended per team), and a
-  GPT narrative summary. **AFL only** for now — NBA path will reuse the same flow in Phase 2.
+  GPT narrative summary. **AFL only** — NBA path will reuse the same flow in Phase 2.
 - **Landing page Grid Build showcase**: hero leads with Grid Build, a static example output card
   with team crests + form chips + correlation tag + free-tier CTA. Compliant framing throughout
   (placeholder players, "illustrative example", "informational only").
@@ -117,12 +138,23 @@ mirrors the same check. The legacy key `"theme"` is intentionally ignored — ea
 fresh key resets everyone to dark except explicit Light choosers.
 
 ## Gotchas / decisions
-- The Odds API exposes only **headline AFL lines** (~$1.30+), no deep/alternate lines — so a 5-leg
-  ~$2 multi often isn't reachable; the builder gets as close as it can and notes it.
+- The Odds API exposes only **headline lines** (~$1.30+ for AFL, ~$1.59+ for NBA via PointsBet —
+  same constraint, different floor). No deep/alternate lines. So a 3-leg NBA multi targeting $2.00
+  can't reach the target (cheapest 3-leg combo on PointsBet via API is ~$4.12); the builder gets
+  as close as it can and notes the overshoot. `selectOptimalLegs` was tuned to prefer
+  closeness-to-target over `prob` once the tight tolerance band falls through (bucketed $0.50
+  `diff` ranks above `balance`/`prob`).
+- **NBA player markets are single-key** in The Odds API (`player_points` etc. with Over/Under as
+  outcomes inside each market — no `player_points_over`). Sending an unknown key rejects the whole
+  request with `INVALID_MARKET`. AFL has both forms legitimately.
+- **Vercel Hobby plan caps serverless functions at 12 per deploy.** That's why we merged
+  `afl-stats.js` + `nba-stats.js` → `stats.js` and `afl-defense.js` → `defense.js`. Adding a 13th
+  `api/*.js` will fail the build.
 - Gating **fails open** on any error; counts only when a real multi is produced; week resets **Monday UTC**.
 - Stripe webhook uses raw body (`bodyParser:false`) for signature verification.
-- `editAFLMulti` excludes the swapped-out player from the candidate pool (early bug: it was deleting
-  the old player from the used set, so the engine swapped a player for himself).
+- `editAFLMulti` (sport-agnostic despite the name — works for NBA too) excludes the swapped-out
+  player from the candidate pool (early bug: it was deleting the old player from the used set,
+  so the engine swapped a player for himself).
 - Empty/unparseable target odds (e.g. "Custom" with a blank field) default to `$2.00` server-side
   so the balanced combo search runs (the no-target fallback used to produce lopsided builds).
 - The chat in analysis mode no longer hijacks normal messages — the analysis branch is gated on an
@@ -133,53 +165,44 @@ fresh key resets everyone to dark except explicit Light choosers.
 ### Open #1 — Stripe go-LIVE (manual)
 Code is ready. Steps below — all in the Stripe dashboard + Vercel env vars + a redeploy.
 
-### Open #2 — NBA Phase 1 (CODE WIP — pick up here)
-The schema, scraper and stats endpoint are committed. **Not yet wired into edge.js.** See the NBA
-pickup section below.
-
 ### Pending / next
 1. **Stripe go-LIVE** — see checklist below.
-2. **NBA Phase 1** — finish wiring `edge.js` (see pickup section).
-3. **NBA Phase 2** — defence factors + Game Analysis (deferred until Phase 1 is solid).
+2. **NBA Phase 2** — NBA Game Analysis (mirror the AFL analysis branch but feed it sport-aware
+   stats + defence factors that already exist). Probably ~2–4 hours.
+3. **NBA calibration** — `grid_build_predictions` joins to `afl_player_games` on read; should
+   also join to `nba_player_games` when `sport='NBA'` so NBA legs show up in the scoreboard.
 4. Touch-target sizing pass on mobile.
-5. Optional: bet-volume context on charts, rolling win-rate/ROI line, prop-drop alerts.
+5. Optional: bet-volume context on charts, rolling win-rate/ROI line, prop-drop alerts,
+   wider AFL alternate-line source (premium odds provider).
 
-## NBA pickup (next session — start here for the NBA work)
+## NBA Phase 1 — what's live (reference, no action needed)
 
-**Committed (Phase 1, ~half done):**
-- `db/nba_player_games.sql` — schema, mirrors `afl_player_games`.
-- `scripts/scrape-nba-stats.mjs` — balldontlie → Supabase scraper.
-- `api/nba-stats.js` — last-5/last-10 hit rates endpoint (accepts metric *names* like "points",
-  translates to columns "pts" internally).
+NBA Grid Build is shipped end-to-end. Same flow as AFL: extract player props from The Odds API,
+enrich with form (last-5/last-10 hit rates from `nba_player_games`) and matchup factors
+(per-team conceded-vs-league via `/api/defense?sport=NBA`), select balanced combo near target,
+return with correlation-adjusted prob and SGM haircut. Notes:
 
-**Pickup work to do in `edge.js` (the meaty part):**
-1. **Drop the `sport === "AFL"` gate** on the multi/edit branch (currently around line 2691).
-2. **Extend `overMarketKeys` + `metricFromMarket`** in `extractPlayerPropsFromEvent` to include NBA:
-   `player_points`, `player_points_over`, `player_rebounds`, `player_rebounds_over`,
-   `player_assists`, `player_assists_over`, `player_threes`, `player_threes_over`,
-   `player_blocks`, `player_steals` → metrics `points`/`rebounds`/`assists`/`threes`/`blocks`/`steals`.
-3. **Extend `METRIC_LABELS`** with the NBA metrics (points/rebounds/assists/threes/blocks/steals).
-4. **Extend `POSSESSION_METRICS`** for correlation (NBA pace correlates everything; add the NBA
-   metrics so same-game NBA correlation kicks in).
-5. **Sport-aware player markets list** for the multi-branch fetch: define
-   `PLAYER_MARKETS_BY_SPORT = { AFL: {...}, NBA: {...} }` and use it instead of the hardcoded
-   `allAFLPlayerMarkets`. If the sport isn't supported yet, return a clear "sport not supported"
-   message.
-6. **Sport-aware stats fetch**: add `fetchPlayerStatsContext(req, sport, team1, team2, players, metrics)`
-   that picks `/api/nba-stats` for NBA and `/api/afl-stats` for AFL, then use it in place of the
-   direct `fetchAFLStatsContext` call in the multi branch.
-7. **Only fetch defence factors for AFL** (NBA has no factors yet) — `enrichProps` already accepts
-   `factors = null` (neutral matchup).
-8. **NBA Game Analysis** — leave the AFL-only guard for now; Phase 2.
+- **Data window**: 180 days backfilled (~36k rows / ~1042 games / all 30 teams). Daily
+  incremental refresh via `.github/workflows/scrape-nba.yml` at 06:00 UTC keeps it fresh.
+- **Cheap-line floor**: The Odds API doesn't expose PointsBet's deep alternates (sub-$1.50 lines
+  like "SGA 1+ assist") — only one line per player per market. Floor for a 3-leg NBA combo is
+  ~$4.12 on PointsBet right now. Targeting $2.00 isn't achievable in 3 legs; the builder lands
+  closest available and flags the overshoot.
+- **Defence factors**: NBA factors compute from the same `game_id`-trick as AFL — derive the
+  opponent from the two distinct teams in each game. ±15% clamp prevents small-sample noise.
+- **Edit-in-place**: works for NBA. `editAFLMulti` is sport-agnostic despite the name. NBA
+  team aliases added to `TEAM_ALIAS_MAP` so "remove the Spurs leg" / "swap the OKC leg" resolve.
 
-**User actions for NBA (must do before NBA actually works):**
-1. **Run** `db/nba_player_games.sql` in the Supabase SQL editor.
-2. **Get** a free balldontlie API key (sign up at balldontlie.io).
-3. **Add** `BALLDONTLIE_API_KEY` to Vercel env vars (and to local `.env` for the scraper).
-4. **First backfill**: `set -a; source .env; set +a; node scripts/scrape-nba-stats.mjs`
-   (takes ~13 min on free tier, ~1 min on paid). Configure `NBA_DAYS` to control window.
-5. **Schedule** the scraper — either a Vercel cron (preferred — no Mac dependency) or a GitHub
-   Action (also fine since balldontlie isn't IP-blocked). Daily is plenty.
+If NBA data ever needs to be re-bootstrapped from scratch (new prod, new Supabase project,
+etc.):
+
+1. `db/nba_player_games.sql` in Supabase SQL editor.
+2. `BALLDONTLIE_API_KEY` in Vercel + local `.env` + GitHub repo secrets (must be on the ALL-STAR
+   $9.99/mo tier or higher — `/stats` is paid-only).
+3. One-shot backfill: `set -a; source .env; set +a; BALLDONTLIE_GAP_MS=1100 NBA_DAYS=180 node
+   scripts/scrape-nba-stats.mjs` (~5 min on ALL-STAR).
+4. Confirm the GitHub Action has its three repo secrets (SUPABASE_URL,
+   SUPABASE_SERVICE_ROLE_KEY, BALLDONTLIE_API_KEY) and the daily cron is enabled.
 
 ## Stripe go-live checklist
 Run in order. Code is already deployed; only env vars + Stripe dashboard steps remain.
