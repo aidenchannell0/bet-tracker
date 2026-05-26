@@ -755,15 +755,15 @@ const PLAYER_MARKETS_BY_SPORT = {
   },
   NBA: {
     label: "NBA player props",
+    // The Odds API uses single-key markets for NBA — Over/Under live as outcomes
+    // within each market (no `_over` variants like AFL has). Sending an unknown
+    // key like `player_points_over` causes the API to reject the entire request
+    // with INVALID_MARKET, so keep this list to the actual canonical keys.
     markets: [
       "player_points",
-      "player_points_over",
       "player_rebounds",
-      "player_rebounds_over",
       "player_assists",
-      "player_assists_over",
       "player_threes",
-      "player_threes_over",
       "player_blocks",
       "player_steals",
     ],
@@ -821,15 +821,11 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
     "player_clearances_over",
     "player_kicks_over",
     "player_handballs_over",
-    // NBA
+    // NBA — single-key markets; Over/Under live as outcomes within each.
     "player_points",
-    "player_points_over",
     "player_rebounds",
-    "player_rebounds_over",
     "player_assists",
-    "player_assists_over",
     "player_threes",
-    "player_threes_over",
     "player_blocks",
     "player_steals",
   ];
@@ -846,13 +842,9 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
     player_handballs_over: "handballs",
     // NBA
     player_points: "points",
-    player_points_over: "points",
     player_rebounds: "rebounds",
-    player_rebounds_over: "rebounds",
     player_assists: "assists",
-    player_assists_over: "assists",
     player_threes: "threes",
-    player_threes_over: "threes",
     player_blocks: "blocks",
     player_steals: "steals",
   };
