@@ -710,13 +710,13 @@ function extractRequestedPlayers(message) {
   return [];
 }
 
-async function fetchAFLStatsContext(req, team1, team2, players, metrics) {
+// Sport-aware player stats fetch — calls the merged /api/stats endpoint and
+// normalises the response shape. Both AFL and NBA return identical structure.
+async function fetchStatsContext(req, sport, players, metrics) {
   try {
     const baseUrl = buildBaseUrl(req);
-    const url = new URL("/api/afl-stats", baseUrl);
-
-    url.searchParams.set("team1", team1);
-    url.searchParams.set("team2", team2);
+    const url = new URL("/api/stats", baseUrl);
+    url.searchParams.set("sport", sport || "AFL");
     url.searchParams.set("players", players.join(","));
     url.searchParams.set("metrics", metrics.join(","));
 
@@ -731,14 +731,44 @@ async function fetchAFLStatsContext(req, team1, team2, players, metrics) {
       available: true,
       players: data.players || [],
       gamesAnalysed: data.gamesAnalysed || 0,
-      source: data.source || "Squiggle API",
-      year: data.year,
+      source: data.source || "Stats source",
     };
   } catch (error) {
-    console.error("AFL stats context error:", error);
+    console.error(`${sport} stats context error:`, error);
     return { available: false, players: [], gamesAnalysed: 0 };
   }
 }
+
+const PLAYER_MARKETS_BY_SPORT = {
+  AFL: {
+    label: "AFL player props",
+    markets: [
+      "player_disposals_over",
+      "player_goals_scored_over",
+      "player_marks_over",
+      "player_tackles_over",
+      "player_afl_fantasy_points_over",
+      "player_clearances_over",
+      "player_kicks_over",
+      "player_handballs_over",
+    ],
+  },
+  NBA: {
+    label: "NBA player props",
+    markets: [
+      "player_points",
+      "player_points_over",
+      "player_rebounds",
+      "player_rebounds_over",
+      "player_assists",
+      "player_assists_over",
+      "player_threes",
+      "player_threes_over",
+      "player_blocks",
+      "player_steals",
+    ],
+  },
+};
 
 // Per-team defensive factors for the current season (cached server-side).
 async function fetchDefenseContext(req) {
@@ -782,6 +812,7 @@ function bookmakerLabel(preferredBook) {
 function extractPlayerPropsFromEvent(event, preferredBook = null) {
   const props = [];
   const overMarketKeys = [
+    // AFL
     "player_disposals_over",
     "player_goals_scored_over",
     "player_marks_over",
@@ -790,9 +821,21 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
     "player_clearances_over",
     "player_kicks_over",
     "player_handballs_over",
+    // NBA
+    "player_points",
+    "player_points_over",
+    "player_rebounds",
+    "player_rebounds_over",
+    "player_assists",
+    "player_assists_over",
+    "player_threes",
+    "player_threes_over",
+    "player_blocks",
+    "player_steals",
   ];
 
   const metricFromMarket = {
+    // AFL
     player_disposals_over: "disposals",
     player_goals_scored_over: "goals",
     player_marks_over: "marks",
@@ -801,6 +844,17 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
     player_clearances_over: "clearances",
     player_kicks_over: "kicks",
     player_handballs_over: "handballs",
+    // NBA
+    player_points: "points",
+    player_points_over: "points",
+    player_rebounds: "rebounds",
+    player_rebounds_over: "rebounds",
+    player_assists: "assists",
+    player_assists_over: "assists",
+    player_threes: "threes",
+    player_threes_over: "threes",
+    player_blocks: "blocks",
+    player_steals: "steals",
   };
 
   // For each unique player+market+line, keep the BEST (highest) price across all
@@ -1124,7 +1178,10 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
 // true combined chance (and therefore EV and risk) changes. For same-game,
 // positively-correlated legs this RAISES the chance vs the naive product.
 const POSSESSION_METRICS = new Set([
+  // AFL — possession-family stats driven by game pace / ball movement
   "disposals", "kicks", "handballs", "marks", "clearances", "fantasy_points",
+  // NBA — all counting stats correlate with game pace
+  "points", "rebounds", "assists", "threes", "blocks", "steals",
 ]);
 
 // Inverse standard-normal CDF (Acklam's rational approximation)
@@ -1277,6 +1334,7 @@ function computeRiskScore(combinedProb, legCount) {
 }
 
 const METRIC_LABELS = {
+  // AFL
   disposals: "disposals",
   goals: "goals",
   marks: "marks",
@@ -1285,6 +1343,13 @@ const METRIC_LABELS = {
   kicks: "kicks",
   handballs: "handballs",
   clearances: "clearances",
+  // NBA
+  points: "points",
+  rebounds: "rebounds",
+  assists: "assists",
+  threes: "3-pointers",
+  blocks: "blocks",
+  steals: "steals",
 };
 
 function metricLabel(metric) {
@@ -1335,9 +1400,10 @@ function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile, f
   const enriched = enrichProps(props, aflStats, factors);
   const targetOddsValue = parseOddsValue(targetOdds);
   const selected = selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile);
+  const srcLabel = aflStats?.source || "Stats";
   const dataSource = aflStats?.available
-    ? `AFL Tables — ${aflStats.gamesAnalysed} recent games analysed`
-    : "AFL Tables stats unavailable";
+    ? `${srcLabel} — ${aflStats.gamesAnalysed} recent games analysed`
+    : `${srcLabel} unavailable`;
 
   if (!selected.length) {
     return { selected: [], enriched, dataSource, metrics: null, risk: null };
@@ -1742,12 +1808,12 @@ function editAFLMulti(enriched, currentMulti, action, ctx = {}) {
   return { ok: true, multi, summary };
 }
 
-function buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile) {
+function buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile, sport = "AFL") {
   const { selected, enriched, dataSource, metrics, risk } = computed;
 
   if (!selected.length) {
     return `
-PRE-COMPUTED AFL MULTI (no qualifying legs)
+PRE-COMPUTED ${sport} MULTI (no qualifying legs)
 Stats source: ${dataSource}
 No player props had enough recent stats to build a confident multi for these games yet.
 
@@ -1794,7 +1860,7 @@ INSTRUCTIONS FOR GRID BUILD:
   }
 
   return `
-PRE-COMPUTED AFL MULTI (all numbers below are already calculated by the app's math engine — DO NOT recompute or change selections, just present and explain them)
+PRE-COMPUTED ${sport} MULTI (all numbers below are already calculated by the app's math engine — DO NOT recompute or change selections, just present and explain them)
 Request: ${targetLegs} legs | Target odds: ${targetOdds} | Risk profile: ${riskProfile}
 Stats source: ${dataSource}
 
@@ -2484,7 +2550,7 @@ export default async function handler(req, res) {
       if (allProps.length) {
         const players = [...new Set(allProps.map((p) => p.playerName))].slice(0, 40);
         const metrics = [...new Set(allProps.map((p) => p.metric))];
-        const aflStatsContext = await fetchAFLStatsContext(req, game.homeTeam, game.awayTeam, players, metrics);
+        const aflStatsContext = await fetchStatsContext(req, "AFL", players, metrics);
         statsAvailable = aflStatsContext.available;
         const defenseContext = await fetchDefenseContext(req);
         defenseFactors = defenseContext.factors;
@@ -2687,8 +2753,8 @@ ${buildAnalysisDataBlock(analysis)}`,
       });
     }
 
-    // AFL multi builder: fetch real player props + Squiggle stats before sending to GPT
-    if ((editAction || userIntent === "multi") && sport === "AFL") {
+    // Multi builder: fetch real player props + stats before sending to GPT (AFL + NBA)
+    if ((editAction || userIntent === "multi") && (sport === "AFL" || sport === "NBA")) {
       // Free tier: 3 builds/week. Subscribers are unlimited. Checked before the
       // expensive odds/stat work so a gated request costs nothing. Edits to an
       // existing build are refinements — they don't consume a build credit, so a
@@ -2715,7 +2781,7 @@ ${buildAnalysisDataBlock(analysis)}`,
           reply: `Simple view:\n\nI couldn't load live ${sport} odds right now, so I can't build a real multi this time.\n\nWhat I would check:\n\nThis usually means the live odds data limit has been reached for the moment, or there are no upcoming ${sport} games posted yet. It refreshes over time.\n\nImportant:\n\nI won't invent players, odds or stats. This is informational only, not betting advice.`,
           multi: null,
           oddsConnected: oddsContext.available,
-          aflStatsConnected: false,
+          statsConnected: false,
           intent: "multi",
           sport,
           detectedTeam: detectedTeam?.team || null,
@@ -2724,19 +2790,16 @@ ${buildAnalysisDataBlock(analysis)}`,
         });
       }
 
-      const allAFLPlayerMarkets = {
-        label: "AFL player props",
-        markets: [
-          "player_disposals_over",
-          "player_goals_scored_over",
-          "player_marks_over",
-          "player_tackles_over",
-          "player_afl_fantasy_points_over",
-          "player_clearances_over",
-          "player_kicks_over",
-          "player_handballs_over",
-        ],
-      };
+      const playerMarkets = PLAYER_MARKETS_BY_SPORT[sport];
+      if (!playerMarkets) {
+        return res.status(200).json({
+          reply: `Simple view:\n\nGrid Build doesn't support ${sport} player props yet.\n\nImportant:\n\nThis is informational only, not betting advice.`,
+          multi: null,
+          intent: "multi",
+          sport,
+          edgeContext,
+        });
+      }
 
       // Prefer values stated in the message (e.g. "give me a 3 leg multi"), fall back to the form
       const targetLegs =
@@ -2786,7 +2849,7 @@ ${buildAnalysisDataBlock(analysis)}`,
 
       const eventMarketResults = await Promise.allSettled(
         candidateGames.map((game) =>
-          fetchEventOddsContext(req, sport, game.id, allAFLPlayerMarkets)
+          fetchEventOddsContext(req, sport, game.id, playerMarkets)
         )
       );
 
@@ -2826,10 +2889,10 @@ ${buildAnalysisDataBlock(analysis)}`,
           ? `You've pinned odds to **${bookLabel}**, which may not price player markets for ${gameLabel} yet. Switch the bookmaker to **Best available** for the widest pool, or try again closer to game time.`
           : `Player markets are usually posted closer to game time. Try again nearer to the game, pick a different game, or ask me for the available games and head-to-head odds.`;
         return res.status(200).json({
-          reply: `Simple view:\n\nI could not find player prop markets (disposals, goals, tackles and similar)${bookLabel ? ` at **${bookLabel}**` : ""} for ${gameLabel} right now.\n\nWhat I would check:\n\n${checkLine}\n\nImportant:\n\nThis is informational only, not betting advice.`,
+          reply: `Simple view:\n\nI could not find ${sport} player prop markets${bookLabel ? ` at **${bookLabel}**` : ""} for ${gameLabel} right now.\n\nWhat I would check:\n\n${checkLine}\n\nImportant:\n\nThis is informational only, not betting advice.`,
           multi: null,
           oddsConnected: oddsContext.available,
-          aflStatsConnected: false,
+          statsConnected: false,
           intent: "multi",
           sport,
           detectedTeam: detectedTeam?.team || null,
@@ -2854,16 +2917,11 @@ ${buildAnalysisDataBlock(analysis)}`,
           gameGroups.get(prop.gameLabel).players.add(prop.playerName);
         }
 
-        // Fetch AFL Tables stats for each game in parallel (only that game's players)
+        // Fetch stats for each game in parallel (only that game's players).
+        // The sport-aware /api/stats endpoint handles both AFL and NBA uniformly.
         const statsResults = await Promise.all(
           [...gameGroups.values()].map((group) =>
-            fetchAFLStatsContext(
-              req,
-              group.homeTeam,
-              group.awayTeam,
-              [...group.players].slice(0, 30),
-              uniqueMetrics
-            )
+            fetchStatsContext(req, sport, [...group.players].slice(0, 30), uniqueMetrics)
           )
         );
 
@@ -2882,27 +2940,27 @@ ${buildAnalysisDataBlock(analysis)}`,
           }
         }
 
-        const aflStatsContext = {
+        const statsContext = {
           available: anyAvailable,
           players: combinedPlayers,
           gamesAnalysed: totalGamesAnalysed,
-          source: "AFL Tables (afltables.com)",
+          source: sport === "NBA" ? "balldontlie.io (cached in Supabase)" : "AFL Tables (afltables.com)",
         };
 
-        // Opponent defensive factors (current season) to matchup-adjust each leg
-        const defenseContext = await fetchDefenseContext(req);
+        // Defence factors: AFL only — NBA has no per-team matchup data yet (Phase 2).
+        const defenseContext = sport === "AFL" ? await fetchDefenseContext(req) : { available: false, factors: null };
         const defenseFactors = defenseContext?.factors || null;
 
         // Edit path: refine the current build in place using the fresh pool, no GPT call.
         if (editAction) {
-          const enrichedPool = enrichProps(allProps, aflStatsContext, defenseFactors);
+          const enrichedPool = enrichProps(allProps, statsContext, defenseFactors);
           const editResult = editAFLMulti(enrichedPool, currentMulti, editAction, { sport });
           if (!editResult.ok) {
             return res.status(200).json({
               reply: `Simple view:\n\n${editResult.message}\n\nWhat I would check:\n\nYou can try a different change, name a specific leg or player, or rebuild from scratch.\n\nImportant:\n\nThis is informational only, not betting advice.`,
               multi: null,
               oddsConnected: oddsContext.available,
-              aflStatsConnected: aflStatsContext.available,
+              statsConnected: statsContext.available,
               intent: "multi_edit",
               sport,
               usage: access.usage,
@@ -2918,8 +2976,8 @@ ${buildAnalysisDataBlock(analysis)}`,
             reply,
             multi: m,
             oddsConnected: oddsContext.available,
-            aflStatsConnected: aflStatsContext.available,
-            gamesAnalysed: aflStatsContext.gamesAnalysed,
+            statsConnected: statsContext.available,
+            gamesAnalysed: statsContext.gamesAnalysed,
             propsFound: allProps.length,
             usage: access.usage,
             limit: access.limit,
@@ -2932,13 +2990,13 @@ ${buildAnalysisDataBlock(analysis)}`,
 
         const computed = computeAFLMulti(
           allProps,
-          aflStatsContext,
+          statsContext,
           targetLegs,
           targetOdds,
           riskProfile,
           defenseFactors
         );
-        const dataBlock = buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile);
+        const dataBlock = buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile, sport);
         const structuredMulti = buildStructuredMulti(computed, sport, targetOdds);
 
         // Flag when a pinned bookmaker limited the pool below the requested leg count
@@ -2983,8 +3041,8 @@ ${buildAnalysisDataBlock(analysis)}`,
           reply,
           multi: structuredMulti,
           oddsConnected: oddsContext.available,
-          aflStatsConnected: aflStatsContext.available,
-          gamesAnalysed: aflStatsContext.gamesAnalysed,
+          statsConnected: statsContext.available,
+          gamesAnalysed: statsContext.gamesAnalysed,
           propsFound: allProps.length,
           usage: usageAfter,
           limit: access.limit,

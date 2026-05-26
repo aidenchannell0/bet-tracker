@@ -1,7 +1,12 @@
-// Reads NBA player game-by-game stats from the Supabase `nba_player_games` table
-// (populated out-of-band by scripts/scrape-nba-stats.mjs from balldontlie.io).
-// Computes recent hit-rate values per metric. Fast and reliable — no live scraping.
-// Mirrors api/afl-stats.js so edge.js can consume both via a sport-aware wrapper.
+// Sport-aware player game-stats endpoint. Replaces the per-sport endpoints —
+// dispatches AFL vs NBA off the `sport` query param, queries the matching
+// Supabase table, and returns a uniform { available, players, gamesAnalysed,
+// source } shape so edge.js can consume both without branching.
+//
+// AFL columns are stored under their metric names (disposals, kicks, ...) so
+// the lookup is identity. NBA columns are short (pts, reb, ast, ...), so we
+// translate metric → column on query and present results back under the
+// metric name.
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -12,17 +17,39 @@ const supabaseKey =
 const supabase =
   supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
-// Map the metric NAMES edge.js uses (e.g. "points") to actual DB columns
-// (e.g. "pts"), and translate back on output so the consumer is sport-symmetric.
-const METRIC_TO_COLUMN = {
-  points: "pts",
-  rebounds: "reb",
-  assists: "ast",
-  threes: "fg3m",
-  steals: "stl",
-  blocks: "blk",
+const SPORT_CONFIG = {
+  AFL: {
+    table: "afl_player_games",
+    source: "AFL Tables (cached in Supabase)",
+    defaultMetric: "disposals",
+    // metric name → DB column (identity for AFL)
+    metrics: {
+      kicks: "kicks",
+      marks: "marks",
+      handballs: "handballs",
+      disposals: "disposals",
+      goals: "goals",
+      behinds: "behinds",
+      hitouts: "hitouts",
+      tackles: "tackles",
+      clearances: "clearances",
+      fantasy_points: "fantasy_points",
+    },
+  },
+  NBA: {
+    table: "nba_player_games",
+    source: "balldontlie.io (cached in Supabase)",
+    defaultMetric: "points",
+    metrics: {
+      points: "pts",
+      rebounds: "reb",
+      assists: "ast",
+      threes: "fg3m",
+      steals: "stl",
+      blocks: "blk",
+    },
+  },
 };
-const METRIC_NAMES = Object.keys(METRIC_TO_COLUMN);
 
 function nameKey(full) {
   const words = String(full || "")
@@ -44,9 +71,14 @@ export default async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
-
   if (!supabase) {
-    return res.status(500).json({ error: "Supabase is not configured for NBA stats." });
+    return res.status(500).json({ error: "Supabase is not configured for stats." });
+  }
+
+  const sport = String(req.query.sport || "AFL").toUpperCase();
+  const config = SPORT_CONFIG[sport];
+  if (!config) {
+    return res.status(400).json({ error: `Unsupported sport: ${sport}` });
   }
 
   try {
@@ -56,10 +88,10 @@ export default async function handler(req, res) {
       .filter(Boolean)
       .slice(0, 40);
 
-    const metrics = String(req.query.metrics || "pts")
+    const metrics = String(req.query.metrics || config.defaultMetric)
       .split(",")
       .map((m) => m.trim())
-      .filter((m) => METRIC_COLUMNS.includes(m))
+      .filter((m) => config.metrics[m])
       .slice(0, 10);
 
     if (!players.length) {
@@ -70,10 +102,11 @@ export default async function handler(req, res) {
     }
 
     const keys = [...new Set(players.map(nameKey).filter(Boolean))];
+    const columns = metrics.map((m) => config.metrics[m]);
 
     const { data, error } = await supabase
-      .from("nba_player_games")
-      .select(`name_key,player_name,team,game_date,${metrics.join(",")}`)
+      .from(config.table)
+      .select(`name_key,player_name,team,game_date,${columns.join(",")}`)
       .in("name_key", keys)
       .order("game_date", { ascending: false })
       .limit(40 * keys.length);
@@ -95,8 +128,9 @@ export default async function handler(req, res) {
 
       const metricsOut = {};
       for (const metric of metrics) {
+        const col = config.metrics[metric];
         const values = rows
-          .map((r) => r[metric])
+          .map((r) => r[col])
           .filter((v) => v !== null && v !== undefined);
 
         if (!values.length) {
@@ -130,15 +164,16 @@ export default async function handler(req, res) {
     );
 
     return res.status(200).json({
+      sport,
       available: anyAvailable,
       players: playerSummaries,
       gamesAnalysed: maxGames,
-      source: "balldontlie.io (cached in Supabase)",
+      source: config.source,
     });
   } catch (error) {
-    console.error("NBA stats error:", error);
+    console.error(`${sport} stats error:`, error);
     return res.status(500).json({
-      error: "Could not load NBA stats.",
+      error: `Could not load ${sport} stats.`,
       detail: error.message,
     });
   }
