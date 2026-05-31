@@ -2593,6 +2593,76 @@ function buildAnalysisDataBlock(analysis) {
   return out.join("\n\n");
 }
 
+// Parse a betslip screenshot via OpenAI vision. Routed through edge.js so we
+// don't add a 13th serverless function (Vercel Hobby plan caps at 12). Returns
+// structured JSON the frontend can use to pre-fill the Add Bet form.
+async function parseBetslipImage(image) {
+  // Accept either a bare base64 string or a data URL — normalise to data URL
+  // for OpenAI's image_url input.
+  const imageUrl = image.startsWith("data:") ? image : `data:image/png;base64,${image}`;
+
+  const prompt = `You are a betting slip parser. Given a screenshot of a sports betting slip from any bookmaker
+(Sportsbet, PointsBet, TAB, Ladbrokes, Neds, Unibet, Bet365, BetFair, etc.), extract the bet details.
+
+Return ONLY a JSON object with EXACTLY this shape (no markdown, no commentary):
+{
+  "valid": true,
+  "sport": "AFL"|"NBA"|"NRL"|"Soccer"|"Basketball"|"Cricket"|"Other",
+  "betType": "Single"|"Multi"|"Player prop"|"Head-to-head"|"Line"|"Total"|"Other",
+  "bookmaker": "<bookmaker name as shown, e.g. PointsBet>",
+  "stake": <number>,
+  "odds": <number>,
+  "returnAmount": <number>,
+  "legs": [
+    { "player": "<player or selection name>", "line": "<line description e.g. 12+ disposals>", "odds": <number>, "game": "<home vs away if visible>" }
+  ],
+  "notes": "<one short line of context if useful, else null>"
+}
+
+Rules:
+- stake / odds / returnAmount must be numbers (not strings). Strip $ and currency.
+- For multis: include every leg. For singles: legs can be empty or a single entry.
+- Use null for any field you genuinely can't determine. Don't guess.
+- If the image isn't a betslip, return: {"valid": false, "error": "Not a betslip"}.`;
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      max_tokens: 1200,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`OpenAI vision call failed: ${response.status} — ${text.slice(0, 300)}`);
+  }
+
+  const data = await response.json();
+  const raw = data?.choices?.[0]?.message?.content || "";
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error("Vision response was not valid JSON: " + raw.slice(0, 200));
+  }
+  return parsed;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -2607,7 +2677,20 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message, context } = req.body || {};
+    const body = req.body || {};
+
+    // Branch: betslip screenshot parsing. Handled here so we don't burn a
+    // serverless-function slot on a small dedicated endpoint.
+    if (body.intent === "parse_betslip" && body.image) {
+      try {
+        const result = await parseBetslipImage(body.image);
+        return res.status(200).json(result);
+      } catch (err) {
+        return res.status(500).json({ valid: false, error: err.message || "Parse failed" });
+      }
+    }
+
+    const { message, context } = body;
 
     if (!message || typeof message !== "string") {
       return res.status(400).json({

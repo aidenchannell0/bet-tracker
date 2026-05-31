@@ -2238,6 +2238,89 @@ export default function BettingTrackerWebsite() {
   const [chartView, setChartView] = useState("weekly");
   const [chartType, setChartType] = useState("bar");
   const [form, setForm] = useState({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "", bookmaker: "", betType: "" });
+  // Betslip OCR: paste/upload a screenshot, OpenAI vision extracts the
+  // structured details, frontend pre-fills the Add Bet form.
+  const [betslipImage, setBetslipImage] = useState(null);
+  const [betslipParsing, setBetslipParsing] = useState(false);
+  const [betslipError, setBetslipError] = useState("");
+  const [betslipExtract, setBetslipExtract] = useState(null);
+
+  const parseBetslip = async (image) => {
+    if (!image) return;
+    setBetslipParsing(true);
+    setBetslipError("");
+    setBetslipExtract(null);
+    try {
+      const response = await fetch("/api/edge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intent: "parse_betslip", image }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.valid === false) {
+        setBetslipError(data.error || "Could not parse the screenshot. Try a clearer image.");
+        return;
+      }
+      setBetslipExtract(data);
+      // Auto-prefill the form with the extracted values.
+      setForm((prev) => ({
+        ...prev,
+        sport: ["AFL", "NRL", "Soccer", "Basketball", "Cricket"].includes(data.sport) ? data.sport : prev.sport,
+        stake: data.stake != null ? String(data.stake) : prev.stake,
+        odds: data.odds != null ? String(data.odds) : prev.odds,
+        returnAmount: data.returnAmount != null ? String(data.returnAmount) : prev.returnAmount,
+        bookmaker: data.bookmaker || prev.bookmaker,
+        betType: ["Single", "Multi", "Player prop", "Head-to-head", "Line", "Total", "Other"].includes(data.betType) ? data.betType : prev.betType,
+        notes: data.notes || prev.notes,
+      }));
+    } catch (err) {
+      setBetslipError("Network error. Try again.");
+    } finally {
+      setBetslipParsing(false);
+    }
+  };
+
+  const handleBetslipPaste = (event) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result;
+          if (typeof result === "string") {
+            setBetslipImage(result);
+            parseBetslip(result);
+          }
+        };
+        reader.readAsDataURL(file);
+        event.preventDefault();
+        return;
+      }
+    }
+  };
+
+  const handleBetslipFile = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        setBetslipImage(result);
+        parseBetslip(result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearBetslip = () => {
+    setBetslipImage(null);
+    setBetslipExtract(null);
+    setBetslipError("");
+  };
   const [mobileAddBetOpen, setMobileAddBetOpen] = useState(false);
 
   useEffect(() => {
@@ -3029,7 +3112,7 @@ export default function BettingTrackerWebsite() {
               The chart sits on the page background instead of in a card. */}
           {activePage === "app" ? (
           <section className="grid gap-10 border-b border-[var(--border-new)] py-10 lg:grid-cols-5">
-            <div className="lg:col-span-2" ref={formRef}>
+            <div className="lg:col-span-2" ref={formRef} onPaste={editingBetId ? undefined : handleBetslipPaste}>
               <div className="mb-5 flex items-baseline justify-between">
                 <div>
                   <div className="text-[11px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{editingBetId ? "Editing" : "Manual entry"}</div>
@@ -3037,6 +3120,64 @@ export default function BettingTrackerWebsite() {
                 </div>
                 {editingBetId ? <Button type="button" variant="ghost" onClick={resetBetForm}>Cancel</Button> : null}
               </div>
+
+              {/* Betslip OCR — paste a screenshot of your bookmaker's slip and
+                  OpenAI vision will pre-fill the form. Hidden when editing. */}
+              {!editingBetId ? (
+                <div className="mb-6 rounded-xl border border-dashed border-[var(--border-new)] bg-[var(--surface-new)] px-4 py-4">
+                  {!betslipImage && !betslipParsing ? (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Quick add · AI vision</div>
+                        <div className="mt-1.5 text-[13px] text-[var(--text-2-new)]">
+                          <span className="text-[var(--text-new)] font-medium">Paste a betslip screenshot</span> here (⌘V) — we'll read the stake, odds and legs and fill the form for you.
+                        </div>
+                      </div>
+                      <label className="cursor-pointer rounded-lg border border-[var(--border-new)] bg-transparent px-3.5 py-2 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-2-new)] hover:border-[var(--border-strong-new)] hover:text-[var(--text-new)]">
+                        Upload image
+                        <input type="file" accept="image/*" onChange={handleBetslipFile} className="hidden" />
+                      </label>
+                    </div>
+                  ) : null}
+                  {betslipParsing ? (
+                    <div className="flex items-center gap-3 text-[13px] text-[var(--text-2-new)]">
+                      <span className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[var(--border-new)] border-t-[var(--accent-new)]" />
+                      Reading the betslip with AI vision…
+                    </div>
+                  ) : null}
+                  {betslipError ? (
+                    <div className="flex items-start justify-between gap-3 text-[13px] text-[var(--danger-new)]">
+                      <span>{betslipError}</span>
+                      <button onClick={clearBetslip} className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-new)]">Dismiss</button>
+                    </div>
+                  ) : null}
+                  {betslipImage && !betslipParsing ? (
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <img src={betslipImage} alt="Betslip preview" className="h-20 w-20 shrink-0 rounded border border-[var(--border-new)] object-cover" />
+                        <div className="flex-1 text-[13px] text-[var(--text-2-new)]">
+                          {betslipExtract ? (
+                            <>
+                              <div className="text-[var(--text-new)] font-medium">Read · review and save</div>
+                              <div className="mt-1 text-[12px]">
+                                {betslipExtract.bookmaker ? <>From <span className="text-[var(--text-2-new)]">{betslipExtract.bookmaker}</span> · </> : null}
+                                {betslipExtract.betType || "Bet"} ·{" "}
+                                <span className="mono-nums">${betslipExtract.stake || "?"}</span> at <span className="mono-nums">${betslipExtract.odds || "?"}</span>
+                                {betslipExtract.legs?.length ? <> · {betslipExtract.legs.length} legs</> : null}
+                              </div>
+                              <div className="mt-1.5 text-[11px] text-[var(--text-3-new)]">Form has been pre-filled. Edit anything that needs fixing, then save.</div>
+                            </>
+                          ) : (
+                            <div className="text-[var(--text-3-new)]">Preview only — could not extract details.</div>
+                          )}
+                        </div>
+                        <button onClick={clearBetslip} className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-new)]">Clear</button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <form onSubmit={handleAddOrUpdateBet} className="space-y-5">
                 <div className="grid gap-5 sm:grid-cols-3">
                   <label className="block">
