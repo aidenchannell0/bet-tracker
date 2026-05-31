@@ -3332,35 +3332,11 @@ export default function BettingTrackerWebsite() {
             );
           })() : null}
 
-          {/* Calibration scoreboard — Tracker page bottom. Layout B editorial
-              style: hairline grid, mono-numeral hit rates, lime accent bars.
-              Honesty signal for the product. */}
-          {activePage === "tracker" && calibration && calibration.resolved >= 10 ? (
-            <section className="border-t border-[var(--border-new)] pt-9 mt-9">
-              <div className="mb-6">
-                <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Honesty signal</p>
-                <h2 className="mt-2 text-[20px] font-medium tracking-[-0.015em] text-[var(--text-new)]">Calibration scoreboard</h2>
-                <p className="mt-1 max-w-[640px] text-sm text-[var(--text-3-new)]">
-                  Of <span className="mono-nums text-[var(--text-2-new)]">{calibration.overall?.n || calibration.resolved}</span> legs MultiPick rated, here's how they actually performed. The closer "actual" sits to each band's midpoint, the better-calibrated the model is.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-0 md:grid-cols-4">
-                {calibration.buckets.map((bucket, i) => (
-                  <div key={bucket.label} className={"py-5 " + (i > 0 && i % 2 === 0 ? "border-t border-[var(--border-new)] md:border-t-0 " : "") + (i > 0 ? "md:border-l md:border-[var(--border-new)] md:pl-7 " : "") + (i < calibration.buckets.length - 1 ? "pr-7 " : "")}>
-                    <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Confidence {bucket.label}</div>
-                    <div className="mt-3 mono-nums text-[28px] font-semibold tracking-[-0.025em] leading-none text-[var(--text-new)]">{bucket.actual}%</div>
-                    <div className="mt-2 text-[11px] text-[var(--text-3-new)]">
-                      <span className="mono-nums">{bucket.n}</span> legs
-                      {bucket.predicted ? <> · <span className="text-[var(--text-2-new)]">target <span className="mono-nums">{bucket.predicted}%</span></span></> : null}
-                    </div>
-                    <div className="mt-3 h-[2px] overflow-hidden rounded-full bg-[var(--surface-2-new)]">
-                      <div className="h-full rounded-full bg-[var(--accent-new)]" style={{ width: `${Math.min(100, bucket.actual)}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
+          {/* Calibration scoreboard was added here but referenced `calibration`
+              state that lives inside EdgePage — caused a ReferenceError that
+              blanked the whole Tracker page. Hoist the state up to use it
+              here. For now, the calibration display still works on the
+              MultiPick page (EdgePage) where the state lives. */}
 
           </div>
 
