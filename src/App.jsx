@@ -1562,17 +1562,17 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
             </Card>
           ) : null}
 
-          <section className="grid items-start gap-6 lg:grid-cols-[380px_1fr]">
+          <section className="grid items-start gap-12 lg:grid-cols-[280px_1fr]">
             <div className="space-y-5">
-            <Card className="h-fit">
-              <div className="p-5">
-                <div className="grid gap-2 rounded-2xl bg-[#E8E2D4] p-1 sm:grid-cols-2">
-                  <button onClick={() => setMode("multi")} className={"rounded-xl px-4 py-3 text-sm font-semibold transition " + (mode === "multi" ? "bg-[#FAF7EF] text-[#11203B] shadow-sm" : "text-slate-600 hover:text-[#11203B]")}>Example Multi</button>
-                  <button onClick={() => setMode("analysis")} className={"rounded-xl px-4 py-3 text-sm font-semibold transition " + (mode === "analysis" ? "bg-[#FAF7EF] text-[#11203B] shadow-sm" : "text-slate-600 hover:text-[#11203B]")}>Game Analysis</button>
-                </div>
+              {/* Controls — bare-underline editorial. No Card wrapper, no
+                  cream backgrounds. Mode pill at top, fields stack below. */}
+              <div className="grid grid-cols-2 rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] p-1 text-[12px] font-medium">
+                <button onClick={() => setMode("multi")} className={"rounded px-3 py-2 transition-colors " + (mode === "multi" ? "bg-[var(--text-new)] text-[var(--bg-new)] font-semibold" : "text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}>Example Multi</button>
+                <button onClick={() => setMode("analysis")} className={"rounded px-3 py-2 transition-colors " + (mode === "analysis" ? "bg-[var(--text-new)] text-[var(--bg-new)] font-semibold" : "text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}>Game Analysis</button>
+              </div>
 
                 {mode === "multi" ? (
-                  <div className="mt-6 space-y-5">
+                  <div className="space-y-5">
                     <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
                     <EdgeSelectField label="Games" value={selectedGameId} onChange={setSelectedGameId} options={[{ label: games.length ? "All upcoming games" : "Loading games…", value: "" }, ...games.map((game) => ({ label: game.label, value: game.id }))]} />
                     <EdgeSelectField label="Number of legs" value={legs} onChange={setLegs} options={["Any", "2", "3", "4", "5", "Custom"]} />
@@ -1613,8 +1613,6 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                     <div className="pt-2"><Button onClick={previewAnalysis} disabled={edgeLoading || !selectedGameId} className="w-full rounded-2xl py-3 text-base">{edgeLoading ? "Analysing..." : "Preview game analysis"}</Button></div>
                   </div>
                 )}
-              </div>
-            </Card>
 
             {/* MultiPick performance block — sits below the controls on the
                 left rail. Shows lifetime stats for multis built with the AI
