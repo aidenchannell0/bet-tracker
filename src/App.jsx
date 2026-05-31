@@ -3134,17 +3134,17 @@ export default function BettingTrackerWebsite() {
             <div className="relative px-7 lg:border-r lg:border-[var(--border-new)]">
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Win rate" : selectedSportFilter + " win rate"}</div>
               <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{stats.winRate.toFixed(1)}%</div>
-              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">{stats.wins}W · {stats.losses}L</div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]"><span className="mono-nums">{stats.wins}</span>W · <span className="mono-nums">{stats.losses}</span>L</div>
             </div>
             <div className="relative px-0 pr-7 mt-9 lg:mt-0 lg:px-7 lg:border-r lg:border-[var(--border-new)]">
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"}</div>
               <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{(stats.roi >= 0 ? "+" : "") + stats.roi.toFixed(1)}%</div>
-              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Profit vs total staked</div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]"><span className="mono-nums">{formatCurrency(stats.totalStaked)}</span> staked</div>
             </div>
             <div className="relative px-7 mt-9 lg:mt-0 lg:pl-7 lg:pr-0">
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Total staked" : selectedSportFilter + " staked"}</div>
               <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{formatCurrency(stats.totalStaked)}</div>
-              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Returned {formatCurrency(stats.totalReturned)}</div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Returned <span className="mono-nums">{formatCurrency(stats.totalReturned)}</span></div>
             </div>
           </section>
 

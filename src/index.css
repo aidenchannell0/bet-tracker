@@ -28,10 +28,23 @@
   --danger-soft-new: rgba(248,113,113,0.10);
 }
 
-/* Tabular-figure mono font for prices, odds, percentages, P/L. */
+/* Body sets Inter as the default font everywhere — so paragraph copy and labels
+   use Inter, only the .mono-nums elements flip to JetBrains Mono. */
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11';
+}
+
+/* Tabular-figure mono font for prices, odds, percentages, P/L. Forces tabular
+   figures + slashed zero (zero with a stripe through it) for unambiguous
+   alignment of numeric columns. Loaded at weights 400/500/600/700. */
 .mono-nums {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: -0.01em;
 }
 
 /* Risk-meter gradient bar fill (positive → warning → danger). */
