@@ -1129,7 +1129,7 @@ function GameAnalysisOutput({ analysis, loading }) {
   );
 }
 
-function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
+function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
   const [mode, setMode] = useState("multi");
   const [sport, setSport] = useState("AFL");
   const [legs, setLegs] = useState("3");
@@ -1568,6 +1568,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
           ) : null}
 
           <section className="grid items-start gap-6 lg:grid-cols-[380px_1fr]">
+            <div className="space-y-5">
             <Card className="h-fit">
               <div className="p-5">
                 <div className="grid gap-2 rounded-2xl bg-[#E8E2D4] p-1 sm:grid-cols-2">
@@ -1611,6 +1612,47 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                 )}
               </div>
             </Card>
+
+            {/* MultiPick performance block — sits below the controls on the
+                left rail. Shows lifetime stats for multis built with the AI
+                (multis picked, won/loss split, P/L, ROI). Editorial Layout B
+                styling: tiny eyebrow + 2-up hairline grid + mono numerals. */}
+            {gridBuildStats && gridBuildStats.count > 0 ? (
+              <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
+                <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">MultiPick performance</p>
+                <p className="mt-1 text-[13px] text-[var(--text-2-new)]">How your saved AI multis have actually gone.</p>
+                <div className="mt-4 grid grid-cols-2 gap-y-4">
+                  <div>
+                    <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Multis picked</div>
+                    <div className="mt-1 mono-nums text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{gridBuildStats.count}</div>
+                  </div>
+                  <div className="border-l border-[var(--border-new)] pl-4">
+                    <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Won / Lost</div>
+                    <div className="mt-1 mono-nums text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">
+                      <span className="text-[var(--positive-new)]">{gridBuildStats.wins}</span>
+                      <span className="text-[var(--text-3-new)]"> / </span>
+                      <span className="text-[var(--danger-new)]">{Math.max(0, gridBuildStats.completed - gridBuildStats.wins)}</span>
+                    </div>
+                  </div>
+                  <div className="border-t border-[var(--border-new)] pt-4">
+                    <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Profit / loss</div>
+                    <div className={"mt-1 mono-nums text-[22px] font-semibold tracking-[-0.02em] leading-none " + (gridBuildStats.profit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(gridBuildStats.profit)}</div>
+                  </div>
+                  <div className="border-l border-t border-[var(--border-new)] pl-4 pt-4">
+                    <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">ROI</div>
+                    <div className={"mt-1 mono-nums text-[22px] font-semibold tracking-[-0.02em] leading-none " + (gridBuildStats.roi == null ? "text-[var(--text-3-new)]" : gridBuildStats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>
+                      {gridBuildStats.roi == null ? "—" : `${gridBuildStats.roi >= 0 ? "+" : ""}${gridBuildStats.roi.toFixed(1)}%`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-[var(--border-new)] bg-[var(--surface-new)] p-5">
+                <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">MultiPick performance</p>
+                <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)]">Save your first MultiPick build to your bet tracker and the performance numbers will appear here once they settle.</p>
+              </div>
+            )}
+            </div>
 
             <div className="space-y-6" ref={outputPanelRef}>
               {analysisOutput || analyzing ? (
@@ -2658,7 +2700,7 @@ export default function BettingTrackerWebsite() {
   }
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
-  if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} />;
+  if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} gridBuildStats={gridBuildStats} />;
   if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
