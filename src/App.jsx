@@ -1600,7 +1600,15 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                       ]}
                     />
                     <label className="space-y-1 text-sm font-medium">Optional request<Input value={request} onChange={(event) => setRequest(event.target.value)} placeholder="e.g. Disposals only, no same-game legs" /></label>
-                    <div className="pt-2"><Button onClick={previewMulti} disabled={edgeLoading} className="w-full rounded-2xl py-3 text-base">{edgeLoading ? "Analysing..." : "Preview example multi"}</Button></div>
+                    <div className="pt-2">
+                      <button
+                        onClick={previewMulti}
+                        disabled={edgeLoading}
+                        className="w-full rounded-md bg-[var(--accent-new)] py-3.5 text-[12px] font-bold uppercase tracking-[0.06em] text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {edgeLoading ? "Analysing…" : "Build multi"}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="mt-6 space-y-5">
@@ -1663,26 +1671,44 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                  Old version preserved in src/App.legacy.jsx. */
               <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--bg-new)] overflow-hidden">
                 <div className="p-5 md:p-8">
-                  {/* Eyebrow + title */}
-                  <p className="text-[11px] uppercase tracking-[0.08em] font-medium text-[var(--text-3-new)]">
-                    {multiOutput ? `Output · ${multiOutput.legCount}-leg ${multiOutput.sport} multi` : `Example · ${displayedLegs}-leg ${sport} multi`}
-                  </p>
-                  <h2 className="mt-2 text-[22px] md:text-[24px] font-medium tracking-[-0.02em] text-[var(--text-new)]">
-                    {multiOutput ? "Form-backed, correlation-adjusted" : "Preview to build a live multi"}
-                  </h2>
-                  <p className="mt-1.5 text-sm text-[var(--text-2-new)]">
+                  {/* Editorial header — eyebrow on the left, meta on the
+                      right, like the preview. */}
+                  <div className="flex items-start justify-between gap-4 border-b border-[var(--border-new)] pb-5">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.10em] font-medium text-[var(--text-3-new)]">Grid Build output</p>
+                      <h2 className="mt-2 text-[22px] md:text-[26px] font-medium tracking-[-0.02em] text-[var(--text-new)]">
+                        {multiOutput
+                          ? <>{multiOutput.legCount}-leg {multiOutput.sport} multi {multiOutput.game ? <span className="text-[var(--text-2-new)]"> · {multiOutput.game}</span> : null}</>
+                          : <>Example {displayedLegs}-leg {sport} multi</>}
+                      </h2>
+                    </div>
+                    {multiOutput ? (
+                      <p className="text-right text-xs text-[var(--text-3-new)] whitespace-nowrap">
+                        Built {multiOutput.builtAgo || "just now"}
+                        {multiOutput.bookmakerLabel ? <> · {multiOutput.bookmakerLabel}</> : null}
+                      </p>
+                    ) : null}
+                  </div>
+                  <p className="mt-4 text-sm text-[var(--text-2-new)]" style={{ display: "none" }}>
                     {multiOutput
                       ? <>Real form × current odds. Refine in chat below.</>
-                      : <>The example is illustrative. Click <span className="text-[var(--text-new)] font-medium">Preview example multi</span> to build from real {sport} stats and current market lines.</>}
+                      : <>The example is illustrative. Click <span className="text-[var(--text-new)] font-medium">Build multi</span> to build from real {sport} stats and current market lines.</>}
                   </p>
 
                   {/* Editorial stat strip — Layout B. Hairline borders only,
-                      massive 44px mono numerals on Combined, 26px on others. */}
-                  <div className="mt-7 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-0 border-y border-[var(--border-new)] py-7 md:py-9">
+                      massive 44px mono numerals on Combined, 28px on others. */}
+                  <div className="mt-7 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-0 border-b border-[var(--border-new)] py-7 md:py-9">
                     <div className="md:pr-7 md:border-r md:border-[var(--border-new)]">
                       <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined</div>
                       <div className="mt-3.5 mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">${multiOutput ? formatOdds(multiOutput.combinedOdds) : displayedTargetOdds.replace("$", "")}</div>
-                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{multiOutput ? `Target ${displayedTargetOdds}` : "Target"}</div>
+                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{(() => {
+                        if (!multiOutput) return "Target";
+                        const target = parseOddsValue ? parseFloat(String(displayedTargetOdds).replace(/[^0-9.]/g, "")) : null;
+                        const combined = Number(multiOutput.combinedOdds);
+                        if (!target || !combined) return `Target ${displayedTargetOdds}`;
+                        const closeness = Math.abs((combined - target) / target * 100);
+                        return <>Target <span className="mono-nums">{displayedTargetOdds}</span> · within <span className="mono-nums">{closeness.toFixed(1)}%</span></>;
+                      })()}</div>
                     </div>
                     <div className="md:px-7 md:border-r md:border-[var(--border-new)]">
                       <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined chance</div>
@@ -1727,10 +1753,10 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                     </div>
                   ) : null}
 
-                  {/* Legs section header */}
-                  <div className="mt-7 mb-3 flex items-baseline justify-between">
-                    <div className="text-[15px] font-medium tracking-[-0.01em] text-[var(--text-new)]">Legs</div>
-                    <div className="text-xs text-[var(--text-3-new)]">Tap a row for full form breakdown</div>
+                  {/* Legs section header — matches preview B exactly */}
+                  <div className="mt-9 mb-4 flex items-baseline justify-between border-b border-[var(--border-new)] pb-3">
+                    <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Legs</div>
+                    <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Tap a row for full form breakdown</div>
                   </div>
 
                   {/* Legs — vertical rows with hair-thin dividers */}
