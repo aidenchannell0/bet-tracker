@@ -419,6 +419,72 @@ function TeamCrest({ team, className = "" }) {
   );
 }
 
+// Square guernsey-style tile used on the MultiPick legs (preview B style).
+// Each team gets primary colour + diagonal accent + 3-letter monogram.
+const TEAM_TILES = {
+  // AFL
+  "adelaide": { primary: "#002b5c", accent: "#e21937", abbr: "ADL" },
+  "brisbane": { primary: "#A6192E", accent: "#FCB514", abbr: "BRI" },
+  "carlton": { primary: "#0D2240", accent: "#FFFFFF", abbr: "CAR" },
+  "collingwood": { primary: "#000000", accent: "#FFFFFF", abbr: "COL" },
+  "essendon": { primary: "#CC2031", accent: "#000000", abbr: "ESS" },
+  "fremantle": { primary: "#2A1A5E", accent: "#FFFFFF", abbr: "FRE" },
+  "geelong": { primary: "#003B7E", accent: "#FFFFFF", abbr: "GEE" },
+  "gold coast": { primary: "#CC2128", accent: "#F2C100", abbr: "GCS" },
+  "gws": { primary: "#37474F", accent: "#F57F17", abbr: "GWS" },
+  "hawthorn": { primary: "#4A2410", accent: "#FBBF24", abbr: "HAW" },
+  "melbourne": { primary: "#0a2342", accent: "#C8102E", abbr: "MEL" },
+  "north melbourne": { primary: "#013088", accent: "#FFFFFF", abbr: "NTH" },
+  "port adelaide": { primary: "#00A6A1", accent: "#000000", abbr: "POR" },
+  "richmond": { primary: "#1a1a1a", accent: "#FFD500", abbr: "RIC" },
+  "st kilda": { primary: "#000000", accent: "#ED1C24", abbr: "STK" },
+  "sydney": { primary: "#ED1C24", accent: "#FFFFFF", abbr: "SYD" },
+  "west coast": { primary: "#003087", accent: "#F2A900", abbr: "WCE" },
+  "western bulldogs": { primary: "#014182", accent: "#E03A3E", abbr: "WBD" },
+  // NBA
+  "thunder": { primary: "#007AC1", accent: "#EF6C00", abbr: "OKC" },
+  "oklahoma city": { primary: "#007AC1", accent: "#EF6C00", abbr: "OKC" },
+  "spurs": { primary: "#1a1a1a", accent: "#C4CED4", abbr: "SAS" },
+  "san antonio": { primary: "#1a1a1a", accent: "#C4CED4", abbr: "SAS" },
+  "lakers": { primary: "#552583", accent: "#FDB927", abbr: "LAL" },
+  "celtics": { primary: "#007A33", accent: "#FFFFFF", abbr: "BOS" },
+  "warriors": { primary: "#1D428A", accent: "#FFC72C", abbr: "GSW" },
+  "heat": { primary: "#98002E", accent: "#F9A01B", abbr: "MIA" },
+  "knicks": { primary: "#006BB6", accent: "#F58426", abbr: "NYK" },
+  "pistons": { primary: "#C8102E", accent: "#1d428a", abbr: "DET" },
+};
+
+function tileFor(team) {
+  if (!team) return null;
+  const key = String(team).toLowerCase().trim();
+  const names = Object.keys(TEAM_TILES).sort((a, b) => b.length - a.length);
+  for (const name of names) {
+    if (key === name || key.includes(name)) return TEAM_TILES[name];
+  }
+  return null;
+}
+
+function TeamTile({ team, className = "" }) {
+  const t = tileFor(team);
+  if (!t) {
+    // Fallback: muted tile with first 3 chars of the team name in white
+    const fallback = String(team || "?").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase() || "?";
+    return (
+      <svg viewBox="0 0 32 32" className={className} role="img" aria-label={team}>
+        <rect width="32" height="32" rx="6" fill="#1f1f24" />
+        <text x="16" y="22" textAnchor="middle" fill="#f5f5f7" fontSize="9" fontWeight="700" fontFamily="Inter, sans-serif" letterSpacing="0.5">{fallback}</text>
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 32 32" className={className} role="img" aria-label={team}>
+      <rect width="32" height="32" rx="6" fill={t.primary} />
+      <path d="M0,20 L32,9 L32,32 L0,32 Z" fill={t.accent} />
+      <text x="16" y="22" textAnchor="middle" fill={t.primary === "#FFFFFF" || t.primary.toUpperCase() === "#FFFFFF" ? t.accent : "#ffffff"} fontSize="9" fontWeight="700" fontFamily="Inter, sans-serif" letterSpacing="0.5">{t.abbr}</text>
+    </svg>
+  );
+}
+
 function Card({ children, className = "" }) {
   // 2026 refresh: dark surface, hairline border, no glow. Replaces the old
   // cream cards. Old version preserved in App.legacy.jsx if we ever revert.
@@ -1761,52 +1827,84 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                       const ageDays = leg.formAsOf ? Math.floor((Date.now() - new Date(leg.formAsOf + "T00:00:00").getTime()) / 86400000) : null;
                       const stale = ageDays !== null && ageDays >= 10;
                       return (
-                        <div key={`${leg.name}-${index}`} className="hover:bg-[var(--surface-new)]/40 transition-colors p-5 md:py-6 md:px-0 grid grid-cols-[36px_1fr] md:grid-cols-[36px_1fr_140px_140px] gap-x-5 gap-y-3 items-center">
-                          <div className="mono-nums text-xs text-[var(--text-3-new)] tracking-[0.05em]">{String(index + 1).padStart(2, "0")}</div>
+                        (() => {
+                          // Parse 'X / Y' (cleared / total) out of the reason
+                          // text so we can render filled vs empty dots.
+                          let hitN = 0, totalN = 10;
+                          if (typeof leg.reason === "string") {
+                            const m = leg.reason.match(/(\d+)\s*[\/]\s*(\d+)/);
+                            if (m) { hitN = parseInt(m[1], 10); totalN = parseInt(m[2], 10); }
+                          }
+                          // Parse the averaging value from the reason
+                          let avgN = null;
+                          if (typeof leg.reason === "string") {
+                            const am = leg.reason.match(/averaging\s+([0-9.]+)/i);
+                            if (am) avgN = parseFloat(am[1]);
+                          }
+                          // Split leg.name into player + line if it contains an em-dash
+                          let playerName = leg.name || "";
+                          let lineText = "";
+                          const dashIdx = playerName.indexOf("—");
+                          if (dashIdx >= 0) {
+                            lineText = playerName.slice(dashIdx + 1).trim();
+                            playerName = playerName.slice(0, dashIdx).trim();
+                          }
+                          return (
+                        <div key={`${leg.name}-${index}`} className="hover:bg-[var(--surface-new)]/40 transition-colors py-6 md:px-0 grid grid-cols-[28px_44px_1fr] md:grid-cols-[28px_44px_1fr_120px_140px] gap-x-5 gap-y-3 items-center">
+                          <div className="mono-nums text-[12px] text-[var(--text-3-new)] tracking-[0.05em]">{String(index + 1).padStart(2, "0")}</div>
+                          <TeamTile team={leg.team} className="h-10 w-10 shrink-0" />
                           <div className="min-w-0">
-                            <div className="flex items-center gap-3">
-                              <TeamCrest team={leg.team} className="h-8 w-8 shrink-0" />
-                              <div className="text-[15px] md:text-[16px] font-medium tracking-[-0.01em] text-[var(--text-new)] truncate">{leg.name}</div>
+                            <div className="text-[15px] md:text-[17px] font-medium tracking-[-0.01em] text-[var(--text-new)]">
+                              {playerName}{lineText ? <span className="font-normal text-[var(--text-3-new)]"> — <span className="mono-nums">{lineText}</span></span> : null}
                             </div>
-                            {leg.game ? <div className="mt-1.5 text-xs text-[var(--text-3-new)]">{leg.game}</div> : null}
-                            <div className="mt-1.5 text-sm text-[var(--text-2-new)] leading-relaxed">{leg.reason}</div>
-                            {matchupPct !== null && leg.opponent ? (
-                              <div className={"mt-1 text-xs " + (matchupPct >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>
-                                Matchup nudge {matchupPct >= 0 ? "+" : ""}{matchupPct}% vs {leg.opponent}
+                            <div className="mt-1 text-[13px] text-[var(--text-2-new)]">
+                              {avgN != null ? <>Averaging <span className="mono-nums text-[var(--text-new)] font-medium">{avgN}</span></> : leg.reason}
+                              {matchupPct !== null && leg.opponent ? (
+                                <> · matchup nudge <span className={matchupPct >= 0 ? "text-[var(--positive-new)] font-medium" : "text-[var(--danger-new)] font-medium"}><span className="mono-nums">{matchupPct >= 0 ? "+" : ""}{matchupPct}%</span></span> vs {leg.opponent}</>
+                              ) : null}
+                            </div>
+                            {totalN > 0 ? (
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <div className="flex gap-1">
+                                  {Array.from({ length: totalN }).map((_, dIdx) => (
+                                    <div key={dIdx} className={"h-1.5 w-1.5 rounded-full " + (dIdx < hitN ? "bg-[var(--positive-new)]" : "bg-transparent border border-[var(--text-3-new)]/40")} />
+                                  ))}
+                                </div>
+                                <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)] font-medium"><span className="mono-nums">{hitN} / {totalN}</span> cleared</div>
                               </div>
                             ) : null}
-                            {ageDays !== null ? (
-                              <div className={"mt-1 text-[11px] " + (stale ? "text-[var(--warning-new)] font-medium" : "text-[var(--text-3-new)]")}>
-                                Form as of {formatFormDate(leg.formAsOf)}{stale ? ` · ${ageDays}d ago` : " · completed games only"}
-                              </div>
+                            {stale ? (
+                              <div className="mt-1.5 text-[10px] uppercase tracking-[0.08em] font-medium text-[var(--warning-new)]">Form {ageDays}d old</div>
                             ) : null}
                           </div>
                           {/* Confidence column (desktop only) */}
-                          <div className="hidden md:block">
+                          <div className="hidden md:block text-center">
                             <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)] font-medium">Confidence</div>
-                            <div className="mt-1 mono-nums text-[22px] md:text-[24px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{leg.confidence}</div>
+                            <div className="mt-1.5 mono-nums text-[26px] md:text-[28px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{leg.confidence}</div>
                           </div>
                           {/* Odds / value column */}
-                          <div className="text-right col-span-2 md:col-span-1 flex md:block items-center justify-between gap-3 pt-1 md:pt-0 border-t md:border-0 border-[var(--border-new)] mt-1 md:mt-0">
+                          <div className="text-right col-span-3 md:col-span-1 flex md:block items-start justify-between gap-3 pt-3 md:pt-0 border-t md:border-0 border-[var(--border-new)] mt-1 md:mt-0">
                             <div className="md:hidden text-left">
                               <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)] font-medium">Confidence</div>
                               <div className="mt-0.5 mono-nums text-lg font-semibold text-[var(--text-new)]">{leg.confidence}</div>
                             </div>
                             <div>
-                              <div className="mono-nums text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">${leg.odds ? formatOdds(leg.odds) : "—"}</div>
+                              <div className="mono-nums text-[22px] md:text-[26px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">${leg.odds ? formatOdds(leg.odds) : "—"}</div>
                               <div className="mt-1 text-[11px] text-[var(--text-3-new)]">{leg.bookmaker || ""}</div>
                               {typeof leg.edgePct === "number" ? (
-                                <div className={"inline-block mt-1.5 mono-nums text-[11px] font-medium px-2 py-0.5 rounded-md " + (leg.edgePct > 0 ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>
+                                <div className={"inline-block mt-2 mono-nums text-[11px] font-medium px-2 py-0.5 rounded-md " + (leg.edgePct > 0 ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>
                                   {leg.edgePct > 0 ? `+${leg.edgePct}% value` : `${leg.edgePct}% edge`}
                                 </div>
                               ) : null}
                             </div>
                           </div>
                           {/* Detail toggle spans full width */}
-                          <div className="col-span-2 md:col-span-4">
+                          <div className="col-span-3 md:col-span-5">
                             <EdgeDetailToggle leg={leg} />
                           </div>
                         </div>
+                          );
+                        })()
                       );
                     })}
                   </div>
