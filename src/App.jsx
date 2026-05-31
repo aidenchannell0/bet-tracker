@@ -812,17 +812,17 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
 }
 
 function EdgeRiskMeter({ score }) {
-  const riskColor = score <= 3 ? "bg-emerald-500" : score <= 6 ? "bg-orange-500" : "bg-red-500";
-  const riskWidth = Math.max(10, score * 10) + "%";
+  // 2026 refresh: gradient bar (positive → warning → danger) with mono numerals.
+  const riskWidth = Math.max(10, Math.min(100, score * 10)) + "%";
 
   return (
     <div>
       <div className="mb-2 flex items-center justify-between text-sm">
-        <span className="font-medium text-slate-700">Overall risk score</span>
-        <span className="font-semibold text-[#11203B]">{score}/10</span>
+        <span className="font-medium text-[var(--text-2-new)]">Overall risk score</span>
+        <span className="mono-nums font-semibold text-[var(--text-new)]">{score}<span className="text-[var(--text-3-new)] font-normal">/10</span></span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-        <div className={"h-full rounded-full " + riskColor} style={{ width: riskWidth }} />
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-new)]">
+        <div className="h-full rounded-full risk-gradient-fill" style={{ width: riskWidth }} />
       </div>
     </div>
   );
@@ -830,9 +830,9 @@ function EdgeRiskMeter({ score }) {
 
 function EdgeSelectField({ label, value, options, onChange }) {
   return (
-    <label className="space-y-1 text-sm font-medium">
-      {label}
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200">
+    <label className="space-y-1.5 text-sm font-medium text-[var(--text-2-new)]">
+      <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)]">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-3.5 py-2.5 text-sm text-[var(--text-new)] outline-none transition-colors focus:border-[var(--border-strong-new)]">
         {options.map((option) => {
           const optionValue = typeof option === "object" ? option.value : option;
           const optionLabel = typeof option === "object" ? option.label : option;
@@ -905,7 +905,7 @@ function renderEdgeText(text) {
   return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
-        <strong key={index} className="font-semibold text-[#11203B]">
+        <strong key={index} className="font-semibold text-[var(--text-new)]">
           {part.slice(2, -2)}
         </strong>
       );
@@ -943,9 +943,15 @@ function EdgeMessage({ role, children }) {
   const sections = isEdge ? parseSections(text) : [];
 
   if (!isEdge) {
+    // User message — soft accent-tinted bubble, right-aligned.
     return (
       <div className="flex justify-end">
-        <div className="max-w-[88%] whitespace-pre-line rounded-2xl bg-[#11203B] px-4 py-3 text-sm leading-6 text-white">{children}</div>
+        <div
+          className="max-w-[88%] whitespace-pre-line rounded-2xl px-4 py-3 text-sm leading-6 text-[var(--text-new)]"
+          style={{ background: "var(--accent-soft-new)", border: "1px solid rgba(212,242,58,0.18)" }}
+        >
+          {children}
+        </div>
       </div>
     );
   }
@@ -953,7 +959,7 @@ function EdgeMessage({ role, children }) {
   if (!sections.length) {
     return (
       <div className="flex justify-start">
-        <div className="max-w-[88%] whitespace-pre-line rounded-2xl bg-[#E8E2D4] px-4 py-3 text-sm leading-6 text-slate-800">{renderEdgeText(children)}</div>
+        <div className="max-w-[88%] whitespace-pre-line rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 py-3 text-sm leading-6 text-[var(--text-2-new)]">{renderEdgeText(children)}</div>
       </div>
     );
   }
@@ -962,8 +968,8 @@ function EdgeMessage({ role, children }) {
     <div className="flex justify-start">
       <div className="max-w-[92%] space-y-3">
         {sections.map((section) => (
-          <div key={section.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{section.label}</p>
+          <div key={section.label} className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4 text-sm leading-6 text-[var(--text-2-new)]">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">{section.label}</p>
             <p className="whitespace-pre-line">{renderEdgeText(section.content)}</p>
           </div>
         ))}
