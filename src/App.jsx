@@ -1602,29 +1602,30 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                       : <>The example is illustrative. Click <span className="text-[var(--text-new)] font-medium">Preview example multi</span> to build from real {sport} stats and current market lines.</>}
                   </p>
 
-                  {/* Stat strip */}
-                  <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-0 p-5 md:px-7 md:py-6 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)]">
-                    <div className="md:pr-7">
-                      <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] font-medium">Combined</div>
-                      <div className="mt-1.5 mono-nums text-[32px] md:text-[36px] font-semibold tracking-[-0.03em] leading-none text-[var(--text-new)]">${multiOutput ? formatOdds(multiOutput.combinedOdds) : displayedTargetOdds.replace("$", "")}</div>
-                      <div className="mt-1.5 text-xs text-[var(--text-3-new)]">{multiOutput ? `Target ${displayedTargetOdds}` : "Target"}</div>
+                  {/* Editorial stat strip — Layout B. Hairline borders only,
+                      massive 44px mono numerals on Combined, 26px on others. */}
+                  <div className="mt-7 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-0 border-y border-[var(--border-new)] py-7 md:py-9">
+                    <div className="md:pr-7 md:border-r md:border-[var(--border-new)]">
+                      <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined</div>
+                      <div className="mt-3.5 mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">${multiOutput ? formatOdds(multiOutput.combinedOdds) : displayedTargetOdds.replace("$", "")}</div>
+                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{multiOutput ? `Target ${displayedTargetOdds}` : "Target"}</div>
                     </div>
-                    <div className="md:px-7 md:border-l md:border-[var(--border-new)]">
-                      <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] font-medium">Combined chance</div>
-                      <div className="mt-1.5 mono-nums text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{multiOutput ? `${multiOutput.combinedProbPct}%` : "—"}</div>
-                      <div className="mt-1.5 text-xs text-[var(--text-3-new)]">{multiOutput && multiOutput.correlated && typeof multiOutput.independentProbPct === "number" ? `Adjusted vs ${multiOutput.independentProbPct}% independent` : "Correlation-adjusted"}</div>
+                    <div className="md:px-7 md:border-r md:border-[var(--border-new)]">
+                      <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined chance</div>
+                      <div className="mt-3.5 mono-nums text-[26px] md:text-[28px] font-semibold tracking-[-0.025em] leading-none text-[var(--text-new)]">{multiOutput ? `${multiOutput.combinedProbPct}%` : "—"}</div>
+                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{multiOutput && multiOutput.correlated && typeof multiOutput.independentProbPct === "number" ? `Adjusted vs ${multiOutput.independentProbPct}% independent` : "Correlation-adjusted"}</div>
                     </div>
-                    <div className="md:px-7 md:border-l md:border-[var(--border-new)]">
-                      <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] font-medium">Value vs market</div>
-                      <div className={"mt-1.5 mono-nums text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none " + (multiOutput && multiOutput.evPct > 0 ? "text-[var(--accent-new)]" : "text-[var(--text-2-new)]")}>
+                    <div className="md:px-7 md:border-r md:border-[var(--border-new)]">
+                      <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Value vs market</div>
+                      <div className={"mt-3.5 mono-nums text-[26px] md:text-[28px] font-semibold tracking-[-0.025em] leading-none " + (multiOutput && multiOutput.evPct > 0 ? "text-[var(--accent-new)]" : "text-[var(--text-2-new)]")}>
                         {multiOutput && typeof multiOutput.evPct === "number" ? `${multiOutput.evPct > 0 ? "+" : ""}${multiOutput.evPct}%` : "—"}
                       </div>
-                      <div className="mt-1.5 text-xs text-[var(--text-3-new)]">{multiOutput && typeof multiOutput.valueLegs === "number" ? `${multiOutput.valueLegs} of ${multiOutput.legCount} +edge` : "Form vs odds"}</div>
+                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{multiOutput && typeof multiOutput.valueLegs === "number" ? `${multiOutput.valueLegs} of ${multiOutput.legCount} +edge` : "Form vs odds"}</div>
                     </div>
-                    <div className="md:px-7 md:border-l md:border-[var(--border-new)]">
-                      <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] font-medium">Risk</div>
-                      <div className="mt-1.5 mono-nums text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--warning-new)]">{multiOutput ? multiOutput.risk : 6}<span className="text-sm text-[var(--text-3-new)] font-normal"> / 10</span></div>
-                      <div className="mt-1.5 text-xs text-[var(--text-3-new)]">{(multiOutput?.risk ?? 6) <= 3 ? "Conservative" : (multiOutput?.risk ?? 6) <= 6 ? "Balanced exposure" : "Higher variance"}</div>
+                    <div className="md:pl-7">
+                      <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Risk</div>
+                      <div className="mt-3.5 mono-nums text-[26px] md:text-[28px] font-semibold tracking-[-0.025em] leading-none text-[var(--warning-new)]">{multiOutput ? multiOutput.risk : 6}<span className="text-sm text-[var(--text-3-new)] font-normal"> / 10</span></div>
+                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{(multiOutput?.risk ?? 6) <= 3 ? "Conservative" : (multiOutput?.risk ?? 6) <= 6 ? "Balanced exposure" : "Higher variance"}</div>
                     </div>
                   </div>
 
