@@ -661,7 +661,7 @@ function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassw
         <Card className="w-full">
           <div className="p-6 md:p-8">
             <p className="text-sm font-medium text-slate-500">Online version</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">MultiPick</h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">Pickd</h1>
             <p className="mt-2 text-sm text-slate-600">Create an account or log in to save your bets online and access them from any device.</p>
             {authMode === "reset" ? <p className="mt-2 text-sm text-slate-600">Enter your email and we will send you a password reset link.</p> : null}
 
@@ -708,7 +708,7 @@ function PasswordRecoveryScreen({ newPassword, setNewPassword, loading, message,
           <div className="p-6 md:p-8">
             <p className="text-sm font-medium text-slate-500">Password reset</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight">Set a new password</h1>
-            <p className="mt-2 text-sm text-slate-600">Enter a new password for your MultiPick account.</p>
+            <p className="mt-2 text-sm text-slate-600">Enter a new password for your Pickd account.</p>
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
               <label className="space-y-1 text-sm font-medium">
                 New password
@@ -731,22 +731,22 @@ function TopNav({ activePage, setActivePage, handleLogout }) {
     "text-[12px] font-medium uppercase tracking-[0.06em] transition-colors " +
     (activePage === key ? "text-[var(--text-new)]" : "text-[var(--text-3-new)] hover:text-[var(--text-2-new)]");
   return (
-    <nav className="mb-2 hidden items-center justify-between border-b border-[var(--border-new)] pb-5 md:flex">
+    <nav className="mb-2 flex flex-col gap-3 border-b border-[var(--border-new)] pb-4 md:flex-row md:items-center md:justify-between md:pb-5">
       <button
         type="button"
         onClick={() => setActivePage && setActivePage("app")}
         className="flex items-center gap-3"
       >
-        <div className="grid h-7 w-7 place-items-center rounded bg-[var(--accent-new)] text-[12px] font-bold text-[var(--bg-new)]">M</div>
-        <div className="text-[13px] font-semibold tracking-[0.02em] text-[var(--text-new)]">MULTIPICK</div>
+        <div className="grid h-7 w-7 place-items-center rounded bg-[var(--accent-new)] text-[12px] font-bold text-[var(--bg-new)]">P</div>
+        <div className="text-[13px] font-semibold tracking-[0.02em] text-[var(--text-new)]">PICKD</div>
       </button>
-      <div className="flex items-center gap-6">
-        <button onClick={() => setActivePage("app")} className={tabClass("app")}>Dashboard</button>
-        <button onClick={() => setActivePage("tracker")} className={tabClass("tracker")}>Tracker</button>
-        <button onClick={() => setActivePage("edge")} className={tabClass("edge")}>MultiPick</button>
-        <button onClick={() => setActivePage("settings")} className={tabClass("settings")}>Settings</button>
+      <div className="-mx-2 flex items-center gap-4 overflow-x-auto px-2 md:gap-6 md:overflow-visible">
+        <button onClick={() => setActivePage("app")} className={tabClass("app") + " whitespace-nowrap"}>Dashboard</button>
+        <button onClick={() => setActivePage("tracker")} className={tabClass("tracker") + " whitespace-nowrap"}>Tracker</button>
+        <button onClick={() => setActivePage("edge")} className={tabClass("edge") + " whitespace-nowrap"}>MultiPick</button>
+        <button onClick={() => setActivePage("settings")} className={tabClass("settings") + " whitespace-nowrap"}>Settings</button>
         {handleLogout ? (
-          <button onClick={handleLogout} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Log out</button>
+          <button onClick={handleLogout} className="whitespace-nowrap text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Log out</button>
         ) : null}
       </div>
     </nav>
@@ -757,7 +757,7 @@ function Footer({ setActivePage }) {
   return (
     <footer className="border-t border-slate-200 py-6 text-sm text-slate-500">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 md:flex-row md:items-center md:justify-between md:px-8">
-        <p>© {new Date().getFullYear()} MultiPick. Informational use only.</p>
+        <p>© {new Date().getFullYear()} Pickd. Informational use only.</p>
         <div className="flex flex-wrap gap-4">
           <a href="mailto:aidenchannell0@gmail.com?subject=Bet%20Grid%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Grid%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Grid%20Build%20with%20live%20sports%20data%3F" className="font-medium text-[#11203B] hover:underline">Give feedback</a>
           <button onClick={() => setActivePage("disclaimer")} className="hover:text-[#11203B]">Disclaimer</button>
@@ -779,7 +779,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
         </div>
         <div className="mx-auto max-w-3xl space-y-6">
           <div className="border-b border-[var(--border-new)] pb-8">
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">MultiPick · Account</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">PICKD · Account</p>
             <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[44px]">Settings.</h1>
             <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">Manage exports, backups and account-level bet data actions.</p>
           </div>
@@ -818,7 +818,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
 
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <h2 className="text-lg font-semibold">Import backup</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">Import a MultiPick JSON backup. Imported bets will be added to your online account.</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">Import a Pickd JSON backup. Imported bets will be added to your online account.</p>
                   <div className="mt-4">
                     <Button onClick={() => fileInputRef.current && fileInputRef.current.click()} variant="outline">Import Backup</Button>
                     <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={importBackup} className="hidden" />
@@ -1929,7 +1929,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
         <div className="mx-auto max-w-7xl space-y-10">
           <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 md:grid-cols-[1.4fr_1fr] md:items-end">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">MultiPick · AFL + NBA tracker</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">PICKD · AFL + NBA tracker</p>
               <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[60px]">
                 Track every bet.<br />Read every result.
               </h1>
@@ -1948,13 +1948,13 @@ function LandingPage({ setActivePage, setAuthMode }) {
               <div>
                 <span className="inline-flex rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">AI multi builder + bet tracker</span>
                 <h2 className="mt-3 text-4xl font-bold tracking-tight md:text-6xl">Build smarter AFL multis, backed by real data.</h2>
-                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">MultiPick turns real AFL form, live market lines and a transparent edge model into structured example multis — then MultiPick tracks how every bet actually performs. Data-driven analysis, not a tips service.</p>
+                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">MultiPick (Pickd's AI) turns real AFL form, live market lines and a transparent edge model into structured example multis — then Pickd tracks how every bet actually performs. Data-driven analysis, not a tips service.</p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try MultiPick free</Button>
                 <Button variant="outline" onClick={() => openAuth("login")} className="w-full sm:w-auto">I already have an account</Button>
               </div>
-              <p className="text-sm text-slate-500">Built for tracking and informational use. MultiPick does not accept bets or guarantee outcomes.</p>
+              <p className="text-sm text-slate-500">Built for tracking and informational use. Pickd does not accept bets or guarantee outcomes.</p>
             </div>
 
             <Card>
@@ -2063,15 +2063,15 @@ function LegalPage({ page, setActivePage }) {
     disclaimer: {
       title: "Disclaimer",
       body: [
-        "MultiPick is designed to help users record, review and understand their own betting activity. The information shown in the app is for general informational and tracking purposes only.",
-        "Nothing in MultiPick should be treated as financial advice, betting advice, a guarantee of results or an instruction to place a bet. Betting involves risk, and users are responsible for their own decisions.",
+        "Pickd is designed to help users record, review and understand their own betting activity. The information shown in the app is for general informational and tracking purposes only.",
+        "Nothing in Pickd should be treated as financial advice, betting advice, a guarantee of results or an instruction to place a bet. Betting involves risk, and users are responsible for their own decisions.",
         "Statistics, graphs and future AI-generated analysis may contain errors, omissions or outdated information. Always check information independently before relying on it.",
       ],
     },
     responsible: {
       title: "Responsible Gambling",
       body: [
-        "MultiPick is intended to support awareness and accountability. If betting stops being fun, causes stress, or affects your finances, relationships, study or work, consider taking a break and seeking support.",
+        "Pickd is intended to support awareness and accountability. If betting stops being fun, causes stress, or affects your finances, relationships, study or work, consider taking a break and seeking support.",
         "Set limits before you bet, never bet more than you can afford to lose, and do not chase losses. Tracking losses clearly is one of the reasons this app exists.",
         "If you are in Australia and need support, consider contacting Gambling Help Online or your local gambling support service. If you are outside Australia, contact the relevant support service in your country.",
       ],
@@ -2079,16 +2079,16 @@ function LegalPage({ page, setActivePage }) {
     privacy: {
       title: "Privacy Policy",
       body: [
-        "MultiPick stores account and bet-tracking information so users can access their data across devices. This may include email address, bet dates, stakes, returns, results, notes and related performance statistics.",
-        "MultiPick does not need users to enter bookmaker account details or payment card details to use the core tracking features. Do not enter sensitive personal information into the notes field.",
+        "Pickd stores account and bet-tracking information so users can access their data across devices. This may include email address, bet dates, stakes, returns, results, notes and related performance statistics.",
+        "Pickd does not need users to enter bookmaker account details or payment card details to use the core tracking features. Do not enter sensitive personal information into the notes field.",
         "Data is stored using third-party infrastructure providers such as Supabase and Vercel. As the product develops, this policy should be reviewed and replaced with a full legal privacy policy before wider public marketing.",
       ],
     },
     terms: {
       title: "Terms of Use",
       body: [
-        "By using MultiPick, you agree to use it for lawful personal tracking and informational purposes only. You are responsible for the accuracy of the information you enter.",
-        "MultiPick does not accept bets, process wagers, provide bookmaker services or guarantee betting outcomes. Any betting decisions are made entirely by the user.",
+        "By using Pickd, you agree to use it for lawful personal tracking and informational purposes only. You are responsible for the accuracy of the information you enter.",
+        "Pickd does not accept bets, process wagers, provide bookmaker services or guarantee betting outcomes. Any betting decisions are made entirely by the user.",
         "The app may change, experience downtime, or contain errors while it is being developed. These terms are a working draft and should be reviewed by a qualified lawyer before commercial launch.",
       ],
     },
@@ -2102,7 +2102,7 @@ function LegalPage({ page, setActivePage }) {
         <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
         <Card>
           <div className="p-6 md:p-8">
-            <p className="text-sm font-medium text-slate-500">MultiPick</p>
+            <p className="text-sm font-medium text-slate-500">Pickd</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight">{selected.title}</h1>
             <div className="mt-6 space-y-4 text-sm leading-7 text-slate-700">
               {selected.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
@@ -2772,7 +2772,7 @@ export default function BettingTrackerWebsite() {
   };
 
   const exportBackup = () => {
-    downloadFile(JSON.stringify({ app: "MultiPick", version: 2, exportedAt: new Date().toISOString(), bets }, null, 2), "bet-grid-backup.json", "application/json;charset=utf-8;");
+    downloadFile(JSON.stringify({ app: "Pickd", version: 2, exportedAt: new Date().toISOString(), bets }, null, 2), "pickd-backup.json", "application/json;charset=utf-8;");
   };
 
   const importBackup = (event) => {
@@ -2798,7 +2798,7 @@ export default function BettingTrackerWebsite() {
         }
         setBets((current) => [...(data || []).map(databaseRowToBet), ...current]);
       } catch (error) {
-        window.alert("Could not import that backup file. Make sure it is a MultiPick JSON backup.");
+        window.alert("Could not import that backup file. Make sure it is a Pickd JSON backup.");
       } finally {
         event.target.value = "";
       }
@@ -2833,8 +2833,10 @@ export default function BettingTrackerWebsite() {
 
           <TopNav activePage={activePage} setActivePage={setActivePage} handleLogout={handleLogout} />
 
-          <div className="space-y-4 md:hidden">
-            {/* Mobile editorial header — compact version of the desktop hero. */}
+          {/* Mobile-specific block hidden — mobile now uses the same Layout B
+              content as desktop via responsive Tailwind classes (md:text-[52px]
+              falls back to text-[40px], grid-cols collapse to 1col, etc.). */}
+          <div className="hidden">
             <header className="space-y-2 border-b border-[var(--border-new)] pb-4">
               <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })}</p>
               <h1 className="text-[34px] font-semibold leading-[0.95] tracking-[-0.04em]">Track every bet.</h1>
@@ -3060,7 +3062,11 @@ export default function BettingTrackerWebsite() {
           </div>
 
 
-          <div className="hidden space-y-6 md:block">
+          {/* Main content — now shows at every screen size (mobile parity).
+              All inner sections have responsive Tailwind classes so typography
+              and grids scale gracefully. TopNav stays desktop-only above;
+              mobile uses the bottom nav for navigation. */}
+          <div className="space-y-6">
           {/* 2026 Layout B editorial header — 52px display title, eyebrow
               meta (date + email), action buttons + sport filter right-aligned. */}
           <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 md:grid-cols-[1.4fr_1fr] md:items-end">
@@ -3105,7 +3111,7 @@ export default function BettingTrackerWebsite() {
             <Card className="border-[#C49A4A]/40 bg-[#C49A4A]/15">
               <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Welcome to MultiPick</p>
+                  <p className="text-sm font-semibold text-[#11203B]">Welcome to Pickd</p>
                   <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#11203B]">Start by adding your first bet.</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Once you add a bet, your dashboard will start showing profit/loss, win rate, ROI, sport history and graph trends.</p>
                 </div>
@@ -3335,28 +3341,31 @@ export default function BettingTrackerWebsite() {
           </section>
           ) : null}
 
+          {/* Editorial secondary stat strip — same hairline grid as the primary
+              stats above. Biggest Win/Loss in mono with positive/danger tones,
+              streaks in neutral text. */}
           {activePage === "app" ? (
-          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <ColoredStatCard
-              title="Biggest Win"
-              value={formatCurrency(stats.biggestWin)}
-              tone="green"
-            />
-            <ColoredStatCard
-              title="Biggest Loss"
-              value={formatCurrency(stats.biggestLoss)}
-              tone={stats.biggestLoss < 0 ? "red" : "neutral"}
-            />
-            <ColoredStatCard
-              title="Longest Winning Streak"
-              value={String(stats.longestWinningStreak) + " bets"}
-              tone="green"
-            />
-            <ColoredStatCard
-              title="Longest Losing Streak"
-              value={String(stats.longestLosingStreak) + " bets"}
-              tone={stats.longestLosingStreak > 0 ? "red" : "neutral"}
-            />
+          <section className="grid grid-cols-2 border-y border-[var(--border-new)] py-9 lg:grid-cols-4">
+            <div className="relative px-0 pr-7 lg:border-r lg:border-[var(--border-new)]">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">Biggest win</div>
+              <div className="mono-nums text-[28px] md:text-[36px] font-semibold tracking-[-0.03em] leading-none text-[var(--positive-new)]">{formatCurrency(stats.biggestWin)}</div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Top single-bet result</div>
+            </div>
+            <div className="relative px-7 lg:border-r lg:border-[var(--border-new)]">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">Biggest loss</div>
+              <div className={"mono-nums text-[28px] md:text-[36px] font-semibold tracking-[-0.03em] leading-none " + (stats.biggestLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-2-new)]")}>{formatCurrency(stats.biggestLoss)}</div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Worst single-bet result</div>
+            </div>
+            <div className="relative px-0 pr-7 mt-9 lg:mt-0 lg:px-7 lg:border-r lg:border-[var(--border-new)]">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">Winning streak</div>
+              <div className="mono-nums text-[28px] md:text-[36px] font-semibold tracking-[-0.03em] leading-none text-[var(--positive-new)]">{stats.longestWinningStreak}<span className="text-[var(--text-3-new)] text-base font-normal"> bets</span></div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Longest consecutive run</div>
+            </div>
+            <div className="relative px-7 mt-9 lg:mt-0 lg:pl-7 lg:pr-0">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">Losing streak</div>
+              <div className={"mono-nums text-[28px] md:text-[36px] font-semibold tracking-[-0.03em] leading-none " + (stats.longestLosingStreak > 0 ? "text-[var(--danger-new)]" : "text-[var(--text-2-new)]")}>{stats.longestLosingStreak}<span className="text-[var(--text-3-new)] text-base font-normal"> bets</span></div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Longest cold run</div>
+            </div>
           </section>
           ) : null}
 
