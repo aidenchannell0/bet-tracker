@@ -1,7 +1,7 @@
-# Bet Grid — project handoff
+# Pickr — project handoff
 
 A Vite + React + Supabase app on Vercel (**bettracker.tech**): an AFL + NBA bet
-**tracker** plus an AI **multi builder ("Grid Build")** and a data-backed
+**tracker** plus an AI **multi builder ("Pickr")** and a data-backed
 **Game Analysis** (AFL only — NBA Game Analysis is Phase 2). This note lets a
 new session pick up cold.
 
@@ -13,8 +13,8 @@ new session pick up cold.
   Always `node --check api/edge.js` + `npm run build` before pushing — the Vite build doesn't validate API files.
 
 ## Key files
-### Grid Build & analysis
-- `api/edge.js` — Grid Build brain + Game Analysis brain. Big file (~2900 lines). Branches by intent
+### Pickr & analysis
+- `api/edge.js` — Pickr brain + Game Analysis brain. Big file (~2900 lines). Branches by intent
   (multi build, multi edit, game analysis, market stats, event markets, player stats, available games).
   Sport-aware: pulls odds (`/api/event-odds`) + player stats (`/api/stats?sport=...`) + defence
   factors (`/api/defense?sport=...`), computes implied/edge/correlation-adjusted prob, builds legs,
@@ -98,7 +98,7 @@ afltables.com **blocks datacenter IPs** (Vercel AND GitHub Actions fail), so the
   both clamped to ±15% to tame small samples. For binary/low lines (e.g. "Over 0.5 goals") where
   value-scaling can't move the number, it falls back to a clamped probability-space adjustment so
   the displayed matchup is truthful.
-- **Sport-aware Grid Build**: AFL and NBA both flow through the same extract → enrich → select
+- **Sport-aware Pickr**: AFL and NBA both flow through the same extract → enrich → select
   pipeline. NBA player markets fetched via `PLAYER_MARKETS_BY_SPORT.NBA` (single-key markets like
   `player_points` — Over/Under live as outcomes within each, no `_over` variants). NBA team aliases
   in `TEAM_ALIAS_MAP` ("spurs", "okc", "phoenix") so edit-in-place works for NBA too.
@@ -119,7 +119,7 @@ afltables.com **blocks datacenter IPs** (Vercel AND GitHub Actions fail), so the
   market read (favourite + implied %, total line, spread), key players per team (with form, hit rate,
   matchup), standout +edge value plays, matchup angles (top-conceded + best-defended per team), and a
   GPT narrative summary. **AFL only** — NBA path will reuse the same flow in Phase 2.
-- **Landing page Grid Build showcase**: hero leads with Grid Build, a static example output card
+- **Landing page Pickr showcase**: hero leads with Pickr, a static example output card
   with team crests + form chips + correlation tag + free-tier CTA. Compliant framing throughout
   (placeholder players, "illustrative example", "informational only").
 - **Mobile UI**: bottom tab nav (Home / Add / Build / Settings) wired on all logged-in pages with
@@ -127,7 +127,7 @@ afltables.com **blocks datacenter IPs** (Vercel AND GitHub Actions fail), so the
   at the very bottom; logout button uses the muted danger palette (no blinding red in dark mode).
   Touch-target sizing on the punch list.
 - **Stripe billing portal**: `api/create-portal-session.js` + "Manage subscription" link in the
-  Grid Build header for subscribers. Built and deployed — only the go-live activation in the Stripe
+  Pickr header for subscribers. Built and deployed — only the go-live activation in the Stripe
   dashboard + env-var swap is pending.
 
 ## Theme
@@ -177,7 +177,7 @@ Code is ready. Steps below — all in the Stripe dashboard + Vercel env vars + a
 
 ## NBA Phase 1 — what's live (reference, no action needed)
 
-NBA Grid Build is shipped end-to-end. Same flow as AFL: extract player props from The Odds API,
+NBA Pickr is shipped end-to-end. Same flow as AFL: extract player props from The Odds API,
 enrich with form (last-5/last-10 hit rates from `nba_player_games`) and matchup factors
 (per-team conceded-vs-league via `/api/defense?sport=NBA`), select balanced combo near target,
 return with correlation-adjusted prob and SGM haircut. Notes:
@@ -211,7 +211,7 @@ Run in order. Code is already deployed; only env vars + Stripe dashboard steps r
 1. Activate account: business details (category *Sports forecasting or prediction services*), bank
    account, identity verification.
 2. Switch to **Live mode** (toggle top-left).
-3. Products → Create product → "Grid Build Pro" → Add price → Recurring, Weekly, A$4.99. Copy the
+3. Products → Create product → "Pickr Pro" → Add price → Recurring, Weekly, A$4.99. Copy the
    new live `price_xxx` ID.
 4. Developers → Webhooks → Add endpoint:
    - URL: `https://bettracker.tech/api/stripe-webhook`
@@ -232,7 +232,7 @@ Run in order. Code is already deployed; only env vars + Stripe dashboard steps r
 12. Refund the test charge in Stripe (Payments → Refund).
 
 ## Pricing
-Free tier = 3 Grid Build builds/week. Subscription = weekly (test product set at A$4.99/wk).
+Free tier = 3 Pickr builds/week. Subscription = weekly (test product set at A$4.99/wk).
 Edits don't consume a build credit (refining an existing build is free even for free-tier users).
 
 ## Style/voice

@@ -538,7 +538,7 @@ function PendingBetsCard({ bets, onSettle, onDelete, onEdit }) {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold text-[#11203B]">{bet.betType || "Bet"} · {bet.sport || "Other"} @ ${formatOdds(bet.odds)}</p>
-                  <p className="text-xs text-slate-500">{bet.date} · {formatCurrency(bet.stake)} stake{bet.source === "grid_build" ? " · from Grid Build" : ""}</p>
+                  <p className="text-xs text-slate-500">{bet.date} · {formatCurrency(bet.stake)} stake{bet.source === "grid_build" ? " · from Pickr" : ""}</p>
                 </div>
                 <p className="text-sm font-medium text-[#11203B]">Returns {formatCurrency(Number(bet.stake || 0) * Number(bet.odds || 0))}</p>
               </div>
@@ -565,8 +565,8 @@ function GridBuildScoreCard({ stats }) {
   return (
     <Card>
       <div className="p-5 md:p-6">
-        <h2 className="text-lg font-semibold md:text-xl">Grid Build performance</h2>
-        <p className="text-sm text-slate-500">How the multis you saved from Grid Build have actually gone.</p>
+        <h2 className="text-lg font-semibold md:text-xl">Pickr performance</h2>
+        <p className="text-sm text-slate-500">How the multis you saved from Pickr have actually gone.</p>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-2xl bg-[#E8E2D4] p-4"><p className="text-xs uppercase tracking-wide text-slate-500">Saved</p><p className="mt-1 text-xl font-bold text-[#11203B]">{stats.count}</p></div>
           <div className="rounded-2xl bg-[#E8E2D4] p-4"><p className="text-xs uppercase tracking-wide text-slate-500">Won</p><p className="mt-1 text-xl font-bold text-[#11203B]">{stats.wins}/{stats.completed}</p></div>
@@ -661,7 +661,7 @@ function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassw
         <Card className="w-full">
           <div className="p-6 md:p-8">
             <p className="text-sm font-medium text-slate-500">Online version</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">Bet Grid</h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">Pickr</h1>
             <p className="mt-2 text-sm text-slate-600">Create an account or log in to save your bets online and access them from any device.</p>
             {authMode === "reset" ? <p className="mt-2 text-sm text-slate-600">Enter your email and we will send you a password reset link.</p> : null}
 
@@ -708,7 +708,7 @@ function PasswordRecoveryScreen({ newPassword, setNewPassword, loading, message,
           <div className="p-6 md:p-8">
             <p className="text-sm font-medium text-slate-500">Password reset</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight">Set a new password</h1>
-            <p className="mt-2 text-sm text-slate-600">Enter a new password for your Bet Grid account.</p>
+            <p className="mt-2 text-sm text-slate-600">Enter a new password for your Pickr account.</p>
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
               <label className="space-y-1 text-sm font-medium">
                 New password
@@ -728,7 +728,7 @@ function Footer({ setActivePage }) {
   return (
     <footer className="border-t border-slate-200 py-6 text-sm text-slate-500">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 md:flex-row md:items-center md:justify-between md:px-8">
-        <p>© {new Date().getFullYear()} Bet Grid. Informational use only.</p>
+        <p>© {new Date().getFullYear()} Pickr. Informational use only.</p>
         <div className="flex flex-wrap gap-4">
           <a href="mailto:aidenchannell0@gmail.com?subject=Bet%20Grid%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Grid%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Grid%20Build%20with%20live%20sports%20data%3F" className="font-medium text-[#11203B] hover:underline">Give feedback</a>
           <button onClick={() => setActivePage("disclaimer")} className="hover:text-[#11203B]">Disclaimer</button>
@@ -748,7 +748,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
         <div className="mx-auto max-w-3xl space-y-6">
           <button onClick={() => setActivePage("app")} className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">← Back to dashboard</button>
           <div className="border-b border-[var(--border-new)] pb-8">
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Bet Grid · Account</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Pickr · Account</p>
             <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[44px]">Settings.</h1>
             <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">Manage exports, backups and account-level bet data actions.</p>
           </div>
@@ -787,7 +787,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
 
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <h2 className="text-lg font-semibold">Import backup</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">Import a Bet Grid JSON backup. Imported bets will be added to your online account.</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">Import a Pickr JSON backup. Imported bets will be added to your online account.</p>
                   <div className="mt-4">
                     <Button onClick={() => fileInputRef.current && fileInputRef.current.click()} variant="outline">Import Backup</Button>
                     <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={importBackup} className="hidden" />
@@ -892,7 +892,7 @@ function EdgeDetailToggle({ leg }) {
             )}
           </div>
           <div>
-            <p className="font-medium text-slate-900">Why Grid Build included it</p>
+            <p className="font-medium text-slate-900">Why Pickr included it</p>
             <p className="mt-1 leading-6">{leg.extraReason}</p>
           </div>
         </div>
@@ -1318,7 +1318,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
     setChatMessages([
       {
         role: "edge",
-        text: "Simple view:\n\nNew Grid Build chat started. Ask me for an example multi, a game analysis structure, or what data I would check before building a selection.\n\nExample structure:\n\nYou can ask things like: Build a 3-leg AFL example around $2.00 using disposals only.\n\nWhat I would check:\n\nI will explain the key data needed without pretending live stats are connected yet.\n\nRisk level:\n\nI can explain the risk on a 1 to 10 scale.\n\nImportant:\n\nThis is informational only, not betting advice.",
+        text: "Simple view:\n\nNew Pickr chat started. Ask me for an example multi, a game analysis structure, or what data I would check before building a selection.\n\nExample structure:\n\nYou can ask things like: Build a 3-leg AFL example around $2.00 using disposals only.\n\nWhat I would check:\n\nI will explain the key data needed without pretending live stats are connected yet.\n\nRisk level:\n\nI can explain the risk on a 1 to 10 scale.\n\nImportant:\n\nThis is informational only, not betting advice.",
       },
     ]);
     setChatInput("");
@@ -1425,14 +1425,14 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
       if (data?.multi) {
         setMultiOutput(data.multi);
       }
-      if (!response.ok) throw new Error(data.error || "Grid Build request failed");
+      if (!response.ok) throw new Error(data.error || "Pickr request failed");
       setChatMessages((current) => [...current, { role: "edge", text: data.reply }]);
     } catch (error) {
       setChatMessages((current) => [
         ...current,
         {
           role: "edge",
-          text: "Simple view:\n\nGrid Build could not respond right now.\n\nExample structure:\n\nThis usually means the backend API, OpenAI key, or deployment needs to be checked.\n\nWhat I would check:\n\nConfirm the Vercel function is deployed and the OPENAI_API_KEY is set correctly.\n\nRisk level:\n\nTechnical issue only.\n\nImportant:\n\nTry again shortly after checking the setup.",
+          text: "Simple view:\n\nPickr could not respond right now.\n\nExample structure:\n\nThis usually means the backend API, OpenAI key, or deployment needs to be checked.\n\nWhat I would check:\n\nConfirm the Vercel function is deployed and the OPENAI_API_KEY is set correctly.\n\nRisk level:\n\nTechnical issue only.\n\nImportant:\n\nTry again shortly after checking the setup.",
         },
       ]);
     } finally {
@@ -1460,13 +1460,13 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
               <button onClick={() => setActivePage("app")} className="mb-3 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">← Back to dashboard</button>
               <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">AI multi builder · Beta preview</p>
               <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[52px]">
-                Grid Build.<br />Form-backed multis.
+                Pickr.<br />Form-backed multis.
               </h1>
               <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">A smarter way to build structured example multis using market lines, recent trends and risk scoring.</p>
               <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-300 bg-[#FAF7EF] px-4 py-3 text-sm">
                 {entitlement.subscribed ? (
                   <>
-                    <span className="font-semibold text-[#2E7D5B]">Grid Build Pro — unlimited builds ✓</span>
+                    <span className="font-semibold text-[#2E7D5B]">Pickr Pro — unlimited builds ✓</span>
                     <button
                       type="button"
                       onClick={startManageBilling}
@@ -1491,13 +1491,13 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                 <span className="mr-2">✨</span><span><span className="font-semibold">Live AFL data connected:</span> real player stats, hit rates and market lines power the multi builder.</span>
               </div>
               <div className="mt-3 max-w-3xl rounded-2xl border border-slate-300 bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700">
-                <p className="font-semibold text-[#11203B]">What is Grid Build?</p>
-                <p className="mt-1">Grid Build is Bet Grid’s AI-powered multi builder. It helps create structured example multis, explain risk levels, compare market types and show what data should be checked before making decisions. Grid Build is designed to be structured and data-focused, not a betting tips service.</p>
+                <p className="font-semibold text-[#11203B]">What is Pickr?</p>
+                <p className="mt-1">Pickr is an AI-powered multi builder. It helps create structured example multis, explain risk levels, compare market types and show what data should be checked before making decisions. Pickr is designed to be structured and data-focused, not a betting tips service.</p>
               </div>
             </div>
             <div className="space-y-4 lg:pt-10">
               <div className="rounded-2xl border border-[#C49A4A]/40 bg-[#C49A4A]/15 p-4 text-sm leading-6 text-[#11203B] shadow-sm">
-                <span className="font-semibold">Important:</span> Grid Build is for informational analysis only. It is not betting advice, financial advice, or a guarantee of results. Always make your own decision and gamble responsibly.
+                <span className="font-semibold">Important:</span> Pickr is for informational analysis only. It is not betting advice, financial advice, or a guarantee of results. Always make your own decision and gamble responsibly.
               </div>
               <div className="flex flex-col items-start gap-3 lg:items-end">
                 <div className="rounded-2xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm text-slate-600 shadow-sm">
@@ -1530,7 +1530,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                     </div>
                   ))}
                 </div>
-                <p className="mt-3 text-xs text-slate-500">We log every leg Grid Build rates and check it against the actual result. Well-calibrated means predicted ≈ actual.</p>
+                <p className="mt-3 text-xs text-slate-500">We log every leg Pickr rates and check it against the actual result. Well-calibrated means predicted ≈ actual.</p>
               </div>
             </Card>
           ) : null}
@@ -1789,7 +1789,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
             <div className="p-5 md:p-6">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                 <div>
-                  <p className="text-sm font-medium text-slate-500">Chat with Grid Build</p>
+                  <p className="text-sm font-medium text-slate-500">Chat with Pickr</p>
                   <h2 className="text-xl font-semibold">Refine the build naturally</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1800,7 +1800,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
               </div>
               {chatMessages.length === 0 ? (
                 <div className="mt-5 rounded-2xl border border-slate-200 bg-[#FAF7EF]/70 p-4">
-                  <p className="text-sm font-semibold text-[#11203B]">Try Grid Build</p>
+                  <p className="text-sm font-semibold text-[#11203B]">Try Pickr</p>
                   <p className="mt-1 text-sm text-slate-600">Choose a starter prompt or type your own question below.</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button" onClick={() => useExamplePrompt(`Build a ${displayedLegs}-leg ${sport} example multi around ${displayedTargetOdds}. Keep it simple and explain the risk.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Build example multi</button>
@@ -1829,7 +1829,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
                 </div>
               ) : null}
               <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-                <Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={multiOutput ? "Refine your build — e.g. ‘swap leg 2’, ‘make it safer’, ‘around $3’" : "Ask Grid Build a follow-up..."} onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} />
+                <Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={multiOutput ? "Refine your build — e.g. ‘swap leg 2’, ‘make it safer’, ‘around $3’" : "Ask Pickr a follow-up..."} onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} />
                 <Button onClick={() => sendChatMessage()} className="sm:px-6" disabled={edgeLoading}>{edgeLoading ? "Thinking..." : "Send"}</Button>
               </div>
             </div>
@@ -1855,7 +1855,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
         <div className="mx-auto max-w-7xl space-y-10">
           <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 md:grid-cols-[1.4fr_1fr] md:items-end">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Bet Grid · AFL + NBA tracker</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Pickr · AFL + NBA tracker</p>
               <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[60px]">
                 Track every bet.<br />Read every result.
               </h1>
@@ -1874,13 +1874,13 @@ function LandingPage({ setActivePage, setAuthMode }) {
               <div>
                 <span className="inline-flex rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">AI multi builder + bet tracker</span>
                 <h2 className="mt-3 text-4xl font-bold tracking-tight md:text-6xl">Build smarter AFL multis, backed by real data.</h2>
-                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">Grid Build turns real AFL form, live market lines and a transparent edge model into structured example multis — then Bet Grid tracks how every bet actually performs. Data-driven analysis, not a tips service.</p>
+                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">Pickr turns real AFL form, live market lines and a transparent edge model into structured example multis — then Pickr tracks how every bet actually performs. Data-driven analysis, not a tips service.</p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try Grid Build free</Button>
+                <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try Pickr free</Button>
                 <Button variant="outline" onClick={() => openAuth("login")} className="w-full sm:w-auto">I already have an account</Button>
               </div>
-              <p className="text-sm text-slate-500">Built for tracking and informational use. Bet Grid does not accept bets or guarantee outcomes.</p>
+              <p className="text-sm text-slate-500">Built for tracking and informational use. Pickr does not accept bets or guarantee outcomes.</p>
             </div>
 
             <Card>
@@ -1905,7 +1905,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
               <div className="space-y-6">
                 <div>
                   <span className="inline-flex rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">AI multi builder</span>
-                  <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Meet Grid Build</h2>
+                  <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Meet Pickr</h2>
                   <p className="mt-3 text-base leading-7 text-slate-600">Build structured example multis from real AFL form, live market lines and a transparent edge model — then track how they perform. It’s a data-driven analysis tool, not a betting tips service.</p>
                 </div>
                 <ul className="space-y-3 text-sm leading-6 text-slate-700">
@@ -1916,7 +1916,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
                 <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Refine by chat</span> — “swap leg 2”, “make it safer”, “around $3”.</span></li>
                 </ul>
                 <div className="flex flex-col items-start gap-3 pt-1 sm:flex-row sm:items-center">
-                  <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try Grid Build — 3 free builds a week</Button>
+                  <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try Pickr — 3 free builds a week</Button>
                   <p className="text-sm text-slate-500">Free to start. 18+ · Gamble responsibly.</p>
                 </div>
               </div>
@@ -1925,7 +1925,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Grid Build output · Example</p>
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Pickr output · Example</p>
                       <h3 className="mt-1 text-xl font-semibold">3-leg AFL multi</h3>
                       <p className="text-xs text-slate-500">Geelong Cats vs Carlton Blues</p>
                     </div>
@@ -1974,7 +1974,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
           <section className="grid gap-4 md:grid-cols-3">
             <Card><div className="p-5"><h3 className="text-lg font-semibold">Track every bet</h3><p className="mt-2 text-sm leading-6 text-slate-600">Record stakes, odds, returns, sports, results and notes so your betting history is easy to review.</p></div></Card>
             <Card><div className="p-5"><h3 className="text-lg font-semibold">Understand performance</h3><p className="mt-2 text-sm leading-6 text-slate-600">See profit/loss, ROI, win rate, streaks and weekly, monthly or yearly trends.</p></div></Card>
-            <Card><div className="p-5"><h3 className="text-lg font-semibold">Free to start</h3><p className="mt-2 text-sm leading-6 text-slate-600">Create a free account to track unlimited bets and get 3 Grid Build builds every week. Subscribe for unlimited builds whenever you’re ready.</p><button onClick={() => openAuth("signup")} className="mt-3 text-sm font-medium text-[#11203B] underline">Create free account</button></div></Card>
+            <Card><div className="p-5"><h3 className="text-lg font-semibold">Free to start</h3><p className="mt-2 text-sm leading-6 text-slate-600">Create a free account to track unlimited bets and get 3 Pickr builds every week. Subscribe for unlimited builds whenever you’re ready.</p><button onClick={() => openAuth("signup")} className="mt-3 text-sm font-medium text-[#11203B] underline">Create free account</button></div></Card>
           </section>
         </div>
       </main>
@@ -1989,15 +1989,15 @@ function LegalPage({ page, setActivePage }) {
     disclaimer: {
       title: "Disclaimer",
       body: [
-        "Bet Grid is designed to help users record, review and understand their own betting activity. The information shown in the app is for general informational and tracking purposes only.",
-        "Nothing in Bet Grid should be treated as financial advice, betting advice, a guarantee of results or an instruction to place a bet. Betting involves risk, and users are responsible for their own decisions.",
+        "Pickr is designed to help users record, review and understand their own betting activity. The information shown in the app is for general informational and tracking purposes only.",
+        "Nothing in Pickr should be treated as financial advice, betting advice, a guarantee of results or an instruction to place a bet. Betting involves risk, and users are responsible for their own decisions.",
         "Statistics, graphs and future AI-generated analysis may contain errors, omissions or outdated information. Always check information independently before relying on it.",
       ],
     },
     responsible: {
       title: "Responsible Gambling",
       body: [
-        "Bet Grid is intended to support awareness and accountability. If betting stops being fun, causes stress, or affects your finances, relationships, study or work, consider taking a break and seeking support.",
+        "Pickr is intended to support awareness and accountability. If betting stops being fun, causes stress, or affects your finances, relationships, study or work, consider taking a break and seeking support.",
         "Set limits before you bet, never bet more than you can afford to lose, and do not chase losses. Tracking losses clearly is one of the reasons this app exists.",
         "If you are in Australia and need support, consider contacting Gambling Help Online or your local gambling support service. If you are outside Australia, contact the relevant support service in your country.",
       ],
@@ -2005,16 +2005,16 @@ function LegalPage({ page, setActivePage }) {
     privacy: {
       title: "Privacy Policy",
       body: [
-        "Bet Grid stores account and bet-tracking information so users can access their data across devices. This may include email address, bet dates, stakes, returns, results, notes and related performance statistics.",
-        "Bet Grid does not need users to enter bookmaker account details or payment card details to use the core tracking features. Do not enter sensitive personal information into the notes field.",
+        "Pickr stores account and bet-tracking information so users can access their data across devices. This may include email address, bet dates, stakes, returns, results, notes and related performance statistics.",
+        "Pickr does not need users to enter bookmaker account details or payment card details to use the core tracking features. Do not enter sensitive personal information into the notes field.",
         "Data is stored using third-party infrastructure providers such as Supabase and Vercel. As the product develops, this policy should be reviewed and replaced with a full legal privacy policy before wider public marketing.",
       ],
     },
     terms: {
       title: "Terms of Use",
       body: [
-        "By using Bet Grid, you agree to use it for lawful personal tracking and informational purposes only. You are responsible for the accuracy of the information you enter.",
-        "Bet Grid does not accept bets, process wagers, provide bookmaker services or guarantee betting outcomes. Any betting decisions are made entirely by the user.",
+        "By using Pickr, you agree to use it for lawful personal tracking and informational purposes only. You are responsible for the accuracy of the information you enter.",
+        "Pickr does not accept bets, process wagers, provide bookmaker services or guarantee betting outcomes. Any betting decisions are made entirely by the user.",
         "The app may change, experience downtime, or contain errors while it is being developed. These terms are a working draft and should be reviewed by a qualified lawyer before commercial launch.",
       ],
     },
@@ -2028,7 +2028,7 @@ function LegalPage({ page, setActivePage }) {
         <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
         <Card>
           <div className="p-6 md:p-8">
-            <p className="text-sm font-medium text-slate-500">Bet Grid</p>
+            <p className="text-sm font-medium text-slate-500">Pickr</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight">{selected.title}</h1>
             <div className="mt-6 space-y-4 text-sm leading-7 text-slate-700">
               {selected.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
@@ -2055,7 +2055,7 @@ const NAV_ICONS = {
       <path d="M12 5v14M5 12h14" />
     </svg>
   ),
-  // 2x2 grid — on-brand for "Grid Build" (assembling blocks)
+  // 2x2 grid — on-brand for "Pickr" (assembling blocks)
   build: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
       <rect x="3.5" y="3.5" width="7" height="7" rx="1.6" />
@@ -2458,7 +2458,7 @@ export default function BettingTrackerWebsite() {
 
     if (editingBetId) {
       // Preserve multi-only fields the form doesn't expose (legs, source) so editing
-      // a Grid Build multi keeps its legs and "from Grid Build" tag.
+      // a Pickr multi keeps its legs and "from Pickr" tag.
       const original = bets.find((bet) => bet.id === editingBetId);
       const rowPayload = betToDatabaseRow(
         { ...betPayload, legs: original?.legs || null, source: original?.source || "manual" },
@@ -2510,7 +2510,7 @@ export default function BettingTrackerWebsite() {
       result: "void",
       returnAmount: 0,
       profitLoss: 0,
-      notes: `Grid Build ${multi.legCount}-leg multi`,
+      notes: `Pickr ${multi.legCount}-leg multi`,
       betType: "Multi",
       source: "grid_build",
       status: "pending",
@@ -2578,7 +2578,7 @@ export default function BettingTrackerWebsite() {
   };
 
   const exportBackup = () => {
-    downloadFile(JSON.stringify({ app: "Bet Grid", version: 2, exportedAt: new Date().toISOString(), bets }, null, 2), "bet-grid-backup.json", "application/json;charset=utf-8;");
+    downloadFile(JSON.stringify({ app: "Pickr", version: 2, exportedAt: new Date().toISOString(), bets }, null, 2), "bet-grid-backup.json", "application/json;charset=utf-8;");
   };
 
   const importBackup = (event) => {
@@ -2604,7 +2604,7 @@ export default function BettingTrackerWebsite() {
         }
         setBets((current) => [...(data || []).map(databaseRowToBet), ...current]);
       } catch (error) {
-        window.alert("Could not import that backup file. Make sure it is a Bet Grid JSON backup.");
+        window.alert("Could not import that backup file. Make sure it is a Pickr JSON backup.");
       } finally {
         event.target.value = "";
       }
@@ -2641,12 +2641,12 @@ export default function BettingTrackerWebsite() {
               Desktop only; mobile keeps the bottom nav. */}
           <nav className="mb-2 hidden items-center justify-between border-b border-[var(--border-new)] pb-5 md:flex">
             <div className="flex items-center gap-3">
-              <div className="grid h-7 w-7 place-items-center rounded bg-[var(--accent-new)] text-[12px] font-bold text-[var(--bg-new)]">B</div>
-              <div className="text-[13px] font-semibold tracking-[0.02em]">BET GRID</div>
+              <div className="grid h-7 w-7 place-items-center rounded bg-[var(--accent-new)] text-[12px] font-bold text-[var(--bg-new)]">P</div>
+              <div className="text-[13px] font-semibold tracking-[0.02em]">PICKR</div>
             </div>
             <div className="flex gap-6">
               <button onClick={() => setActivePage("app")} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-new)]">Dashboard</button>
-              <button onClick={() => setActivePage("edge")} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Grid Build</button>
+              <button onClick={() => setActivePage("edge")} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Pickr</button>
               <button onClick={() => setActivePage("settings")} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Settings</button>
               <button onClick={handleLogout} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Log out</button>
             </div>
@@ -2753,10 +2753,10 @@ export default function BettingTrackerWebsite() {
             <Card className="border-[#11203B]/20">
               <div className="space-y-3 p-4">
                 <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Open Grid Build</p>
+                  <p className="text-sm font-semibold text-[#11203B]">Open Pickr</p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">Explore player markets, game analysis and example multis.</p>
                 </div>
-                <Button onClick={() => setActivePage("edge")} className="w-full rounded-2xl py-3 text-base font-semibold">Open Grid Build</Button>
+                <Button onClick={() => setActivePage("edge")} className="w-full rounded-2xl py-3 text-base font-semibold">Open Pickr</Button>
               </div>
             </Card>
 
@@ -2922,7 +2922,7 @@ export default function BettingTrackerWebsite() {
             <Card className="border-[#C49A4A]/40 bg-[#C49A4A]/15">
               <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Welcome to Bet Grid</p>
+                  <p className="text-sm font-semibold text-[#11203B]">Welcome to Pickr</p>
                   <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#11203B]">Start by adding your first bet.</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Once you add a bet, your dashboard will start showing profit/loss, win rate, ROI, sport history and graph trends.</p>
                 </div>
@@ -3217,7 +3217,7 @@ export default function BettingTrackerWebsite() {
                                 </div>
                                 {(bet.source === "grid_build" || bet.bookmaker || bet.notes) ? (
                                   <div className="mt-1 text-[11px] text-[var(--text-3-new)]">
-                                    {bet.source === "grid_build" ? "Grid Build" : "Manual"}{bet.bookmaker ? ` · ${bet.bookmaker}` : ""}{bet.odds ? ` · @ ${formatOdds(bet.odds)}` : ""}
+                                    {bet.source === "grid_build" ? "Pickr" : "Manual"}{bet.bookmaker ? ` · ${bet.bookmaker}` : ""}{bet.odds ? ` · @ ${formatOdds(bet.odds)}` : ""}
                                   </div>
                                 ) : null}
                               </div>
