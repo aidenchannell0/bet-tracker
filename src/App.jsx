@@ -2864,7 +2864,7 @@ export default function BettingTrackerWebsite() {
 
           <div className="hidden space-y-6 md:block">
           {/* 2026 Layout B editorial header — 52px display title, eyebrow
-              meta (date + email), action buttons right-aligned. */}
+              meta (date + email), action buttons + sport filter right-aligned. */}
           <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 md:grid-cols-[1.4fr_1fr] md:items-end">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })} · {session.user.email}</p>
@@ -2880,6 +2880,22 @@ export default function BettingTrackerWebsite() {
                 <Button onClick={() => setActivePage("edge")}>Open Grid Build</Button>
                 <Button onClick={() => setActivePage("settings")} variant="outline">Settings</Button>
                 <Button onClick={handleLogout} variant="ghost">Log out</Button>
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)]">
+                <span className="mr-1">Sport</span>
+                <select
+                  value={selectedSportFilter}
+                  onChange={(event) => { setSelectedSportFilter(event.target.value); setShowAllBets(false); }}
+                  className="cursor-pointer rounded-full border border-[var(--border-new)] bg-transparent px-3 py-1.5 text-[12px] font-normal normal-case tracking-normal text-[var(--text-2-new)] outline-none hover:border-[var(--border-strong-new)] focus:border-[var(--text-new)]"
+                >
+                  <option value="All sports">All sports</option>
+                  <option value="AFL">AFL</option>
+                  <option value="NRL">NRL</option>
+                  <option value="Soccer">Soccer</option>
+                  <option value="Basketball">Basketball</option>
+                  <option value="Cricket">Cricket</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
             </div>
           </header>
@@ -2900,50 +2916,8 @@ export default function BettingTrackerWebsite() {
             </Card>
           ) : null}
 
-          <div className="grid gap-3 lg:grid-cols-[1.35fr_0.9fr]">
-            <Card>
-              <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Dashboard filter</p>
-                  <p className="mt-1 text-xs text-slate-600 md:text-sm">Filter stats, graph and history by sport.</p>
-                </div>
-                <label className="space-y-1 text-sm font-medium md:min-w-52">
-                  Sport
-                  <select
-                    value={selectedSportFilter}
-                    onChange={(event) => {
-                      setSelectedSportFilter(event.target.value);
-                      setShowAllBets(false);
-                    }}
-                    className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-[#11203B] focus:ring-2 focus:ring-slate-200"
-                  >
-                    <option value="All sports">All sports</option>
-                    <option value="AFL">AFL</option>
-                    <option value="NRL">NRL</option>
-                    <option value="Soccer">Soccer</option>
-                    <option value="Basketball">Basketball</option>
-                    <option value="Cricket">Cricket</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </label>
-              </div>
-            </Card>
-
-            <Card className="border-[#C49A4A]/40 bg-[#C49A4A]/10">
-              <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Quick feedback</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-700 md:text-sm">Got an idea or found something confusing?</p>
-                </div>
-                <a
-                  href="mailto:aidenchannell0@gmail.com?subject=Bet%20Grid%20Feedback&body=What%20did%20you%20think%20of%20Bet%20Grid%3F%0A%0AWhat%20was%20confusing%3F%0A%0AWhat%20feature%20should%20come%20next%3F%0A%0AWould%20you%20use%20Grid%20Build%20with%20live%20sports%20data%3F"
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-[#11203B] px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 md:w-auto"
-                >
-                  Give feedback
-                </a>
-              </div>
-            </Card>
-          </div>
+          {/* Filter + feedback cards removed in Layout B port — sport filter
+              lives in the header now; feedback link is in the footer. */}
 
           {/* Editorial stat strip — Layout B. Hairline dividers between cells,
               no card backgrounds, massive mono numerals. */}
@@ -2970,47 +2944,80 @@ export default function BettingTrackerWebsite() {
             </div>
           </section>
 
-          <section className="grid gap-6 lg:grid-cols-5">
-            <Card className="lg:col-span-2">
-              <div ref={formRef} className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl font-semibold">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
-                    {editingBetId ? <p className="mt-1 text-sm text-slate-500">Update the details below, then save your changes.</p> : null}
-                  </div>
-                  {editingBetId ? <Button type="button" variant="outline" onClick={resetBetForm}>Cancel</Button> : null}
+          {/* Add Bet + Chart — Layout B editorial: both unboxed, hairline section
+              dividers, bare-underline form inputs that focus to text-new. The
+              chart sits on the page background instead of in a card. */}
+          <section className="grid gap-10 border-b border-[var(--border-new)] py-10 lg:grid-cols-5">
+            <div className="lg:col-span-2" ref={formRef}>
+              <div className="mb-5 flex items-baseline justify-between">
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{editingBetId ? "Editing" : "Manual entry"}</div>
+                  <h2 className="mt-1 text-[20px] font-medium tracking-[-0.015em] text-[var(--text-new)]">{editingBetId ? "Edit bet" : "Add a bet"}</h2>
                 </div>
-                <form onSubmit={handleAddOrUpdateBet} className="mt-5 space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <label className="space-y-1 text-sm font-medium">Date<Input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
-                    <label className="space-y-1 text-sm font-medium">Sport<select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select></label>
-                    <label className="space-y-1 text-sm font-medium">Result<select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option><option value="pending">Pending</option></select></label>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <label className="space-y-1 text-sm font-medium">Stake<Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} /></label>
-                    <label className="space-y-1 text-sm font-medium">Odds<Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} /></label>
-                    <label className="space-y-1 text-sm font-medium">Return<Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss" || form.result === "pending"} /></label>
-                  </div>
-                  <label className="space-y-1 text-sm font-medium">Notes<Input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="space-y-1 text-sm font-medium">Bet type<select value={form.betType} onChange={(event) => setForm({ ...form, betType: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="">—</option><option value="Single">Single</option><option value="Multi">Multi</option><option value="Player prop">Player prop</option><option value="Head-to-head">Head-to-head</option><option value="Line">Line</option><option value="Total">Total</option><option value="Other">Other</option></select></label>
-                      <label className="space-y-1 text-sm font-medium">Bookmaker<Input placeholder="e.g. Sportsbet" value={form.bookmaker} onChange={(event) => setForm({ ...form, bookmaker: event.target.value })} /></label>
-                    </div>
-                  <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {form.result === "pending" ? "Pending — settle it after the game" : formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
-                  <Button type="submit" className="w-full">{editingBetId ? "Update Bet" : "Add Bet"}</Button>
-                </form>
+                {editingBetId ? <Button type="button" variant="ghost" onClick={resetBetForm}>Cancel</Button> : null}
               </div>
-            </Card>
-
-            <Card className="lg:col-span-3">
-              <div className="p-5">
-                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                  <div><h2 className="text-xl font-semibold">{chartTitle}</h2><p className="text-sm text-slate-500">{chartDescription}</p></div>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
-                    <select value={chartType} onChange={(event) => setChartType(event.target.value)} className="rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="bar">Bar graph</option><option value="line">Line graph</option><option value="area">Area graph</option></select>
-                  </div>
+              <form onSubmit={handleAddOrUpdateBet} className="space-y-5">
+                <div className="grid gap-5 sm:grid-cols-3">
+                  <label className="block">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Date</span>
+                    <input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} className="mono-nums mt-1.5 w-full border-0 border-b border-[var(--border-new)] bg-transparent py-2 text-sm text-[var(--text-new)] outline-none focus:border-[var(--text-new)]" />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Sport</span>
+                    <select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="mt-1.5 w-full cursor-pointer border-0 border-b border-[var(--border-new)] bg-transparent py-2 text-sm text-[var(--text-new)] outline-none focus:border-[var(--text-new)]"><option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option></select>
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Result</span>
+                    <select value={form.result} onChange={(event) => setForm({ ...form, result: event.target.value })} className="mt-1.5 w-full cursor-pointer border-0 border-b border-[var(--border-new)] bg-transparent py-2 text-sm text-[var(--text-new)] outline-none focus:border-[var(--text-new)]"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option><option value="pending">Pending</option></select>
+                  </label>
                 </div>
+                <div className="grid gap-5 sm:grid-cols-3">
+                  <label className="block">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Stake</span>
+                    <input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(event) => setForm({ ...form, stake: event.target.value })} className="mono-nums mt-1.5 w-full border-0 border-b border-[var(--border-new)] bg-transparent py-2 text-sm text-[var(--text-new)] placeholder:text-[var(--text-3-new)] outline-none focus:border-[var(--text-new)]" />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Odds</span>
+                    <input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(event) => setForm({ ...form, odds: event.target.value })} className="mono-nums mt-1.5 w-full border-0 border-b border-[var(--border-new)] bg-transparent py-2 text-sm text-[var(--text-new)] placeholder:text-[var(--text-3-new)] outline-none focus:border-[var(--text-new)]" />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Return</span>
+                    <input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(event) => setForm({ ...form, returnAmount: event.target.value })} disabled={form.result === "loss" || form.result === "pending"} className="mono-nums mt-1.5 w-full border-0 border-b border-[var(--border-new)] bg-transparent py-2 text-sm text-[var(--text-new)] placeholder:text-[var(--text-3-new)] outline-none focus:border-[var(--text-new)] disabled:opacity-50" />
+                  </label>
+                </div>
+                <label className="block">
+                  <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Notes</span>
+                  <input placeholder="Optional note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className="mt-1.5 w-full border-0 border-b border-[var(--border-new)] bg-transparent py-2 text-sm text-[var(--text-new)] placeholder:text-[var(--text-3-new)] outline-none focus:border-[var(--text-new)]" />
+                </label>
+                <div className="grid grid-cols-2 gap-5">
+                  <label className="block">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Bet type</span>
+                    <select value={form.betType} onChange={(event) => setForm({ ...form, betType: event.target.value })} className="mt-1.5 w-full cursor-pointer border-0 border-b border-[var(--border-new)] bg-transparent py-2 text-sm text-[var(--text-new)] outline-none focus:border-[var(--text-new)]"><option value="">—</option><option value="Single">Single</option><option value="Multi">Multi</option><option value="Player prop">Player prop</option><option value="Head-to-head">Head-to-head</option><option value="Line">Line</option><option value="Total">Total</option><option value="Other">Other</option></select>
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Bookmaker</span>
+                    <input placeholder="e.g. Sportsbet" value={form.bookmaker} onChange={(event) => setForm({ ...form, bookmaker: event.target.value })} className="mt-1.5 w-full border-0 border-b border-[var(--border-new)] bg-transparent py-2 text-sm text-[var(--text-new)] placeholder:text-[var(--text-3-new)] outline-none focus:border-[var(--text-new)]" />
+                  </label>
+                </div>
+                <div className="flex items-center justify-between border-t border-[var(--border-new)] pt-4">
+                  <div className="text-xs text-[var(--text-3-new)]">Est. P/L: <span className="mono-nums font-medium text-[var(--text-new)]">{form.result === "pending" ? "—" : formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</span></div>
+                  <Button type="submit">{editingBetId ? "Update bet" : "Save bet"}</Button>
+                </div>
+              </form>
+            </div>
+
+            <div className="lg:col-span-3">
+              <div className="mb-5 flex items-baseline justify-between">
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Performance</div>
+                  <h2 className="mt-1 text-[20px] font-medium tracking-[-0.015em] text-[var(--text-new)]">{chartTitle}</h2>
+                  <p className="text-xs text-[var(--text-3-new)]">{chartDescription}</p>
+                </div>
+                <div className="flex gap-2">
+                  <select value={chartView} onChange={(event) => setChartView(event.target.value)} className="cursor-pointer rounded-full border border-[var(--border-new)] bg-transparent px-3 py-1.5 text-xs text-[var(--text-2-new)] outline-none hover:border-[var(--border-strong-new)]"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+                  <select value={chartType} onChange={(event) => setChartType(event.target.value)} className="cursor-pointer rounded-full border border-[var(--border-new)] bg-transparent px-3 py-1.5 text-xs text-[var(--text-2-new)] outline-none hover:border-[var(--border-strong-new)]"><option value="bar">Bar</option><option value="line">Line</option><option value="area">Area</option></select>
+                </div>
+              </div>
                 <div className="mt-4 h-80">
                   {chartData.length ? (
                     <ResponsiveContainer width="100%" height="100%">
@@ -3053,10 +3060,9 @@ export default function BettingTrackerWebsite() {
                         </BarChart>
                       )}
                     </ResponsiveContainer>
-                  ) : <div className="flex h-full items-center justify-center rounded-2xl bg-[#E8E2D4] text-sm text-slate-500">Add your first bet to see the graph.</div>}
-                </div>
+                  ) : <div className="flex h-full items-center justify-center rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] text-sm text-[var(--text-3-new)]">Add your first bet to see the graph.</div>}
               </div>
-            </Card>
+            </div>
           </section>
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
