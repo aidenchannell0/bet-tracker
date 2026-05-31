@@ -2624,6 +2624,148 @@ function StatDetailModal({ statKey, onClose, originRect, stats, subStats, filter
   );
 }
 
+// ── Stat-cell hover preview ─────────────────────────────────────────
+// A compact sparkline that floats above the stat cell on hover. Each tab
+// renders a tab-appropriate visual so users get a quick read before
+// committing to click. Positioned via .stat-cell-preview CSS — fades in
+// + lifts on parent :hover.
+function StatHoverPreview({ statKey, stats, subStats, filteredBets, pendingBets, cumulativeData }) {
+  const meta = STAT_META[statKey] || STAT_META.pl;
+  let chart = null;
+  let footer = null;
+
+  if (statKey === "pl") {
+    const data = cumulativeData;
+    const stroke = stats.totalProfit >= 0 ? "#4ade80" : "#f87171";
+    chart = data.length ? (
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+          <defs>
+            <linearGradient id={"sparkPlGrad_" + statKey} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={stroke} stopOpacity={0.45} />
+              <stop offset="100%" stopColor={stroke} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <ReferenceLine y={0} stroke="rgba(255,255,255,0.12)" strokeDasharray="2 3" />
+          <Area type="monotone" dataKey="balance" stroke={stroke} strokeWidth={1.75} fill={"url(#sparkPlGrad_" + statKey + ")"} />
+        </AreaChart>
+      </ResponsiveContainer>
+    ) : null;
+    footer = (
+      <>
+        <span>{data.length} period{data.length === 1 ? "" : "s"}</span>
+        <span className="mono-nums">{formatCurrency(stats.totalProfit)}</span>
+      </>
+    );
+  } else if (statKey === "winrate") {
+    const settled = [...filteredBets]
+      .filter((b) => b.result === "win" || b.result === "loss")
+      .sort((a, b) => (parseBetDate(a.date)?.getTime() || 0) - (parseBetDate(b.date)?.getTime() || 0));
+    const W = 10;
+    const rolling = settled.map((b, i) => {
+      const start = Math.max(0, i - (W - 1));
+      const window = settled.slice(start, i + 1);
+      const wins = window.filter((x) => x.result === "win").length;
+      return { rate: Number(((wins / window.length) * 100).toFixed(1)) };
+    });
+    chart = rolling.length ? (
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={rolling} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+          <ReferenceLine y={50} stroke="rgba(255,255,255,0.12)" strokeDasharray="2 3" />
+          <Line type="monotone" dataKey="rate" stroke="#d4f23a" strokeWidth={1.75} dot={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    ) : null;
+    footer = (
+      <>
+        <span><span className="mono-nums">{stats.wins}</span>W · <span className="mono-nums">{stats.losses}</span>L</span>
+        <span className="mono-nums">{stats.winRate.toFixed(1)}%</span>
+      </>
+    );
+  } else if (statKey === "roi") {
+    const map = new Map();
+    filteredBets.forEach((b) => {
+      const d = parseBetDate(b.date);
+      if (!d) return;
+      const key = String(d.getFullYear()) + "-" + String(d.getMonth() + 1).padStart(2, "0");
+      if (!map.has(key)) map.set(key, { key, profit: 0, staked: 0 });
+      const cell = map.get(key);
+      cell.profit += Number(b.profitLoss || 0);
+      cell.staked += Number(b.stake || 0);
+    });
+    const monthly = [...map.values()]
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .map((m) => ({ ...m, roi: m.staked ? Number(((m.profit / m.staked) * 100).toFixed(1)) : 0 }));
+    chart = monthly.length ? (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={monthly} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+          <ReferenceLine y={0} stroke="rgba(255,255,255,0.10)" />
+          <Bar dataKey="roi" radius={[2, 2, 0, 0]}>
+            {monthly.map((m, i) => (
+              <Cell key={i} fill={m.roi >= 0 ? "#4ade80" : "#f87171"} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    ) : null;
+    footer = (
+      <>
+        <span>{monthly.length} month{monthly.length === 1 ? "" : "s"}</span>
+        <span className={"mono-nums " + (stats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{(stats.roi >= 0 ? "+" : "") + stats.roi.toFixed(1)}%</span>
+      </>
+    );
+  } else if (statKey === "inflight") {
+    const sportMap = new Map();
+    pendingBets.forEach((b) => {
+      const key = b.sport || "Other";
+      if (!sportMap.has(key)) sportMap.set(key, { key, stake: 0 });
+      sportMap.get(key).stake += Number(b.stake || 0);
+    });
+    const sports = [...sportMap.values()].sort((a, b) => b.stake - a.stake).slice(0, 4);
+    chart = sports.length ? (
+      <div className="flex h-full w-full flex-col justify-center gap-1.5 px-2">
+        {sports.map((s) => {
+          const pct = subStats.inFlightTotal ? (s.stake / subStats.inFlightTotal) * 100 : 0;
+          return (
+            <div key={s.key} className="flex items-center gap-2 text-[10px]">
+              <span className="w-10 shrink-0 truncate text-[var(--text-3-new)]">{s.key}</span>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-2-new)]">
+                <div className="h-full rounded-full bg-[var(--accent-new)]" style={{ width: Math.max(4, pct) + "%" }} />
+              </div>
+              <span className="mono-nums w-12 shrink-0 text-right text-[var(--text-2-new)]">{formatCurrency(s.stake).replace(".00", "")}</span>
+            </div>
+          );
+        })}
+      </div>
+    ) : null;
+    footer = (
+      <>
+        <span><span className="mono-nums">{subStats.pendingCount}</span> open</span>
+        <span className="mono-nums">{formatCurrency(subStats.inFlightTotal)}</span>
+      </>
+    );
+  }
+
+  return (
+    <div className="stat-cell-preview rounded-xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] p-3 shadow-2xl">
+      <div className="mb-1.5 flex items-baseline justify-between text-[10px]">
+        <span className="font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{meta.title}</span>
+        <span className="text-[var(--text-3-new)]">Click to expand</span>
+      </div>
+      <div className="h-[78px] w-full">
+        {chart || (
+          <div className="grid h-full place-items-center text-[10px] text-[var(--text-3-new)]">
+            {statKey === "inflight" ? "Nothing pending" : "No data yet"}
+          </div>
+        )}
+      </div>
+      <div className="mt-1.5 flex items-baseline justify-between text-[10px] text-[var(--text-3-new)]">
+        {footer}
+      </div>
+    </div>
+  );
+}
+
 export default function BettingTrackerWebsite() {
   // Dark by default. We only ever persist a preference when the user EXPLICITLY
   // picks one in Settings (via chooseTheme). The "bg-theme" key is deliberately
@@ -3629,6 +3771,7 @@ export default function BettingTrackerWebsite() {
               chart + summary, scaling up from the cell as its origin. */}
           <section className="grid grid-cols-2 border-y border-[var(--border-new)] py-9 lg:grid-cols-4">
             <button type="button" onClick={(e) => openStatDetail("pl", e)} className="stat-cell relative px-0 pr-7 text-left lg:border-r lg:border-[var(--border-new)]">
+              <StatHoverPreview statKey="pl" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Profit / loss" : selectedSportFilter + " P/L"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(stats.totalProfit)}</div>
               <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
@@ -3638,6 +3781,7 @@ export default function BettingTrackerWebsite() {
               </div>
             </button>
             <button type="button" onClick={(e) => openStatDetail("winrate", e)} className="stat-cell relative px-7 text-left lg:border-r lg:border-[var(--border-new)]">
+              <StatHoverPreview statKey="winrate" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Win rate" : selectedSportFilter + " win rate"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{stats.winRate.toFixed(1)}%</div>
               <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
@@ -3649,6 +3793,7 @@ export default function BettingTrackerWebsite() {
               </div>
             </button>
             <button type="button" onClick={(e) => openStatDetail("roi", e)} className="stat-cell relative px-0 pr-7 mt-9 text-left lg:mt-0 lg:px-7 lg:border-r lg:border-[var(--border-new)]">
+              <StatHoverPreview statKey="roi" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Return on stake" : selectedSportFilter + " ROI"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{(stats.roi >= 0 ? "+" : "") + stats.roi.toFixed(1)}%</div>
               <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
@@ -3659,6 +3804,7 @@ export default function BettingTrackerWebsite() {
               </div>
             </button>
             <button type="button" onClick={(e) => openStatDetail("inflight", e)} className="stat-cell relative px-7 mt-9 text-left lg:mt-0 lg:pl-7 lg:pr-0">
+              <StatHoverPreview statKey="inflight" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">In flight<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{formatCurrency(subStats.inFlightTotal)}</div>
               <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">

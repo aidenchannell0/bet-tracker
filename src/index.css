@@ -97,6 +97,31 @@ html, body {
   opacity: 1;
 }
 
+/* Hover preview — a floating mini-chart that fades in above the cell.
+   Pointer-events-none so the hover stays anchored on the parent cell and
+   the preview doesn't steal interactions. */
+.stat-cell-preview {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 12px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px) scale(0.97);
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 40;
+}
+.stat-cell:hover .stat-cell-preview {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+/* On smaller screens the cells stack — hide the floating preview there
+   because there's no horizontal room and tapping opens the full modal. */
+@media (max-width: 1024px) {
+  .stat-cell-preview { display: none; }
+}
+
 /* ── Page transitions — fade + tiny slide on activePage change ──── */
 @keyframes pageFadeIn {
   from {
