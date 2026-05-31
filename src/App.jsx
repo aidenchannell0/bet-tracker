@@ -3170,16 +3170,146 @@ export default function BettingTrackerWebsite() {
           </section>
           ) : null}
 
-          {/* Tracker analytics block — appears above the bet history table.
-              Cumulative profit curve, breakdowns by sport/odds/type, plus
-              the Grid Build calibration scoreboard when applicable. */}
-          {activePage === "tracker" && bets.length > 0 ? (
-            <div className="space-y-6 border-b border-[var(--border-new)] py-8">
-              <BankrollCurveCard data={cumulativeData} />
-              <BreakdownsCard bySport={breakdowns.bySport} byOdds={breakdowns.byOdds} byType={breakdowns.byType} />
-              {gridBuildStats.count > 0 ? <GridBuildScoreCard stats={gridBuildStats} /> : null}
-            </div>
-          ) : null}
+          {/* Tracker analytics block — Layout B editorial visuals. Big
+              cumulative profit area chart unboxed, recent-form strip,
+              and P/L-by-sport horizontal bar visualisation. */}
+          {activePage === "tracker" && bets.length > 0 ? (() => {
+            const settled = bets.filter(b => b.result === "win" || b.result === "loss");
+            const recentForm = settled.slice(-20).reverse();
+            const sportTotals = breakdowns.bySport.slice().sort((a, b) => (b.profit || 0) - (a.profit || 0));
+            const maxSportAbs = Math.max(1, ...sportTotals.map(s => Math.abs(s.profit || 0)));
+            return (
+              <div className="space-y-10 border-b border-[var(--border-new)] py-10">
+
+                {/* Cumulative profit chart — unboxed editorial */}
+                <div>
+                  <div className="mb-5 flex items-baseline justify-between">
+                    <div>
+                      <p className="text-[11px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Trajectory</p>
+                      <h2 className="mt-1 text-[20px] font-medium tracking-[-0.015em] text-[var(--text-new)]">Cumulative profit</h2>
+                      <p className="mt-1 text-xs text-[var(--text-3-new)]">Running total after every settled bet</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Current</div>
+                      <div className={"mono-nums mt-1 text-[20px] font-semibold leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(stats.totalProfit)}</div>
+                    </div>
+                  </div>
+                  <div className="h-[280px]">
+                    {cumulativeData.length ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={cumulativeData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="trackerProfitGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#4ade80" stopOpacity={0.32} />
+                              <stop offset="100%" stopColor="#4ade80" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#5d5d63" }} axisLine={false} tickLine={false} minTickGap={40} />
+                          <YAxis tickFormatter={formatCompactCurrency} tick={{ fontSize: 10, fill: "#5d5d63" }} axisLine={false} tickLine={false} width={56} />
+                          <Tooltip content={<ChartTooltip />} cursor={{ stroke: "rgba(255,255,255,0.15)", strokeWidth: 1 }} />
+                          <ReferenceLine y={0} stroke="rgba(255,255,255,0.10)" strokeDasharray="2 4" />
+                          <Area type="monotone" dataKey="balance" stroke="#4ade80" strokeWidth={2} fill="url(#trackerProfitGrad)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="grid h-full place-items-center rounded-xl border border-dashed border-[var(--border-new)] text-sm text-[var(--text-3-new)]">Settle a bet to see your trajectory</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recent form + Sport P/L bars side-by-side */}
+                <div className="grid gap-9 md:grid-cols-2">
+                  <div>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Recent form</p>
+                    <h2 className="mt-1 text-[20px] font-medium tracking-[-0.015em] text-[var(--text-new)]">Last {recentForm.length} settled</h2>
+                    <p className="mt-1 text-xs text-[var(--text-3-new)]">Most recent on the left · green = win, red = loss</p>
+                    <div className="mt-5 flex flex-wrap gap-1.5">
+                      {recentForm.map((bet) => (
+                        <div
+                          key={bet.id}
+                          title={`${bet.date} · ${bet.sport || "Other"} · ${bet.result.toUpperCase()} · ${formatCurrency(bet.profitLoss)}`}
+                          className={"h-6 w-6 rounded " + (bet.result === "win" ? "bg-[var(--positive-new)]" : "bg-[var(--danger-new)]")}
+                          style={{ opacity: bet.result === "win" ? 0.85 : 0.7 }}
+                        />
+                      ))}
+                      {recentForm.length === 0 ? <div className="text-xs text-[var(--text-3-new)]">No settled bets yet.</div> : null}
+                    </div>
+                    {recentForm.length > 0 ? (
+                      <div className="mt-4 flex gap-5 text-xs text-[var(--text-3-new)]">
+                        <span>Wins <span className="mono-nums ml-1 font-medium text-[var(--positive-new)]">{recentForm.filter(b => b.result === "win").length}</span></span>
+                        <span>Losses <span className="mono-nums ml-1 font-medium text-[var(--danger-new)]">{recentForm.filter(b => b.result === "loss").length}</span></span>
+                        <span>Strike rate <span className="mono-nums ml-1 font-medium text-[var(--text-2-new)]">{Math.round((recentForm.filter(b => b.result === "win").length / recentForm.length) * 100)}%</span></span>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">By sport</p>
+                    <h2 className="mt-1 text-[20px] font-medium tracking-[-0.015em] text-[var(--text-new)]">Where the P/L lives</h2>
+                    <p className="mt-1 text-xs text-[var(--text-3-new)]">Bar width relative to your biggest sport result</p>
+                    <div className="mt-5 space-y-3.5">
+                      {sportTotals.length ? sportTotals.map((s) => {
+                        const widthPct = Math.max(2, (Math.abs(s.profit || 0) / maxSportAbs) * 100);
+                        const positive = (s.profit || 0) >= 0;
+                        return (
+                          <div key={s.key}>
+                            <div className="mb-1 flex items-baseline justify-between">
+                              <span className="text-[13px] text-[var(--text-2-new)]">{s.key}</span>
+                              <span className={"mono-nums text-[13px] font-medium " + (positive ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(s.profit || 0)}</span>
+                            </div>
+                            <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-2-new)]">
+                              <div
+                                className={"h-full rounded-full " + (positive ? "bg-[var(--positive-new)]" : "bg-[var(--danger-new)]")}
+                                style={{ width: `${widthPct}%`, opacity: 0.85 }}
+                              />
+                            </div>
+                            <div className="mt-1 text-[10px] uppercase tracking-[0.06em] text-[var(--text-3-new)]">
+                              <span className="mono-nums">{s.n || 0}</span> bets · <span className="mono-nums">{s.winRate != null ? `${s.winRate.toFixed(0)}%` : "—"}</span> win rate
+                            </div>
+                          </div>
+                        );
+                      }) : <div className="text-xs text-[var(--text-3-new)]">No bets yet.</div>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* MultiPick performance — when present */}
+                {gridBuildStats.count > 0 ? (
+                  <div className="border-t border-[var(--border-new)] pt-8">
+                    <div className="flex items-baseline justify-between">
+                      <div>
+                        <p className="text-[11px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">MultiPick AI</p>
+                        <h2 className="mt-1 text-[20px] font-medium tracking-[-0.015em] text-[var(--text-new)]">How AI-built multis have gone</h2>
+                      </div>
+                    </div>
+                    <div className="mt-5 grid grid-cols-2 gap-y-5 md:grid-cols-4">
+                      <div>
+                        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Multis picked</div>
+                        <div className="mono-nums mt-2 text-[24px] font-semibold leading-none text-[var(--text-new)]">{gridBuildStats.count}</div>
+                      </div>
+                      <div className="md:border-l md:border-[var(--border-new)] md:pl-6">
+                        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Won / Lost</div>
+                        <div className="mono-nums mt-2 text-[24px] font-semibold leading-none">
+                          <span className="text-[var(--positive-new)]">{gridBuildStats.wins}</span><span className="text-[var(--text-3-new)]"> / </span><span className="text-[var(--danger-new)]">{Math.max(0, gridBuildStats.completed - gridBuildStats.wins)}</span>
+                        </div>
+                      </div>
+                      <div className="md:border-l md:border-[var(--border-new)] md:pl-6">
+                        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Profit / loss</div>
+                        <div className={"mono-nums mt-2 text-[24px] font-semibold leading-none " + (gridBuildStats.profit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(gridBuildStats.profit)}</div>
+                      </div>
+                      <div className="md:border-l md:border-[var(--border-new)] md:pl-6">
+                        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">ROI</div>
+                        <div className={"mono-nums mt-2 text-[24px] font-semibold leading-none " + (gridBuildStats.roi == null ? "text-[var(--text-3-new)]" : gridBuildStats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>
+                          {gridBuildStats.roi == null ? "—" : `${gridBuildStats.roi >= 0 ? "+" : ""}${gridBuildStats.roi.toFixed(1)}%`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })() : null}
 
           {/* Bet history — Tracker page only. Layout B editorial table.
               Top: status filter pills + sort dropdown. Below: proper table
