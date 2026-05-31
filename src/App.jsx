@@ -838,7 +838,7 @@ function Footer({ setActivePage }) {
 
 function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode }) {
   return (
-    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
+    <div className="page-fade-in min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
           <TopNav activePage="settings" setActivePage={setActivePage} />
@@ -1538,7 +1538,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
+    <div className="page-fade-in min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
           <TopNav activePage="edge" setActivePage={setActivePage} />
@@ -2216,7 +2216,7 @@ function LegalPage({ page, setActivePage }) {
   const selected = content[page] || content.disclaimer;
 
   return (
-    <div className="min-h-screen bg-[#E8E2D4] p-4 text-[#11203B] md:p-8">
+    <div className="page-fade-in min-h-screen bg-[#E8E2D4] p-4 text-[#11203B] md:p-8">
       <div className="mx-auto max-w-3xl space-y-6">
         <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
         <Card>
@@ -2312,6 +2312,318 @@ function MobileBottomNav({ activePage, setActivePage, formRef }) {
   );
 }
 
+// ── Stat detail modal ───────────────────────────────────────────────
+// Tapping any of the four headline stat-strip cells (P/L, Win rate, ROI, In
+// flight) opens this modal with a fuller picture: a Recharts visualisation
+// tuned to that metric plus a tight summary grid. Each tab computes its own
+// derived series from the same filtered bet pool the strip uses, so values
+// stay consistent. Open/close is animated in CSS (stat-modal-* classes).
+const STAT_META = {
+  pl: {
+    eyebrow: "Profit / loss",
+    title: "Cumulative profit",
+    subtitle: "Running balance after every settled bet",
+  },
+  winrate: {
+    eyebrow: "Win rate",
+    title: "Rolling strike rate",
+    subtitle: "Last 10 settled bets, scanned forward",
+  },
+  roi: {
+    eyebrow: "Return on stake",
+    title: "Monthly ROI",
+    subtitle: "Profit divided by stake, grouped by month",
+  },
+  inflight: {
+    eyebrow: "In flight",
+    title: "Pending bets",
+    subtitle: "Open positions ranked by exposure",
+  },
+};
+
+function StatDetailModal({ statKey, onClose, originRect, stats, subStats, filteredBets, pendingBets, cumulativeData }) {
+  // Lock scroll while open + close on Escape.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  const meta = STAT_META[statKey] || STAT_META.pl;
+
+  // Anchor the scale-up animation on the cell the user actually clicked.
+  const originStyle = (() => {
+    if (!originRect) return {};
+    const x = originRect.left + originRect.width / 2;
+    const y = originRect.top + originRect.height / 2;
+    return {
+      "--origin-x": x + "px",
+      "--origin-y": y + "px",
+    };
+  })();
+
+  // Per-tab derived data + summary cells.
+  let chartNode = null;
+  let summary = [];
+  let headline = null;
+  let headlineTone = "text-[var(--text-new)]";
+
+  if (statKey === "pl") {
+    headline = formatCurrency(stats.totalProfit);
+    headlineTone = stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]";
+    summary = [
+      { label: "This week", value: (subStats.weekProfit >= 0 ? "+" : "") + formatCurrency(subStats.weekProfit), tone: subStats.weekProfit >= 0 ? "pos" : "neg" },
+      { label: "Settled", value: subStats.settledCount },
+      { label: "Biggest win", value: formatCurrency(stats.biggestWin), tone: "pos" },
+      { label: "Biggest loss", value: formatCurrency(stats.biggestLoss), tone: "neg" },
+      { label: "Longest win streak", value: stats.longestWinningStreak },
+      { label: "Longest loss streak", value: stats.longestLosingStreak },
+    ];
+    chartNode = cumulativeData.length ? (
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={cumulativeData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="statModalPlGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={stats.totalProfit >= 0 ? "#4ade80" : "#f87171"} stopOpacity={0.32} />
+              <stop offset="100%" stopColor={stats.totalProfit >= 0 ? "#4ade80" : "#f87171"} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#5d5d63" }} axisLine={false} tickLine={false} minTickGap={40} />
+          <YAxis tickFormatter={formatCompactCurrency} tick={{ fontSize: 10, fill: "#5d5d63" }} axisLine={false} tickLine={false} width={56} />
+          <Tooltip content={<ChartTooltip />} cursor={{ stroke: "rgba(255,255,255,0.15)", strokeWidth: 1 }} />
+          <ReferenceLine y={0} stroke="rgba(255,255,255,0.10)" strokeDasharray="2 4" />
+          <Area type="monotone" dataKey="balance" stroke={stats.totalProfit >= 0 ? "#4ade80" : "#f87171"} strokeWidth={2} fill="url(#statModalPlGrad)" />
+        </AreaChart>
+      </ResponsiveContainer>
+    ) : null;
+  } else if (statKey === "winrate") {
+    headline = stats.winRate.toFixed(1) + "%";
+    // Rolling win rate over last 10 bets, advancing one settled bet at a time.
+    const settled = [...filteredBets]
+      .filter((b) => b.result === "win" || b.result === "loss")
+      .sort((a, b) => (parseBetDate(a.date)?.getTime() || 0) - (parseBetDate(b.date)?.getTime() || 0));
+    const W = 10;
+    const rolling = settled.map((b, i) => {
+      const start = Math.max(0, i - (W - 1));
+      const window = settled.slice(start, i + 1);
+      const wins = window.filter((x) => x.result === "win").length;
+      return {
+        label: parseBetDate(b.date)?.toLocaleDateString("en-AU", { day: "numeric", month: "short" }) || "—",
+        rate: Number(((wins / window.length) * 100).toFixed(1)),
+        sortKey: b.date,
+      };
+    });
+    summary = [
+      { label: "Wins", value: stats.wins, tone: "pos" },
+      { label: "Losses", value: stats.losses, tone: "neg" },
+      { label: "Settled", value: subStats.settledCount },
+      { label: "Mo / mo", value: subStats.winRateDelta != null ? (subStats.winRateDelta >= 0 ? "+" : "") + subStats.winRateDelta.toFixed(1) + "pp" : "—", tone: subStats.winRateDelta != null ? (subStats.winRateDelta >= 0 ? "pos" : "neg") : null },
+      { label: "Best streak", value: stats.longestWinningStreak + "W" },
+      { label: "Worst streak", value: stats.longestLosingStreak + "L" },
+    ];
+    chartNode = rolling.length ? (
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={rolling} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#5d5d63" }} axisLine={false} tickLine={false} minTickGap={40} />
+          <YAxis domain={[0, 100]} tickFormatter={(v) => v + "%"} tick={{ fontSize: 10, fill: "#5d5d63" }} axisLine={false} tickLine={false} width={42} />
+          <Tooltip
+            cursor={{ stroke: "rgba(255,255,255,0.15)", strokeWidth: 1 }}
+            content={({ active, payload, label }) => active && payload && payload.length ? (
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-md">
+                <p className="font-semibold text-[#11203B]">{label}</p>
+                <p className="mt-0.5 font-medium text-[#11203B]">Win rate <span className="mono-nums">{payload[0].value}%</span></p>
+              </div>
+            ) : null}
+          />
+          <ReferenceLine y={50} stroke="rgba(255,255,255,0.12)" strokeDasharray="2 4" />
+          <Line type="monotone" dataKey="rate" stroke="#d4f23a" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#d4f23a" }} />
+        </LineChart>
+      </ResponsiveContainer>
+    ) : null;
+  } else if (statKey === "roi") {
+    headline = (stats.roi >= 0 ? "+" : "") + stats.roi.toFixed(1) + "%";
+    headlineTone = stats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]";
+    // ROI by month.
+    const map = new Map();
+    filteredBets.forEach((b) => {
+      const d = parseBetDate(b.date);
+      if (!d) return;
+      const key = String(d.getFullYear()) + "-" + String(d.getMonth() + 1).padStart(2, "0");
+      const label = d.toLocaleString("en-AU", { month: "short", year: "2-digit" });
+      if (!map.has(key)) map.set(key, { key, label, profit: 0, staked: 0 });
+      const cell = map.get(key);
+      cell.profit += Number(b.profitLoss || 0);
+      cell.staked += Number(b.stake || 0);
+    });
+    const monthly = [...map.values()]
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .map((m) => ({ ...m, roi: m.staked ? Number(((m.profit / m.staked) * 100).toFixed(1)) : 0 }));
+    const bestMonth = monthly.length ? monthly.reduce((best, m) => (m.roi > best.roi ? m : best)) : null;
+    const worstMonth = monthly.length ? monthly.reduce((worst, m) => (m.roi < worst.roi ? m : worst)) : null;
+    summary = [
+      { label: "Total staked", value: formatCurrency(stats.totalStaked) },
+      { label: "Net profit", value: formatCurrency(stats.totalProfit), tone: stats.totalProfit >= 0 ? "pos" : "neg" },
+      { label: "Mo / mo", value: subStats.roiDelta != null ? (subStats.roiDelta >= 0 ? "+" : "") + subStats.roiDelta.toFixed(1) + "pp" : "—", tone: subStats.roiDelta != null ? (subStats.roiDelta >= 0 ? "pos" : "neg") : null },
+      { label: "Settled", value: subStats.settledCount },
+      { label: "Best month", value: bestMonth ? bestMonth.label + " · " + (bestMonth.roi >= 0 ? "+" : "") + bestMonth.roi + "%" : "—", tone: bestMonth && bestMonth.roi >= 0 ? "pos" : null },
+      { label: "Worst month", value: worstMonth ? worstMonth.label + " · " + (worstMonth.roi >= 0 ? "+" : "") + worstMonth.roi + "%" : "—", tone: worstMonth && worstMonth.roi < 0 ? "neg" : null },
+    ];
+    chartNode = monthly.length ? (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={monthly} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#5d5d63" }} axisLine={false} tickLine={false} />
+          <YAxis tickFormatter={(v) => v + "%"} tick={{ fontSize: 10, fill: "#5d5d63" }} axisLine={false} tickLine={false} width={48} />
+          <Tooltip
+            cursor={{ fill: "rgba(255,255,255,0.04)" }}
+            content={({ active, payload, label }) => active && payload && payload.length ? (
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-md">
+                <p className="font-semibold text-[#11203B]">{label}</p>
+                <p className={"mt-0.5 font-medium " + (payload[0].value >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>ROI <span className="mono-nums">{payload[0].value >= 0 ? "+" : ""}{payload[0].value}%</span></p>
+                <p className="mt-0.5 text-slate-500">P/L <span className="mono-nums">{formatCurrency(payload[0].payload.profit)}</span></p>
+              </div>
+            ) : null}
+          />
+          <ReferenceLine y={0} stroke="rgba(255,255,255,0.10)" />
+          <Bar dataKey="roi" radius={[4, 4, 0, 0]}>
+            {monthly.map((m, i) => (
+              <Cell key={i} fill={m.roi >= 0 ? "#4ade80" : "#f87171"} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    ) : null;
+  } else if (statKey === "inflight") {
+    headline = formatCurrency(subStats.inFlightTotal);
+    // Group pending bets by sport for a horizontal-bar exposure read.
+    const sportMap = new Map();
+    pendingBets.forEach((b) => {
+      const key = b.sport || "Other";
+      if (!sportMap.has(key)) sportMap.set(key, { key, stake: 0, count: 0, potential: 0 });
+      const cell = sportMap.get(key);
+      cell.stake += Number(b.stake || 0);
+      cell.count += 1;
+      cell.potential += Number(b.stake || 0) * Number(b.odds || 0);
+    });
+    const sports = [...sportMap.values()].sort((a, b) => b.stake - a.stake);
+    const totalPotential = pendingBets.reduce((s, b) => s + Number(b.stake || 0) * Number(b.odds || 0), 0);
+    const avgOdds = pendingBets.length ? pendingBets.reduce((s, b) => s + Number(b.odds || 0), 0) / pendingBets.length : 0;
+    summary = [
+      { label: "Pending", value: subStats.pendingCount },
+      { label: "Tonight", value: subStats.pendingTonight },
+      { label: "Potential return", value: formatCurrency(totalPotential), tone: "pos" },
+      { label: "Potential profit", value: formatCurrency(totalPotential - subStats.inFlightTotal), tone: "pos" },
+      { label: "Avg odds", value: avgOdds ? avgOdds.toFixed(2) : "—" },
+      { label: "Sports in play", value: sports.length },
+    ];
+    chartNode = pendingBets.length ? (
+      <div className="h-full overflow-y-auto pr-2">
+        {/* Sport exposure bars */}
+        {sports.length ? (
+          <div className="mb-6">
+            <div className="mb-3 text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Exposure by sport</div>
+            <div className="space-y-3">
+              {sports.map((s) => {
+                const pct = subStats.inFlightTotal ? (s.stake / subStats.inFlightTotal) * 100 : 0;
+                return (
+                  <div key={s.key}>
+                    <div className="mb-1 flex items-baseline justify-between text-[12px]">
+                      <span className="text-[var(--text-2-new)]">{s.key} <span className="text-[var(--text-3-new)]">· {s.count}</span></span>
+                      <span className="mono-nums font-medium text-[var(--text-new)]">{formatCurrency(s.stake)}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-2-new)]">
+                      <div className="h-full rounded-full bg-[var(--accent-new)]" style={{ width: Math.max(3, pct) + "%" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+        {/* Pending bet list */}
+        <div className="mb-3 text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Open positions</div>
+        <div className="divide-y divide-[var(--border-new)]">
+          {pendingBets.map((b) => (
+            <div key={b.id} className="flex items-center justify-between py-2.5 text-[13px]">
+              <div className="min-w-0">
+                <div className="truncate text-[var(--text-new)]">{b.notes || b.betType || (b.sport || "Bet")}</div>
+                <div className="mt-0.5 text-[11px] text-[var(--text-3-new)]"><span className="mono-nums">{b.date}</span> · {b.sport || "Other"}{b.bookmaker ? " · " + b.bookmaker : ""}</div>
+              </div>
+              <div className="ml-4 flex shrink-0 items-baseline gap-3">
+                <span className="mono-nums text-[var(--text-2-new)]">{formatOdds(b.odds)}</span>
+                <span className="mono-nums font-medium text-[var(--text-new)]">{formatCurrency(b.stake)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : null;
+  }
+
+  const toneClass = (tone) => tone === "pos" ? "text-[var(--positive-new)]" : tone === "neg" ? "text-[var(--danger-new)]" : "text-[var(--text-new)]";
+
+  return (
+    <div
+      className="stat-modal-backdrop fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="stat-modal-card relative w-full max-w-[760px] overflow-hidden rounded-2xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] shadow-2xl"
+        style={originStyle}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-6 border-b border-[var(--border-new)] px-7 pt-7 pb-5">
+          <div className="min-w-0">
+            <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{meta.eyebrow}</div>
+            <div className={"mono-nums mt-2 text-[44px] font-semibold leading-none tracking-[-0.04em] " + headlineTone}>{headline}</div>
+            <div className="mt-3 text-[13px] text-[var(--text-2-new)]">{meta.title}</div>
+            <div className="mt-0.5 text-[11px] text-[var(--text-3-new)]">{meta.subtitle}</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="shrink-0 rounded-full border border-[var(--border-new)] px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] text-[var(--text-3-new)] transition-colors hover:border-[var(--border-strong-new)] hover:text-[var(--text-new)]"
+          >
+            Close ✕
+          </button>
+        </div>
+
+        {/* Chart area */}
+        <div className="border-b border-[var(--border-new)] px-7 py-6">
+          <div className={statKey === "inflight" ? "h-[260px]" : "h-[220px]"}>
+            {chartNode || (
+              <div className="grid h-full place-items-center rounded-xl border border-dashed border-[var(--border-new)] text-sm text-[var(--text-3-new)]">
+                {statKey === "inflight" ? "Nothing pending right now." : "Settle a bet to see this chart."}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Summary grid */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-5 px-7 py-6 sm:grid-cols-3">
+          {summary.map((s, i) => (
+            <div key={i}>
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{s.label}</div>
+              <div className={"mono-nums mt-1.5 text-[18px] font-semibold leading-none " + toneClass(s.tone)}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BettingTrackerWebsite() {
   // Dark by default. We only ever persist a preference when the user EXPLICITLY
   // picks one in Settings (via chooseTheme). The "bg-theme" key is deliberately
@@ -2341,6 +2653,19 @@ export default function BettingTrackerWebsite() {
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [activePage, setActivePage] = useState("app");
+  // Detail modal — null when closed, otherwise one of "pl" | "winrate" | "roi" | "inflight".
+  // statDetailOrigin remembers the screen-space rect of the clicked cell so the
+  // modal can scale up from that anchor point for a clearer visual handoff.
+  const [statDetail, setStatDetail] = useState(null);
+  const [statDetailOrigin, setStatDetailOrigin] = useState(null);
+  const openStatDetail = (key, e) => {
+    if (e && e.currentTarget && e.currentTarget.getBoundingClientRect) {
+      setStatDetailOrigin(e.currentTarget.getBoundingClientRect());
+    } else {
+      setStatDetailOrigin(null);
+    }
+    setStatDetail(key);
+  };
   const [bets, setBets] = useState([]);
   const [loadingBets, setLoadingBets] = useState(false);
   const [editingBetId, setEditingBetId] = useState(null);
@@ -3236,8 +3561,10 @@ export default function BettingTrackerWebsite() {
           {/* Main content — now shows at every screen size (mobile parity).
               All inner sections have responsive Tailwind classes so typography
               and grids scale gracefully. TopNav stays desktop-only above;
-              mobile uses the bottom nav for navigation. */}
-          <div className="space-y-6">
+              mobile uses the bottom nav for navigation. The key={activePage}
+              triggers a remount on page switch so the page-fade-in CSS
+              animation re-fires every time the user navigates. */}
+          <div key={activePage} className="space-y-6 page-fade-in">
           {/* 2026 Layout B editorial header — 52px display title, eyebrow
               meta (date + email), action buttons + sport filter right-aligned. */}
           <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 md:grid-cols-[1.4fr_1fr] md:items-end">
@@ -3297,19 +3624,21 @@ export default function BettingTrackerWebsite() {
           {/* Editorial stat strip — Layout B. Hairline dividers between cells,
               massive mono numerals, two-line sublines: a triangle delta (week
               or month) and a context line below. Final cell shows IN FLIGHT
-              (pending bets) instead of total staked, mirroring preview B. */}
+              (pending bets) instead of total staked, mirroring preview B.
+              Each cell is now a button — clicking opens a detail modal with a
+              chart + summary, scaling up from the cell as its origin. */}
           <section className="grid grid-cols-2 border-y border-[var(--border-new)] py-9 lg:grid-cols-4">
-            <div className="relative px-0 pr-7 lg:border-r lg:border-[var(--border-new)]">
-              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Profit / loss" : selectedSportFilter + " P/L"}</div>
+            <button type="button" onClick={(e) => openStatDetail("pl", e)} className="stat-cell relative px-0 pr-7 text-left lg:border-r lg:border-[var(--border-new)]">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Profit / loss" : selectedSportFilter + " P/L"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(stats.totalProfit)}</div>
               <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
                 <span className={subStats.weekProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>{subStats.weekProfit >= 0 ? "▲ +" : "▼ "}<span className="mono-nums">{formatCurrency(subStats.weekProfit).replace("-", "")}</span></span>
                 <span className="text-[var(--text-3-new)]">this week</span>
                 <span><span className="mono-nums">{subStats.settledCount}</span> settled</span>
               </div>
-            </div>
-            <div className="relative px-7 lg:border-r lg:border-[var(--border-new)]">
-              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Win rate" : selectedSportFilter + " win rate"}</div>
+            </button>
+            <button type="button" onClick={(e) => openStatDetail("winrate", e)} className="stat-cell relative px-7 text-left lg:border-r lg:border-[var(--border-new)]">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Win rate" : selectedSportFilter + " win rate"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{stats.winRate.toFixed(1)}%</div>
               <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
                 {subStats.winRateDelta != null ? (
@@ -3318,9 +3647,9 @@ export default function BettingTrackerWebsite() {
                 <span>mo/mo</span>
                 <span><span className="mono-nums">{stats.wins}</span>W · <span className="mono-nums">{stats.losses}</span>L</span>
               </div>
-            </div>
-            <div className="relative px-0 pr-7 mt-9 lg:mt-0 lg:px-7 lg:border-r lg:border-[var(--border-new)]">
-              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Return on stake" : selectedSportFilter + " ROI"}</div>
+            </button>
+            <button type="button" onClick={(e) => openStatDetail("roi", e)} className="stat-cell relative px-0 pr-7 mt-9 text-left lg:mt-0 lg:px-7 lg:border-r lg:border-[var(--border-new)]">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Return on stake" : selectedSportFilter + " ROI"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{(stats.roi >= 0 ? "+" : "") + stats.roi.toFixed(1)}%</div>
               <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
                 {subStats.roiDelta != null ? (
@@ -3328,15 +3657,15 @@ export default function BettingTrackerWebsite() {
                 ) : <span>—</span>}
                 <span><span className="mono-nums">{formatCurrency(stats.totalStaked)}</span> staked</span>
               </div>
-            </div>
-            <div className="relative px-7 mt-9 lg:mt-0 lg:pl-7 lg:pr-0">
-              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">In flight</div>
+            </button>
+            <button type="button" onClick={(e) => openStatDetail("inflight", e)} className="stat-cell relative px-7 mt-9 text-left lg:mt-0 lg:pl-7 lg:pr-0">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">In flight<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{formatCurrency(subStats.inFlightTotal)}</div>
               <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
                 <span className="text-[var(--text-new)]"><span className="mono-nums">{subStats.pendingCount}</span> pending</span>
                 {subStats.pendingTonight > 0 ? <span><span className="mono-nums">{subStats.pendingTonight}</span> tonight</span> : <span>0 tonight</span>}
               </div>
-            </div>
+            </button>
           </section>
 
           {/* Add Bet + Chart — Dashboard page only. Layout B editorial: both
@@ -4035,6 +4364,18 @@ export default function BettingTrackerWebsite() {
       <Footer setActivePage={setActivePage} />
       <Analytics />
       <MobileBottomNav activePage={activePage} setActivePage={setActivePage} formRef={formRef} />
+      {statDetail ? (
+        <StatDetailModal
+          statKey={statDetail}
+          onClose={() => setStatDetail(null)}
+          originRect={statDetailOrigin}
+          stats={stats}
+          subStats={subStats}
+          filteredBets={filteredBets}
+          pendingBets={pendingBets}
+          cumulativeData={cumulativeData}
+        />
+      ) : null}
     </div>
   );
 }
