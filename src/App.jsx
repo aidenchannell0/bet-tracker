@@ -746,12 +746,14 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
     <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-3xl space-y-6">
-          <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
+          <button onClick={() => setActivePage("app")} className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">← Back to dashboard</button>
+          <div className="border-b border-[var(--border-new)] pb-8">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Bet Grid · Account</p>
+            <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[44px]">Settings.</h1>
+            <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">Manage exports, backups and account-level bet data actions.</p>
+          </div>
           <Card>
             <div className="p-6 md:p-8">
-              <p className="text-sm font-medium text-slate-500">Bet Grid</p>
-              <h1 className="mt-1 text-3xl font-bold tracking-tight">Settings</h1>
-              <p className="mt-2 text-sm leading-6 text-slate-600">Manage exports, backups and account-level bet data actions.</p>
 
               <div className="mt-6 space-y-5">
                 <div className="rounded-2xl border border-slate-200 p-4">
@@ -1453,15 +1455,14 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
               Player props for the next game aren’t posted yet — they usually drop closer to game time. Check back soon.
             </div>
           ) : null}
-          <header className="grid gap-6 lg:grid-cols-[1.35fr_0.75fr] lg:items-start">
+          <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 lg:grid-cols-[1.4fr_1fr] lg:items-end">
             <div>
-              <button onClick={() => setActivePage("app")} className="mb-3 text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium text-slate-500">AI multi builder preview</p>
-                <span className="rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">Beta preview</span>
-              </div>
-              <h1 className="mt-2 text-4xl font-bold tracking-tight md:text-6xl">Grid Build</h1>
-              <p className="mt-2 max-w-2xl text-slate-600">A smarter way to build structured example multis using market lines, recent trends and risk scoring.</p>
+              <button onClick={() => setActivePage("app")} className="mb-3 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">← Back to dashboard</button>
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">AI multi builder · Beta preview</p>
+              <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[52px]">
+                Grid Build.<br />Form-backed multis.
+              </h1>
+              <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">A smarter way to build structured example multis using market lines, recent trends and risk scoring.</p>
               <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-300 bg-[#FAF7EF] px-4 py-3 text-sm">
                 {entitlement.subscribed ? (
                   <>
@@ -1851,12 +1852,17 @@ function LandingPage({ setActivePage, setAuthMode }) {
     <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-10">
-          <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 md:grid-cols-[1.4fr_1fr] md:items-end">
             <div>
-              <p className="text-sm font-medium text-slate-500">Bet Grid</p>
-              <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Track every bet. Understand every result.</h1>
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Bet Grid · AFL + NBA tracker</p>
+              <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[60px]">
+                Track every bet.<br />Read every result.
+              </h1>
+              <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">
+                A bet tracker with serious math under the hood. Form-backed AI multi builder, calibration scoreboard, honest +EV signals.
+              </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 md:justify-end md:items-end">
               <Button variant="outline" onClick={() => openAuth("login")}>Log in</Button>
               <Button onClick={() => openAuth("signup")}>Sign up</Button>
             </div>
@@ -2629,9 +2635,11 @@ export default function BettingTrackerWebsite() {
         <div className="mx-auto max-w-7xl">
 
           <div className="space-y-4 md:hidden">
-            <header className="space-y-1">
-              <p className="text-sm font-medium text-slate-500">Online account version</p>
-              <h1 className="text-3xl font-bold tracking-tight">Bet Grid</h1>
+            {/* Mobile editorial header — compact version of the desktop hero. */}
+            <header className="space-y-2 border-b border-[var(--border-new)] pb-4">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })}</p>
+              <h1 className="text-[34px] font-semibold leading-[0.95] tracking-[-0.04em]">Track every bet.</h1>
+              <p className="text-xs text-[var(--text-3-new)]">{session.user.email}</p>
             </header>
 
             {message ? <Card><div className="p-4 text-sm text-slate-700">{message}</div></Card> : null}
@@ -2854,22 +2862,23 @@ export default function BettingTrackerWebsite() {
 
 
           <div className="hidden space-y-6 md:block">
-          <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          {/* 2026 Layout B editorial header — 52px display title, eyebrow
+              meta (date + email), action buttons right-aligned. */}
+          <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 md:grid-cols-[1.4fr_1fr] md:items-end">
             <div>
-              <p className="text-sm font-medium text-slate-500">Online account version</p>
-              <h1 className="text-3xl font-bold tracking-tight md:text-5xl">Bet Grid</h1>
-              <p className="mt-2 max-w-2xl text-slate-600">Track stakes, returns, profit/loss, win rate, ROI and weekly performance. Your data is saved online with Supabase.</p>
-              <p className="mt-1 text-sm text-slate-500">Logged in as {session.user.email}</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })} · {session.user.email}</p>
+              <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[52px]">
+                Track every bet.<br />Read every result.
+              </h1>
+              <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">
+                Your performance, by the numbers. Profit/loss, ROI, win rate, weekly trends — all backed by your saved bets.
+              </p>
             </div>
-            <div className="flex flex-col gap-3 sm:items-end">
-              <div className="relative max-w-sm rounded-2xl border border-slate-300 bg-[#FAF7EF] px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm">
-                Hi, I’m Grid Build. I can help you explore example multis, player markets, and game analysis.
-                <span className="absolute -bottom-2 left-[28%] h-4 w-4 rotate-45 border-b border-r border-slate-300 bg-[#FAF7EF]" />
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-                <Button onClick={() => setActivePage("edge")} className="col-span-2 w-full rounded-2xl px-6 py-4 text-base font-semibold shadow-lg shadow-slate-300 sm:col-span-1 sm:w-auto">Open Grid Build</Button>
-                <Button onClick={() => setActivePage("settings")} variant="outline" className="w-full sm:w-auto">Settings</Button>
-                <Button onClick={handleLogout} variant="outline" className="col-span-2 w-full sm:col-span-1 sm:w-auto">Log out</Button>
+            <div className="flex flex-col items-end gap-2.5">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button onClick={() => setActivePage("edge")}>Open Grid Build</Button>
+                <Button onClick={() => setActivePage("settings")} variant="outline">Settings</Button>
+                <Button onClick={handleLogout} variant="ghost">Log out</Button>
               </div>
             </div>
           </header>
