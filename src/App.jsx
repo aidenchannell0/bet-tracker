@@ -2507,6 +2507,58 @@ export default function BettingTrackerWebsite() {
     return { totalStaked, totalReturned, totalProfit, wins, losses, winRate, roi, biggestWin, biggestLoss, longestLosingStreak, longestWinningStreak };
   }, [filteredBets]);
 
+  // Derived sub-stats for the stat strip sublines — "+$184 this week",
+  // "+2.1pp mo/mo", "5 pending · 2 tonight". Computed from the same bet
+  // pool the headline stats use.
+  const subStats = useMemo(() => {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const startThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    // P/L delta over the trailing 7 days
+    const weekProfit = filteredBets
+      .filter((b) => new Date(b.date) >= sevenDaysAgo)
+      .reduce((sum, b) => sum + Number(b.profitLoss || 0), 0);
+
+    const settledCount = filteredBets.filter((b) => b.result === "win" || b.result === "loss").length;
+
+    // Win-rate + ROI deltas — current month vs previous month
+    const monthBets = (start, end) => filteredBets.filter((b) => {
+      const d = new Date(b.date);
+      return d >= start && (!end || d <= end) && (b.result === "win" || b.result === "loss");
+    });
+    const rateOf = (arr) => {
+      if (!arr.length) return null;
+      return (arr.filter((b) => b.result === "win").length / arr.length) * 100;
+    };
+    const roiOf = (arr) => {
+      if (!arr.length) return null;
+      const staked = arr.reduce((s, b) => s + Number(b.stake || 0), 0);
+      if (!staked) return null;
+      return (arr.reduce((s, b) => s + Number(b.profitLoss || 0), 0) / staked) * 100;
+    };
+    const thisMonthBets = monthBets(startThisMonth, null);
+    const lastMonthBets = monthBets(startLastMonth, endLastMonth);
+    const winRateThis = rateOf(thisMonthBets);
+    const winRateLast = rateOf(lastMonthBets);
+    const winRateDelta = winRateThis != null && winRateLast != null ? winRateThis - winRateLast : null;
+    const roiThis = roiOf(thisMonthBets);
+    const roiLast = roiOf(lastMonthBets);
+    const roiDelta = roiThis != null && roiLast != null ? roiThis - roiLast : null;
+
+    // Pending bets — total stake "in flight" + how many of them are tonight
+    const todayStr = now.toDateString();
+    const inFlightTotal = pendingBets.reduce((s, b) => s + Number(b.stake || 0), 0);
+    const pendingTonight = pendingBets.filter((b) => {
+      try { return new Date(b.date).toDateString() === todayStr; } catch { return false; }
+    }).length;
+
+    return { weekProfit, settledCount, winRateDelta, roiDelta, inFlightTotal, pendingCount: pendingBets.length, pendingTonight };
+  }, [filteredBets, pendingBets]);
+
   const chartData = useMemo(() => {
     const grouped = filteredBets.reduce((acc, bet) => {
       const periodInfo = getPeriodInfo(bet.date, chartView);
@@ -3124,27 +3176,47 @@ export default function BettingTrackerWebsite() {
               lives in the header now; feedback link is in the footer. */}
 
           {/* Editorial stat strip — Layout B. Hairline dividers between cells,
-              no card backgrounds, massive mono numerals. */}
+              massive mono numerals, two-line sublines: a triangle delta (week
+              or month) and a context line below. Final cell shows IN FLIGHT
+              (pending bets) instead of total staked, mirroring preview B. */}
           <section className="grid grid-cols-2 border-y border-[var(--border-new)] py-9 lg:grid-cols-4">
             <div className="relative px-0 pr-7 lg:border-r lg:border-[var(--border-new)]">
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Profit / loss" : selectedSportFilter + " P/L"}</div>
               <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(stats.totalProfit)}</div>
-              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Overall betting result</div>
+              <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
+                <span className={subStats.weekProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>{subStats.weekProfit >= 0 ? "▲ +" : "▼ "}<span className="mono-nums">{formatCurrency(subStats.weekProfit).replace("-", "")}</span></span>
+                <span className="text-[var(--text-3-new)]">this week</span>
+                <span><span className="mono-nums">{subStats.settledCount}</span> settled</span>
+              </div>
             </div>
             <div className="relative px-7 lg:border-r lg:border-[var(--border-new)]">
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Win rate" : selectedSportFilter + " win rate"}</div>
               <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{stats.winRate.toFixed(1)}%</div>
-              <div className="mt-3.5 text-xs text-[var(--text-3-new)]"><span className="mono-nums">{stats.wins}</span>W · <span className="mono-nums">{stats.losses}</span>L</div>
+              <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
+                {subStats.winRateDelta != null ? (
+                  <span className={subStats.winRateDelta >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>{subStats.winRateDelta >= 0 ? "▲ +" : "▼ "}<span className="mono-nums">{Math.abs(subStats.winRateDelta).toFixed(1)}pp</span></span>
+                ) : <span>—</span>}
+                <span>mo/mo</span>
+                <span><span className="mono-nums">{stats.wins}</span>W · <span className="mono-nums">{stats.losses}</span>L</span>
+              </div>
             </div>
             <div className="relative px-0 pr-7 mt-9 lg:mt-0 lg:px-7 lg:border-r lg:border-[var(--border-new)]">
-              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"}</div>
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Return on stake" : selectedSportFilter + " ROI"}</div>
               <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{(stats.roi >= 0 ? "+" : "") + stats.roi.toFixed(1)}%</div>
-              <div className="mt-3.5 text-xs text-[var(--text-3-new)]"><span className="mono-nums">{formatCurrency(stats.totalStaked)}</span> staked</div>
+              <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
+                {subStats.roiDelta != null ? (
+                  <span className={subStats.roiDelta >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>{subStats.roiDelta >= 0 ? "▲ +" : "▼ "}<span className="mono-nums">{Math.abs(subStats.roiDelta).toFixed(1)}pp</span></span>
+                ) : <span>—</span>}
+                <span><span className="mono-nums">{formatCurrency(stats.totalStaked)}</span> staked</span>
+              </div>
             </div>
             <div className="relative px-7 mt-9 lg:mt-0 lg:pl-7 lg:pr-0">
-              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Total staked" : selectedSportFilter + " staked"}</div>
-              <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{formatCurrency(stats.totalStaked)}</div>
-              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Returned <span className="mono-nums">{formatCurrency(stats.totalReturned)}</span></div>
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">In flight</div>
+              <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{formatCurrency(subStats.inFlightTotal)}</div>
+              <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
+                <span className="text-[var(--text-new)]"><span className="mono-nums">{subStats.pendingCount}</span> pending</span>
+                {subStats.pendingTonight > 0 ? <span><span className="mono-nums">{subStats.pendingTonight}</span> tonight</span> : <span>0 tonight</span>}
+              </div>
             </div>
           </section>
 
