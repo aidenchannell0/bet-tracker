@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { createClient } from "@supabase/supabase-js";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LineChart, Line, AreaChart, Area, ComposedChart, ReferenceLine } from "recharts";
 import { Analytics } from "@vercel/analytics/react";
@@ -2341,7 +2342,7 @@ const STAT_META = {
   },
 };
 
-function StatDetailModal({ statKey, onClose, originRect, stats, subStats, filteredBets, pendingBets, cumulativeData }) {
+function StatDetailModal({ statKey, onClose, stats, subStats, filteredBets, pendingBets, cumulativeData }) {
   // Lock scroll while open + close on Escape.
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -2355,17 +2356,6 @@ function StatDetailModal({ statKey, onClose, originRect, stats, subStats, filter
   }, [onClose]);
 
   const meta = STAT_META[statKey] || STAT_META.pl;
-
-  // Anchor the scale-up animation on the cell the user actually clicked.
-  const originStyle = (() => {
-    if (!originRect) return {};
-    const x = originRect.left + originRect.width / 2;
-    const y = originRect.top + originRect.height / 2;
-    return {
-      "--origin-x": x + "px",
-      "--origin-y": y + "px",
-    };
-  })();
 
   // Per-tab derived data + summary cells.
   let chartNode = null;
@@ -2569,58 +2559,66 @@ function StatDetailModal({ statKey, onClose, originRect, stats, subStats, filter
 
   const toneClass = (tone) => tone === "pos" ? "text-[var(--positive-new)]" : tone === "neg" ? "text-[var(--danger-new)]" : "text-[var(--text-new)]";
 
-  return (
+  // Portal mount target — guard for SSR even though we're CSR-only.
+  const portalTarget = typeof document !== "undefined" ? document.body : null;
+  if (!portalTarget) return null;
+
+  return createPortal(
     <div
-      className="stat-modal-backdrop fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="stat-modal-backdrop fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md sm:p-6 md:p-10"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
+      aria-label={meta.title}
     >
       <div
-        className="stat-modal-card relative w-full max-w-[760px] overflow-hidden rounded-2xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] shadow-2xl"
-        style={originStyle}
+        className="stat-modal-card relative flex max-h-[92vh] w-full max-w-[1080px] flex-col overflow-hidden rounded-3xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] shadow-[0_30px_90px_rgba(0,0,0,0.7)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-6 border-b border-[var(--border-new)] px-7 pt-7 pb-5">
+        <div className="flex items-start justify-between gap-6 border-b border-[var(--border-new)] px-8 pt-8 pb-6 md:px-10 md:pt-10 md:pb-7">
           <div className="min-w-0">
             <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{meta.eyebrow}</div>
-            <div className={"mono-nums mt-2 text-[44px] font-semibold leading-none tracking-[-0.04em] " + headlineTone}>{headline}</div>
-            <div className="mt-3 text-[13px] text-[var(--text-2-new)]">{meta.title}</div>
-            <div className="mt-0.5 text-[11px] text-[var(--text-3-new)]">{meta.subtitle}</div>
+            <div className={"mono-nums mt-2.5 text-[52px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[64px] " + headlineTone}>{headline}</div>
+            <div className="mt-3.5 text-[15px] text-[var(--text-2-new)]">{meta.title}</div>
+            <div className="mt-1 text-[12px] text-[var(--text-3-new)]">{meta.subtitle}</div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="shrink-0 rounded-full border border-[var(--border-new)] px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] text-[var(--text-3-new)] transition-colors hover:border-[var(--border-strong-new)] hover:text-[var(--text-new)]"
+            className="shrink-0 rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-4 py-2 text-[11px] uppercase tracking-[0.08em] text-[var(--text-2-new)] transition-colors hover:border-[var(--border-strong-new)] hover:text-[var(--text-new)]"
           >
             Close ✕
           </button>
         </div>
 
-        {/* Chart area */}
-        <div className="border-b border-[var(--border-new)] px-7 py-6">
-          <div className={statKey === "inflight" ? "h-[260px]" : "h-[220px]"}>
-            {chartNode || (
-              <div className="grid h-full place-items-center rounded-xl border border-dashed border-[var(--border-new)] text-sm text-[var(--text-3-new)]">
-                {statKey === "inflight" ? "Nothing pending right now." : "Settle a bet to see this chart."}
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Chart area */}
+          <div className="border-b border-[var(--border-new)] px-8 py-7 md:px-10 md:py-8">
+            <div className={statKey === "inflight" ? "h-[340px]" : "h-[300px]"}>
+              {chartNode || (
+                <div className="grid h-full place-items-center rounded-xl border border-dashed border-[var(--border-new)] text-sm text-[var(--text-3-new)]">
+                  {statKey === "inflight" ? "Nothing pending right now." : "Settle a bet to see this chart."}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Summary grid */}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-6 px-8 py-8 sm:grid-cols-3 md:px-10">
+            {summary.map((s, i) => (
+              <div key={i}>
+                <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{s.label}</div>
+                <div className={"mono-nums mt-2 text-[22px] font-semibold leading-none " + toneClass(s.tone)}>{s.value}</div>
               </div>
-            )}
+            ))}
           </div>
         </div>
-
-        {/* Summary grid */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-5 px-7 py-6 sm:grid-cols-3">
-          {summary.map((s, i) => (
-            <div key={i}>
-              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{s.label}</div>
-              <div className={"mono-nums mt-1.5 text-[18px] font-semibold leading-none " + toneClass(s.tone)}>{s.value}</div>
-            </div>
-          ))}
-        </div>
       </div>
-    </div>
+    </div>,
+    portalTarget
   );
 }
 
@@ -2796,18 +2794,9 @@ export default function BettingTrackerWebsite() {
   const [newPassword, setNewPassword] = useState("");
   const [activePage, setActivePage] = useState("app");
   // Detail modal — null when closed, otherwise one of "pl" | "winrate" | "roi" | "inflight".
-  // statDetailOrigin remembers the screen-space rect of the clicked cell so the
-  // modal can scale up from that anchor point for a clearer visual handoff.
+  // Renders via a portal at document.body so nothing on the page can clip it.
   const [statDetail, setStatDetail] = useState(null);
-  const [statDetailOrigin, setStatDetailOrigin] = useState(null);
-  const openStatDetail = (key, e) => {
-    if (e && e.currentTarget && e.currentTarget.getBoundingClientRect) {
-      setStatDetailOrigin(e.currentTarget.getBoundingClientRect());
-    } else {
-      setStatDetailOrigin(null);
-    }
-    setStatDetail(key);
-  };
+  const openStatDetail = (key) => setStatDetail(key);
   const [bets, setBets] = useState([]);
   const [loadingBets, setLoadingBets] = useState(false);
   const [editingBetId, setEditingBetId] = useState(null);
@@ -3770,7 +3759,7 @@ export default function BettingTrackerWebsite() {
               Each cell is now a button — clicking opens a detail modal with a
               chart + summary, scaling up from the cell as its origin. */}
           <section className="grid grid-cols-2 border-y border-[var(--border-new)] py-9 lg:grid-cols-4">
-            <button type="button" onClick={(e) => openStatDetail("pl", e)} className="stat-cell relative px-0 pr-7 text-left lg:border-r lg:border-[var(--border-new)]">
+            <button type="button" onClick={() => openStatDetail("pl")} className="stat-cell relative px-0 pr-7 text-left lg:border-r lg:border-[var(--border-new)]">
               <StatHoverPreview statKey="pl" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Profit / loss" : selectedSportFilter + " P/L"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(stats.totalProfit)}</div>
@@ -3780,7 +3769,7 @@ export default function BettingTrackerWebsite() {
                 <span><span className="mono-nums">{subStats.settledCount}</span> settled</span>
               </div>
             </button>
-            <button type="button" onClick={(e) => openStatDetail("winrate", e)} className="stat-cell relative px-7 text-left lg:border-r lg:border-[var(--border-new)]">
+            <button type="button" onClick={() => openStatDetail("winrate")} className="stat-cell relative px-7 text-left lg:border-r lg:border-[var(--border-new)]">
               <StatHoverPreview statKey="winrate" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Win rate" : selectedSportFilter + " win rate"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{stats.winRate.toFixed(1)}%</div>
@@ -3792,7 +3781,7 @@ export default function BettingTrackerWebsite() {
                 <span><span className="mono-nums">{stats.wins}</span>W · <span className="mono-nums">{stats.losses}</span>L</span>
               </div>
             </button>
-            <button type="button" onClick={(e) => openStatDetail("roi", e)} className="stat-cell relative px-0 pr-7 mt-9 text-left lg:mt-0 lg:px-7 lg:border-r lg:border-[var(--border-new)]">
+            <button type="button" onClick={() => openStatDetail("roi")} className="stat-cell relative px-0 pr-7 mt-9 text-left lg:mt-0 lg:px-7 lg:border-r lg:border-[var(--border-new)]">
               <StatHoverPreview statKey="roi" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Return on stake" : selectedSportFilter + " ROI"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{(stats.roi >= 0 ? "+" : "") + stats.roi.toFixed(1)}%</div>
@@ -3803,7 +3792,7 @@ export default function BettingTrackerWebsite() {
                 <span><span className="mono-nums">{formatCurrency(stats.totalStaked)}</span> staked</span>
               </div>
             </button>
-            <button type="button" onClick={(e) => openStatDetail("inflight", e)} className="stat-cell relative px-7 mt-9 text-left lg:mt-0 lg:pl-7 lg:pr-0">
+            <button type="button" onClick={() => openStatDetail("inflight")} className="stat-cell relative px-7 mt-9 text-left lg:mt-0 lg:pl-7 lg:pr-0">
               <StatHoverPreview statKey="inflight" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">In flight<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{formatCurrency(subStats.inFlightTotal)}</div>
@@ -4514,7 +4503,6 @@ export default function BettingTrackerWebsite() {
         <StatDetailModal
           statKey={statDetail}
           onClose={() => setStatDetail(null)}
-          originRect={statDetailOrigin}
           stats={stats}
           subStats={subStats}
           filteredBets={filteredBets}
