@@ -1,5 +1,43 @@
 @import "tailwindcss";
+/* JetBrains Mono — used for prices/percentages in the 2026 refreshed UI.
+   @import must precede any non-@-rule declarations, so it sits above the
+   @variant + ruleset below. */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @variant dark (&:where(.dark, .dark *));
+
+/* ── 2026 minimalist refresh — design tokens ──────────────────────────── */
+/* Used by the new build-output and tracker surfaces. Always renders dark;
+   pairs with the existing dark-mode overrides on the rest of the app. */
+:root {
+  --bg-new: #0a0a0b;
+  --surface-new: #111114;
+  --surface-2-new: #16161a;
+  --border-new: rgba(255,255,255,0.06);
+  --border-strong-new: rgba(255,255,255,0.12);
+  --text-new: #f5f5f7;
+  --text-2-new: #9d9da3;
+  --text-3-new: #5d5d63;
+  --accent-new: #d4f23a;
+  --accent-soft-new: rgba(212,242,58,0.12);
+  --positive-new: #4ade80;
+  --positive-soft-new: rgba(74,222,128,0.12);
+  --warning-new: #fbbf24;
+  --warning-soft-new: rgba(251,191,36,0.10);
+  --danger-new: #f87171;
+  --danger-soft-new: rgba(248,113,113,0.10);
+}
+
+/* Tabular-figure mono font for prices, odds, percentages, P/L. */
+.mono-nums {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Risk-meter gradient bar fill (positive → warning → danger). */
+.risk-gradient-fill {
+  background: linear-gradient(90deg, var(--positive-new) 0%, var(--warning-new) 50%, var(--danger-new) 100%);
+}
 
 /* ── Dark mode ─────────────────────────────────────────────────── */
 .dark { color-scheme: dark; }

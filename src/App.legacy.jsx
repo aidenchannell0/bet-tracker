@@ -1564,202 +1564,132 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
               {analysisOutput || analyzing ? (
                 <GameAnalysisOutput analysis={analysisOutput} loading={analyzing} />
               ) : (
-              /* NEW 2026 minimalist build-output card — replaces the old Card.
-                 Tokens are in index.css under "2026 minimalist refresh".
-                 Old version preserved in src/App.legacy.jsx. */
-              <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--bg-new)] overflow-hidden">
-                <div className="p-5 md:p-8">
-                  {/* Eyebrow + title */}
-                  <p className="text-[11px] uppercase tracking-[0.08em] font-medium text-[var(--text-3-new)]">
-                    {multiOutput ? `Output · ${multiOutput.legCount}-leg ${multiOutput.sport} multi` : `Example · ${displayedLegs}-leg ${sport} multi`}
-                  </p>
-                  <h2 className="mt-2 text-[22px] md:text-[24px] font-medium tracking-[-0.02em] text-[var(--text-new)]">
-                    {multiOutput ? "Form-backed, correlation-adjusted" : "Preview to build a live multi"}
-                  </h2>
-                  <p className="mt-1.5 text-sm text-[var(--text-2-new)]">
-                    {multiOutput
-                      ? <>Real form × current odds. Refine in chat below.</>
-                      : <>The example is illustrative. Click <span className="text-[var(--text-new)] font-medium">Preview example multi</span> to build from real {sport} stats and current market lines.</>}
-                  </p>
-
-                  {/* Stat strip */}
-                  <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-0 p-5 md:px-7 md:py-6 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)]">
-                    <div className="md:pr-7">
-                      <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] font-medium">Combined</div>
-                      <div className="mt-1.5 mono-nums text-[32px] md:text-[36px] font-semibold tracking-[-0.03em] leading-none text-[var(--text-new)]">${multiOutput ? formatOdds(multiOutput.combinedOdds) : displayedTargetOdds.replace("$", "")}</div>
-                      <div className="mt-1.5 text-xs text-[var(--text-3-new)]">{multiOutput ? `Target ${displayedTargetOdds}` : "Target"}</div>
+              <Card>
+                <div className="p-5 md:p-6">
+                  <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">Grid Build output</p>
+                      <h2 className="mt-1 text-2xl font-semibold">
+                        {multiOutput
+                          ? `${multiOutput.legCount}-leg ${multiOutput.sport} multi`
+                          : `Example ${displayedLegs}-leg ${sport} multi`}
+                      </h2>
+                      <p className="mt-2 text-sm text-slate-600">
+                        {multiOutput
+                          ? <>Built from real {multiOutput.sport} stats and the best available bookmaker odds. Refine it in the chat below.</>
+                          : <>The example below is illustrative. Click <span className="font-semibold">Preview example multi</span> to generate a live build from real {sport} stats and current market lines.</>}
+                      </p>
+                      {multiOutput?.oddsNote ? (
+                        <p className="mt-2 inline-flex rounded-lg border border-[#C49A4A]/40 bg-[#C49A4A]/15 px-3 py-2 text-xs leading-5 text-[#11203B]">{multiOutput.oddsNote}</p>
+                      ) : null}
+                      {multiOutput?.bookmakerNote ? (
+                        <p className="mt-2 inline-flex rounded-lg border border-[#C49A4A]/40 bg-[#C49A4A]/15 px-3 py-2 text-xs leading-5 text-[#11203B]">{multiOutput.bookmakerNote}</p>
+                      ) : null}
+                      {multiOutput?.sameGameNote ? (
+                        <p className="mt-2 inline-flex rounded-lg border border-[#C49A4A]/40 bg-[#C49A4A]/15 px-3 py-2 text-xs leading-5 text-[#11203B]">{multiOutput.sameGameNote}</p>
+                      ) : null}
                     </div>
-                    <div className="md:px-7 md:border-l md:border-[var(--border-new)]">
-                      <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] font-medium">Combined chance</div>
-                      <div className="mt-1.5 mono-nums text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{multiOutput ? `${multiOutput.combinedProbPct}%` : "—"}</div>
-                      <div className="mt-1.5 text-xs text-[var(--text-3-new)]">{multiOutput && multiOutput.correlated && typeof multiOutput.independentProbPct === "number" ? `Adjusted vs ${multiOutput.independentProbPct}% independent` : "Correlation-adjusted"}</div>
-                    </div>
-                    <div className="md:px-7 md:border-l md:border-[var(--border-new)]">
-                      <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] font-medium">Value vs market</div>
-                      <div className={"mt-1.5 mono-nums text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none " + (multiOutput && multiOutput.evPct > 0 ? "text-[var(--accent-new)]" : "text-[var(--text-2-new)]")}>
-                        {multiOutput && typeof multiOutput.evPct === "number" ? `${multiOutput.evPct > 0 ? "+" : ""}${multiOutput.evPct}%` : "—"}
-                      </div>
-                      <div className="mt-1.5 text-xs text-[var(--text-3-new)]">{multiOutput && typeof multiOutput.valueLegs === "number" ? `${multiOutput.valueLegs} of ${multiOutput.legCount} +edge` : "Form vs odds"}</div>
-                    </div>
-                    <div className="md:px-7 md:border-l md:border-[var(--border-new)]">
-                      <div className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] font-medium">Risk</div>
-                      <div className="mt-1.5 mono-nums text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--warning-new)]">{multiOutput ? multiOutput.risk : 6}<span className="text-sm text-[var(--text-3-new)] font-normal"> / 10</span></div>
-                      <div className="mt-1.5 text-xs text-[var(--text-3-new)]">{(multiOutput?.risk ?? 6) <= 3 ? "Conservative" : (multiOutput?.risk ?? 6) <= 6 ? "Balanced exposure" : "Higher variance"}</div>
+                    <div className="rounded-2xl bg-[#11203B] px-4 py-3 text-white">
+                      <p className="text-xs uppercase tracking-wide text-slate-300">{multiOutput ? "Combined odds" : "Target odds"}</p>
+                      <p className="text-2xl font-semibold">{multiOutput ? `$${formatOdds(multiOutput.combinedOdds)}` : displayedTargetOdds}</p>
+                      {multiOutput ? <p className="mt-0.5 text-xs text-slate-300">~{multiOutput.combinedProbPct}% combined chance</p> : null}
+                      {multiOutput && multiOutput.correlated && typeof multiOutput.independentProbPct === "number" ? (
+                        <p className="mt-0.5 text-[11px] leading-4 text-emerald-300">Correlation-adjusted (vs {multiOutput.independentProbPct}% if treated as independent)</p>
+                      ) : null}
                     </div>
                   </div>
 
-                  {/* Notes (SGM / odds / bookmaker) — left-bordered slab style */}
-                  {multiOutput?.sameGameNote ? (
-                    <div className="mt-4 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
-                      <span className="text-[var(--text-new)] font-medium">Same-game caveat.</span> {multiOutput.sameGameNote}
-                    </div>
-                  ) : null}
-                  {multiOutput?.oddsNote ? (
-                    <div className="mt-3 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
-                      {multiOutput.oddsNote}
-                    </div>
-                  ) : null}
-                  {multiOutput?.bookmakerNote ? (
-                    <div className="mt-3 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
-                      {multiOutput.bookmakerNote}
-                    </div>
-                  ) : null}
-
                   {edgeLoading ? (
-                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 py-3 text-sm text-[var(--text-2-new)]">
-                      <span className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[var(--border-strong-new)] border-t-[var(--text-new)]" />
+                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm text-slate-600">
+                      <span className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-[#11203B]" />
                       <span>Crunching live odds, recent form and market lines…</span>
                     </div>
                   ) : null}
 
-                  {/* Legs section header */}
-                  <div className="mt-7 mb-3 flex items-baseline justify-between">
-                    <div className="text-[15px] font-medium tracking-[-0.01em] text-[var(--text-new)]">Legs</div>
-                    <div className="text-xs text-[var(--text-3-new)]">Tap a row for full form breakdown</div>
-                  </div>
+                  {multiOutput && typeof multiOutput.evPct === "number" ? (
+                    <div className={"mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border px-4 py-3 " + (multiOutput.evPct > 0 ? "border-[#2E7D5B]/30 bg-[#2E7D5B]/10" : "border-slate-200 bg-slate-50")}>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Value vs market</span>
+                      <span className={"text-lg font-bold " + (multiOutput.evPct > 0 ? "text-[#2E7D5B]" : "text-slate-600")}>{multiOutput.evPct > 0 ? "+" : ""}{multiOutput.evPct}%</span>
+                      {typeof multiOutput.valueLegs === "number" ? (
+                        <span className="text-sm font-medium text-[#11203B]">{multiOutput.valueLegs} of {multiOutput.legCount} legs positive-edge</span>
+                      ) : null}
+                      <span className="w-full text-xs text-slate-500 sm:w-auto">Recent-form chance vs the odds-implied price{multiOutput.sameGameCount ? ", with a same-game-multi discount applied" : ""} — not a profit guarantee.</span>
+                    </div>
+                  ) : null}
 
-                  {/* Legs — vertical rows with hair-thin dividers */}
-                  <div className="rounded-2xl border border-[var(--border-new)] overflow-hidden divide-y divide-[var(--border-new)]">
+                  <div className="mt-6 grid gap-4 md:grid-cols-3">
                     {(multiOutput?.legs || exampleLegs).map((leg, index) => {
-                      const matchupPct = leg.matchupFactor && leg.matchupFactor !== 1 ? Math.round((leg.matchupFactor - 1) * 100) : null;
-                      const ageDays = leg.formAsOf ? Math.floor((Date.now() - new Date(leg.formAsOf + "T00:00:00").getTime()) / 86400000) : null;
-                      const stale = ageDays !== null && ageDays >= 10;
                       return (
-                        <div key={`${leg.name}-${index}`} className="bg-[var(--surface-new)] hover:bg-[var(--surface-2-new)] transition-colors p-5 md:p-6 grid grid-cols-[36px_1fr] md:grid-cols-[36px_1fr_140px_140px] gap-x-5 gap-y-3 items-center">
-                          <div className="mono-nums text-xs text-[var(--text-3-new)] tracking-[0.05em]">{String(index + 1).padStart(2, "0")}</div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-3">
-                              <TeamCrest team={leg.team} className="h-8 w-8 shrink-0" />
-                              <div className="text-[15px] md:text-[16px] font-medium tracking-[-0.01em] text-[var(--text-new)] truncate">{leg.name}</div>
-                            </div>
-                            {leg.game ? <div className="mt-1.5 text-xs text-[var(--text-3-new)]">{leg.game}</div> : null}
-                            <div className="mt-1.5 text-sm text-[var(--text-2-new)] leading-relaxed">{leg.reason}</div>
-                            {matchupPct !== null && leg.opponent ? (
-                              <div className={"mt-1 text-xs " + (matchupPct >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>
-                                Matchup nudge {matchupPct >= 0 ? "+" : ""}{matchupPct}% vs {leg.opponent}
-                              </div>
-                            ) : null}
-                            {ageDays !== null ? (
-                              <div className={"mt-1 text-[11px] " + (stale ? "text-[var(--warning-new)] font-medium" : "text-[var(--text-3-new)]")}>
-                                Form as of {formatFormDate(leg.formAsOf)}{stale ? ` · ${ageDays}d ago` : " · completed games only"}
-                              </div>
-                            ) : null}
-                          </div>
-                          {/* Confidence column (desktop only) */}
-                          <div className="hidden md:block">
-                            <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)] font-medium">Confidence</div>
-                            <div className="mt-1 mono-nums text-[22px] md:text-[24px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{leg.confidence}</div>
-                          </div>
-                          {/* Odds / value column */}
-                          <div className="text-right col-span-2 md:col-span-1 flex md:block items-center justify-between gap-3 pt-1 md:pt-0 border-t md:border-0 border-[var(--border-new)] mt-1 md:mt-0">
-                            <div className="md:hidden text-left">
-                              <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)] font-medium">Confidence</div>
-                              <div className="mt-0.5 mono-nums text-lg font-semibold text-[var(--text-new)]">{leg.confidence}</div>
-                            </div>
-                            <div>
-                              <div className="mono-nums text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">${leg.odds ? formatOdds(leg.odds) : "—"}</div>
-                              <div className="mt-1 text-[11px] text-[var(--text-3-new)]">{leg.bookmaker || ""}</div>
-                              {typeof leg.edgePct === "number" ? (
-                                <div className={"inline-block mt-1.5 mono-nums text-[11px] font-medium px-2 py-0.5 rounded-md " + (leg.edgePct > 0 ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>
-                                  {leg.edgePct > 0 ? `+${leg.edgePct}% value` : `${leg.edgePct}% edge`}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                          {/* Detail toggle spans full width */}
-                          <div className="col-span-2 md:col-span-4">
-                            <EdgeDetailToggle leg={leg} />
-                          </div>
+                      <div key={`${leg.name}-${index}`} className="relative rounded-2xl border border-slate-200 p-4">
+                        <TeamCrest team={leg.team} className="absolute right-3 top-3 h-6 w-6 drop-shadow-sm" />
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Leg {index + 1}</p>
+                        <h3 className="mt-1 pr-7 font-semibold">{leg.name}</h3>
+                        {leg.game ? <p className="mt-0.5 text-xs text-slate-500">{leg.game}</p> : null}
+                        <p className="mt-2 text-sm text-slate-600">{leg.reason}</p>
+                        {leg.matchupFactor && leg.matchupFactor !== 1 && leg.opponent ? (
+                          <p className={"mt-1 text-xs font-medium " + (leg.matchupFactor > 1 ? "text-[#2E7D5B]" : "text-[#A94442]")}>
+                            Matchup: {leg.opponent} concedes {Math.round((leg.matchupFactor - 1) * 100) >= 0 ? "+" : ""}{Math.round((leg.matchupFactor - 1) * 100)}% on this stat
+                          </p>
+                        ) : null}
+                        {leg.formAsOf ? (() => {
+                          const ageDays = Math.floor((Date.now() - new Date(leg.formAsOf + "T00:00:00").getTime()) / 86400000);
+                          const stale = ageDays >= 10;
+                          return (
+                            <p className={"mt-1 text-xs " + (stale ? "font-medium text-[#C49A4A]" : "text-slate-500")}>
+                              Form as of {formatFormDate(leg.formAsOf)}{stale ? ` · ${ageDays}d ago` : " · completed games only"}
+                            </p>
+                          );
+                        })() : null}
+                        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-[#11203B]">
+                          <span>Confidence: {leg.confidence}</span>
+                          {typeof leg.edgePct === "number" ? (
+                            <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (leg.edgePct > 0 ? "bg-[#2E7D5B]/15 text-[#2E7D5B]" : "bg-slate-200 text-slate-600")}>{leg.edgePct > 0 ? `+${leg.edgePct}% value` : `${leg.edgePct}% edge`}</span>
+                          ) : null}
+                          {leg.odds ? <span className="text-slate-500">Odds: ${formatOdds(leg.odds)}{leg.bookmaker ? ` · ${leg.bookmaker}` : ""}</span> : null}
                         </div>
+                        <EdgeDetailToggle leg={leg} />
+                      </div>
                       );
                     })}
                   </div>
 
-                  {/* Risk meter slab */}
-                  <div className="mt-6 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] px-5 py-4 flex items-center gap-5">
-                    <div className="mono-nums text-[26px] font-semibold tracking-[-0.02em] leading-none text-[var(--warning-new)]">
-                      {multiOutput ? multiOutput.risk : 6}<span className="text-sm text-[var(--text-3-new)] font-normal"> / 10</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-[var(--text-new)]">Overall risk score</div>
-                      <div className="text-xs text-[var(--text-3-new)]">{(multiOutput?.risk ?? 6) <= 3 ? "Lower variance — fewer/safer legs" : (multiOutput?.risk ?? 6) <= 6 ? "Balanced exposure" : "Higher variance — longer odds or more legs"}</div>
-                      <div className="mt-2.5 h-1 bg-[var(--bg-new)] rounded-full overflow-hidden">
-                        <div className="h-full rounded-full risk-gradient-fill" style={{ width: `${Math.min(100, ((multiOutput?.risk ?? 6) / 10) * 100)}%` }}></div>
-                      </div>
-                    </div>
+                  <div className="mt-6 rounded-2xl bg-slate-50 p-4">
+                    <EdgeRiskMeter score={multiOutput ? multiOutput.risk : 6} />
                     <button
                       type="button"
-                      onClick={() => setShowRiskExplanation((c) => !c)}
-                      className="text-xs text-[var(--text-2-new)] hover:text-[var(--text-new)] transition-colors whitespace-nowrap"
+                      onClick={() => setShowRiskExplanation((current) => !current)}
+                      className="mt-4 flex w-full max-w-sm items-center justify-between rounded-xl border border-slate-200 bg-[#FAF7EF] px-4 py-2.5 text-left text-sm font-semibold text-slate-900 transition hover:bg-white/70"
                     >
-                      {showRiskExplanation ? "Hide" : "Why?"}
+                      <span>Why this risk score?</span>
+                      <span className="text-lg text-slate-500">{showRiskExplanation ? "−" : "+"}</span>
                     </button>
+                    {showRiskExplanation ? (
+                      <div className="mt-3 rounded-2xl bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700">
+                        {multiOutput
+                          ? multiOutput.riskExplanation
+                          : "A 6/10 preview score reflects a balanced multi with multiple legs and player-market variance. The live version will calculate this from odds, markets, leg count and data confidence."}
+                      </div>
+                    ) : null}
                   </div>
-                  {showRiskExplanation ? (
-                    <div className="mt-3 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4 text-sm leading-6 text-[var(--text-2-new)]">
-                      {multiOutput
-                        ? multiOutput.riskExplanation
-                        : "A 6/10 preview score reflects a balanced multi with multiple legs and player-market variance. The live version will calculate this from odds, markets, leg count and data confidence."}
-                    </div>
-                  ) : null}
 
-                  {/* Track this multi */}
                   {multiOutput ? (
-                    <div className="mt-6 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
-                      <div className="text-sm font-medium text-[var(--text-new)]">Track this multi</div>
-                      <div className="mt-1 text-xs text-[var(--text-3-new)]">Save to tracker as a pending bet — settle it on the dashboard after the games.</div>
+                    <div className="mt-4 rounded-2xl border border-[#11203B]/15 bg-[#FAF7EF] p-4">
+                      <p className="text-sm font-semibold text-[#11203B]">Track this multi</p>
+                      <p className="mt-1 text-xs text-slate-500">Save it to your tracker as a pending bet, then settle it on the dashboard after the games.</p>
                       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Stake (e.g. 20)"
-                          value={betStake}
-                          onChange={(event) => setBetStake(event.target.value)}
-                          className="sm:max-w-[160px] mono-nums"
-                        />
-                        <button
-                          type="button"
-                          onClick={addMultiToBets}
-                          disabled={savingBet}
-                          className="rounded-lg bg-[var(--accent-new)] text-[var(--bg-new)] font-semibold text-sm px-5 py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50"
-                        >
-                          {savingBet ? "Saving…" : "Add to my bets"}
-                        </button>
+                        <Input type="number" min="0" step="0.01" placeholder="Stake (e.g. 20)" value={betStake} onChange={(event) => setBetStake(event.target.value)} className="sm:max-w-[160px]" />
+                        <Button type="button" onClick={addMultiToBets} disabled={savingBet}>{savingBet ? "Saving..." : "Add to my bets"}</Button>
                       </div>
                       {Number(betStake) > 0 && multiOutput.combinedOdds ? (
-                        <div className="mt-3 text-xs text-[var(--text-2-new)]">
-                          <span className="mono-nums">{formatCurrency(Number(betStake))}</span> returns{" "}
-                          <span className="mono-nums font-semibold text-[var(--positive-new)]">{formatCurrency(Number(betStake) * multiOutput.combinedOdds)}</span> at{" "}
-                          <span className="mono-nums">${formatOdds(multiOutput.combinedOdds)}</span> ·{" "}
-                          <span className="mono-nums">{formatCurrency(Number(betStake) * multiOutput.combinedOdds - Number(betStake))}</span> profit
-                        </div>
+                        <p className="mt-2 text-xs text-slate-600">
+                          {formatCurrency(Number(betStake))} returns <span className="font-semibold text-[#2E7D5B]">{formatCurrency(Number(betStake) * multiOutput.combinedOdds)}</span> at ${formatOdds(multiOutput.combinedOdds)} · {formatCurrency(Number(betStake) * multiOutput.combinedOdds - Number(betStake))} profit
+                        </p>
                       ) : null}
-                      {saveBetMsg ? <div className="mt-2 text-xs font-medium text-[var(--text-new)]">{saveBetMsg}</div> : null}
+                      {saveBetMsg ? <p className="mt-2 text-xs font-medium text-[#11203B]">{saveBetMsg}</p> : null}
                     </div>
                   ) : null}
                 </div>
-              </div>
+              </Card>
               )}
             </div>
           </section>
