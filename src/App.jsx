@@ -3905,16 +3905,19 @@ export default function BettingTrackerWebsite() {
                                             if (m) actualNum = parseFloat(m[1]);
                                           }
                                           const haveBar = !isNaN(lineNum) && lineNum > 0 && actualNum != null && !isNaN(actualNum);
-                                          // Scale: make the line sit around 50% so the eye can easily compare
-                                          // a 'just cleared' bar vs a 'smashed it' bar. Cap actuals at 2.2x line.
+                                          // New scale: when they CLEARED the line, the actual sits at ~95% of
+                                          // the bar so every hit bar looks satisfyingly 'full' and the line
+                                          // tick shows where the threshold sat. When they MISSED, the bar
+                                          // stops short of the line tick — you can see at a glance how close
+                                          // they were to clearing (and the bar fills in red).
+                                          const barCleared = haveBar && actualNum >= lineNum;
                                           let linePct = 50;
                                           let actualPct = 0;
                                           if (haveBar) {
-                                            const max = Math.max(lineNum * 2, actualNum * 1.05);
+                                            const max = barCleared ? actualNum * 1.05 : lineNum * 1.05;
                                             linePct = (lineNum / max) * 100;
                                             actualPct = (actualNum / max) * 100;
                                           }
-                                          const barCleared = haveBar && actualNum >= lineNum;
                                           const barFillClass = barCleared ? "bg-[var(--positive-new)]" : "bg-[var(--danger-new)]";
 
                                           return (
