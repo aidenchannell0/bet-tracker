@@ -93,6 +93,68 @@ html, body, #root {
 
 .text-\[\#A94442\] { color: var(--danger-new) !important; }
 .bg-\[\#A94442\]\/15 { background-color: var(--danger-soft-new) !important; }
+.bg-\[\#A94442\] { background-color: var(--danger-new) !important; color: var(--bg-new); }
+
+/* Legacy mobile P/L card tints — green tone */
+.bg-\[\#DDEFE5\] { background-color: var(--positive-soft-new) !important; }
+.border-\[\#9BCBB2\] { border-color: var(--positive-new) !important; opacity: 1; }
+
+/* Legacy mobile P/L card tints — red tone */
+.bg-\[\#F3DDD7\] { background-color: var(--danger-soft-new) !important; }
+.border-\[\#D9A39B\] { border-color: var(--danger-new) !important; }
+
+/* Dark green/red hover/active variants */
+.bg-\[\#27684c\] { background-color: rgb(34, 197, 94) !important; }
+.bg-\[\#8f3a38\] { background-color: rgb(220, 38, 38) !important; }
+
+/* Brand-navy border and bg variants */
+.border-\[\#11203B\] { border-color: var(--border-strong-new) !important; }
+.bg-\[\#2E7D5B\] { background-color: var(--positive-new) !important; color: var(--bg-new); }
+.border-\[\#2E7D5B\] { border-color: var(--positive-new) !important; }
+.border-\[\#A94442\] { border-color: var(--danger-new) !important; }
+.bg-\[\#C49A4A\] { background-color: var(--warning-new) !important; color: var(--bg-new); }
+.border-\[\#C49A4A\] { border-color: var(--warning-new) !important; }
+
+/* Emerald text from build output independent-prob note */
+.text-emerald-200,
+.text-emerald-300,
+.text-emerald-400 { color: var(--positive-new) !important; }
+
+/* Ring colors used by inputs */
+.focus\:ring-slate-200:focus { --tw-ring-color: var(--border-strong-new) !important; }
+.focus\:ring-slate-300:focus { --tw-ring-color: var(--border-strong-new) !important; }
+.focus\:border-slate-900:focus,
+.focus\:border-\[\#11203B\]:focus { border-color: var(--border-strong-new) !important; }
+
+/* Risk-score warning pill (gold tinted background — was a legacy yellow) */
+.bg-yellow-100 { background-color: var(--warning-soft-new) !important; }
+.bg-yellow-50 { background-color: var(--warning-soft-new) !important; }
+.text-yellow-700,
+.text-yellow-800 { color: var(--warning-new) !important; }
+.border-yellow-300,
+.border-yellow-400 { border-color: var(--warning-new) !important; }
+
+/* Generic Tailwind backgrounds used in scattered places */
+.bg-white { background-color: var(--surface-new) !important; }
+.bg-white\/70 { background-color: rgba(17, 17, 20, 0.7) !important; }
+
+/* Kill harsh shadows globally for the refresh */
+.shadow-sm, .shadow, .shadow-md, .shadow-lg { box-shadow: none !important; }
+
+/* Recharts overrides — chart axes/grid in subtle dark tones */
+.recharts-cartesian-grid line { stroke: var(--border-new) !important; }
+.recharts-text { fill: var(--text-3-new) !important; }
+.recharts-tooltip-cursor {
+  fill: rgba(255, 255, 255, 0.04) !important;
+  stroke: rgba(255, 255, 255, 0.10) !important;
+}
+
+/* Status / risk pills used inline */
+.bg-emerald-50, .bg-emerald-100 { background-color: var(--positive-soft-new) !important; }
+.text-emerald-600, .text-emerald-700, .text-emerald-800 { color: var(--positive-new) !important; }
+.bg-red-50, .bg-red-100 { background-color: var(--danger-soft-new) !important; }
+.text-red-600, .text-red-700, .text-red-800, .text-red-900 { color: var(--danger-new) !important; }
+.hover\:bg-red-100:hover { background-color: var(--danger-soft-new) !important; }
 
 /* ── Dark mode ─────────────────────────────────────────────────── */
 .dark { color-scheme: dark; }
