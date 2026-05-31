@@ -1043,7 +1043,9 @@ function enrichProps(props, aflStats, factors = null) {
     const hr5 = computeHitRate(ms.last5Values, prop.line);
     const hr10 = computeHitRate(ms.last10Values, prop.line);
     // De-vigged implied probability when we have both sides from the same book.
-    // Falls back to raw 1/odds when Under isn't available.
+    // Falls back to raw 1/odds when Under isn't available. Used both as the
+    // headline "fair price" AND as the Bayesian prior for the empirical estimate
+    // (see below).
     const impliedRaw = impliedProbFromOdds(prop.odds);
     const implied = fairProbFromOverUnder(prop.odds, prop.underOdds);
 
@@ -1059,18 +1061,27 @@ function enrichProps(props, aflStats, factors = null) {
       matchupFactor = factors[opponent][prop.metric];
     }
 
-    // Empirical-Bayes shrinkage toward 0.5 (the bookmaker's implicit median —
-    // they set lines near where the player is roughly 50/50 to clear them).
-    // Beta(3,3) prior gives an effective sample size of 6, so a 3-game perfect
-    // record reads as (3+3)/(3+6)=67% instead of the raw 100%, and a 10-game
-    // 8-hits-from-10 reads as (8+3)/(10+6)=69% instead of 80%. This tames
-    // small-sample noise without flattening genuine signal: at 30+ games the
-    // shrinkage is mostly negligible. Empirically much closer to the
-    // bookmaker's implied probability than Laplace +1/+2 was.
-    const PRIOR_HITS = 3;
-    const PRIOR_TOTAL = 6;
+    // Empirical-Bayes shrinkage toward the bookmaker's de-vigged implied
+    // probability. The book has more data than we do (injuries, lineup news,
+    // sharp action), so their fair price is a strong Bayesian prior; our form
+    // data updates that prior. Falls back to a 0.5 prior when implied isn't
+    // available (very rare).
+    //
+    // Why this matters: a flat 0.5 prior is wrong for non-median lines. A
+    // player who hit "4+ marks" in 10/10 recent games at a $1.04 line is a
+    // ~95% chance, not the 78% that shrinking-to-0.5 would say. The book
+    // already knows that — pricing it at 96% — and our form confirms it. So
+    // confidence should land near 95-97%, edge near zero. Conversely a real
+    // hot streak vs a typical headline line (book ~50/50) still surfaces as
+    // edge because the prior is moderate.
+    //
+    // Prior weight 6 = "treat the book like 6 games of evidence". A 10-game
+    // strong-vs-book signal still moves the estimate meaningfully (16-game
+    // weighted blend); a 3-game streak barely shifts it.
+    const PRIOR_WEIGHT = 6;
+    const priorProb = implied != null ? implied : 0.5;
     const smoothed = (hr) =>
-      hr ? (hr.hits + PRIOR_HITS) / (hr.total + PRIOR_TOTAL) : null;
+      hr ? (hr.hits + priorProb * PRIOR_WEIGHT) / (hr.total + PRIOR_WEIGHT) : null;
     const blend = (a, b) => (a != null && b != null ? a * 0.4 + b * 0.6 : b != null ? b : a);
 
     // Time-weighted hit rates feed the empirical calculation — last game weighs
