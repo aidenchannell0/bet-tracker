@@ -39,6 +39,61 @@
   background: linear-gradient(90deg, var(--positive-new) 0%, var(--warning-new) 50%, var(--danger-new) 100%);
 }
 
+/* Site-wide background. Applied to the root element so every page inherits the
+   new dark base regardless of which Tailwind classes a page uses internally.
+   The Tailwind background classes (bg-[#E8E2D4], etc.) still win for cards and
+   localised surfaces — this just sets the default page colour. */
+html, body, #root {
+  background-color: var(--bg-new);
+  color: var(--text-new);
+}
+
+/* Override the legacy page-shell backgrounds so the cream/parchment surfaces
+   become near-black dark surfaces in the refresh. The old dark-mode block
+   below also remaps these, but the refresh wants a slightly cooler tone. */
+.bg-\[\#E8E2D4\] { background-color: var(--bg-new) !important; }
+.bg-\[\#FAF7EF\] { background-color: var(--surface-new) !important; }
+.bg-\[\#FAF7EF\]\/95 { background-color: rgba(17, 17, 20, 0.95) !important; }
+.bg-\[\#FAF7EF\]\/70 { background-color: rgba(17, 17, 20, 0.70) !important; }
+
+/* Legacy navy primary text → new bright text. */
+.text-\[\#11203B\] { color: var(--text-new) !important; }
+.bg-\[\#11203B\] { background-color: var(--surface-2-new) !important; }
+.hover\:bg-\[\#E8E2D4\]:hover { background-color: var(--surface-2-new) !important; }
+
+/* Slate scales → new neutral scale (text + borders + backgrounds). */
+.text-slate-900 { color: var(--text-new) !important; }
+.text-slate-800 { color: var(--text-new) !important; }
+.text-slate-700 { color: var(--text-2-new) !important; }
+.text-slate-600 { color: var(--text-2-new) !important; }
+.text-slate-500 { color: var(--text-3-new) !important; }
+.text-slate-400 { color: var(--text-3-new) !important; }
+.text-slate-300 { color: var(--text-3-new) !important; }
+
+.border-slate-100,
+.border-slate-200,
+.border-slate-300 { border-color: var(--border-new) !important; }
+
+.bg-slate-50,
+.bg-slate-100,
+.bg-slate-200 { background-color: var(--surface-2-new) !important; }
+.hover\:bg-slate-800:hover { background-color: var(--surface-2-new) !important; }
+
+/* Brand accent (gold) and green/red text colours from the legacy palette — map
+   onto the new accents so existing spans look right out of the box. */
+.text-\[\#C49A4A\] { color: var(--warning-new) !important; }
+.bg-\[\#C49A4A\]\/15 { background-color: var(--warning-soft-new) !important; }
+.bg-\[\#C49A4A\]\/40 { background-color: var(--warning-soft-new) !important; }
+.border-\[\#C49A4A\]\/40 { border-color: var(--warning-new) !important; opacity: 0.4; }
+
+.text-\[\#2E7D5B\] { color: var(--positive-new) !important; }
+.bg-\[\#2E7D5B\]\/10 { background-color: var(--positive-soft-new) !important; }
+.bg-\[\#2E7D5B\]\/15 { background-color: var(--positive-soft-new) !important; }
+.border-\[\#2E7D5B\]\/30 { border-color: var(--positive-new) !important; opacity: 0.5; }
+
+.text-\[\#A94442\] { color: var(--danger-new) !important; }
+.bg-\[\#A94442\]\/15 { background-color: var(--danger-soft-new) !important; }
+
 /* ── Dark mode ─────────────────────────────────────────────────── */
 .dark { color-scheme: dark; }
 

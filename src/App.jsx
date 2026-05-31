@@ -420,7 +420,9 @@ function TeamCrest({ team, className = "" }) {
 }
 
 function Card({ children, className = "" }) {
-  return <div className={"rounded-2xl border border-slate-200 bg-[#FAF7EF] shadow-sm " + className}>{children}</div>;
+  // 2026 refresh: dark surface, hairline border, no glow. Replaces the old
+  // cream cards. Old version preserved in App.legacy.jsx if we ever revert.
+  return <div className={"rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] " + className}>{children}</div>;
 }
 
 function BankrollCurveCard({ data }) {
@@ -577,13 +579,14 @@ function GridBuildScoreCard({ stats }) {
 }
 
 function Button({ children, className = "", variant = "primary", ...props }) {
-  const base = "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
+  // 2026 refresh: primary = lime-accent CTA, outline = ghost-bordered, ghost = bare.
+  const base = "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50";
   const styles =
     variant === "outline"
-      ? "border border-slate-300 bg-[#FAF7EF] text-slate-900 hover:bg-[#E8E2D4]"
+      ? "border border-[var(--border-new)] bg-[var(--surface-new)] text-[var(--text-new)] hover:border-[var(--border-strong-new)]"
       : variant === "ghost"
-      ? "bg-transparent text-slate-600 hover:bg-[#E8E2D4]"
-      : "bg-[#11203B] text-white hover:bg-slate-800";
+      ? "bg-transparent text-[var(--text-2-new)] hover:text-[var(--text-new)] hover:bg-[var(--surface-2-new)]"
+      : "bg-[var(--accent-new)] text-[var(--bg-new)] font-semibold hover:opacity-90";
 
   return (
     <button className={base + " " + styles + " " + className} {...props}>
@@ -593,49 +596,59 @@ function Button({ children, className = "", variant = "primary", ...props }) {
 }
 
 function Input({ className = "", ...props }) {
-  return <input className={"w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-[#E8E2D4] " + className} {...props} />;
+  return (
+    <input
+      className={
+        "w-full rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-3.5 py-2.5 text-sm text-[var(--text-new)] outline-none transition-colors placeholder:text-[var(--text-3-new)] focus:border-[var(--border-strong-new)] disabled:opacity-50 " +
+        className
+      }
+      {...props}
+    />
+  );
 }
 
 function StatCard({ title, value, helper }) {
   return (
     <Card>
       <div className="p-5">
-        <p className="text-sm text-slate-500">{title}</p>
-        <p className="mt-1 text-2xl font-semibold text-[#11203B]">{value}</p>
-        {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
+        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)]">{title}</p>
+        <p className="mt-1.5 mono-nums text-2xl font-semibold tracking-tight text-[var(--text-new)]">{value}</p>
+        {helper ? <p className="mt-1 text-xs text-[var(--text-3-new)]">{helper}</p> : null}
       </div>
     </Card>
   );
 }
 
 function ColoredStatCard({ title, value, helper, tone = "neutral" }) {
+  // 2026 refresh: P/L tones reuse the new positive/danger tokens with a soft
+  // background. Subtle, not blocky.
   const containerClass =
     tone === "green"
-      ? "rounded-2xl border border-[#9BCBB2] bg-[#DDEFE5] shadow-sm"
+      ? "rounded-2xl border border-transparent bg-[var(--positive-soft-new)]"
       : tone === "red"
-      ? "rounded-2xl border border-[#D9A39B] bg-[#F3DDD7] shadow-sm"
-      : "rounded-2xl border border-slate-200 bg-[#FAF7EF] shadow-sm";
+      ? "rounded-2xl border border-transparent bg-[var(--danger-soft-new)]"
+      : "rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)]";
 
   const labelClass =
     tone === "green"
-      ? "text-[#2E7D5B]"
+      ? "text-[var(--positive-new)]"
       : tone === "red"
-      ? "text-[#A94442]"
-      : "text-slate-500";
+      ? "text-[var(--danger-new)]"
+      : "text-[var(--text-3-new)]";
 
   const valueClass =
     tone === "green"
-      ? "text-[#2E7D5B]"
+      ? "text-[var(--positive-new)]"
       : tone === "red"
-      ? "text-[#A94442]"
-      : "text-[#11203B]";
+      ? "text-[var(--danger-new)]"
+      : "text-[var(--text-new)]";
 
   return (
     <div className={containerClass}>
       <div className="p-5">
-        <p className={`text-sm font-medium ${labelClass}`}>{title}</p>
-        <p className={`mt-1 text-2xl font-semibold ${valueClass}`}>{value}</p>
-        {helper ? <p className={`mt-1 text-xs ${labelClass}`}>{helper}</p> : null}
+        <p className={`text-[11px] font-medium uppercase tracking-[0.06em] ${labelClass}`}>{title}</p>
+        <p className={`mt-1.5 mono-nums text-2xl font-semibold tracking-tight ${valueClass}`}>{value}</p>
+        {helper ? <p className={`mt-1 text-xs ${labelClass}`} style={{ opacity: 0.75 }}>{helper}</p> : null}
       </div>
     </div>
   );
