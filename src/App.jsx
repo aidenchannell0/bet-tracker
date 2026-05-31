@@ -2228,6 +2228,8 @@ export default function BettingTrackerWebsite() {
   const [showAllBets, setShowAllBets] = useState(false);
   // Layout B editorial bet table — filter by status pill (all / pending / won / lost).
   const [statusFilter, setStatusFilter] = useState("all");
+  // Click a row in the bet table to smooth-expand its detail panel below.
+  const [expandedBetId, setExpandedBetId] = useState(null);
   const [mobileBetsOpen, setMobileBetsOpen] = useState(false);
   const [selectedSportFilter, setSelectedSportFilter] = useState("All sports");
   const fileInputRef = useRef(null);
@@ -3413,15 +3415,23 @@ export default function BettingTrackerWebsite() {
                       </tr>
                     </thead>
                     <tbody>
-                      {showing.map((bet) => (
-                        <tr key={bet.id} className={"cursor-pointer transition-colors hover:bg-[var(--surface-new)] " + (editingBetId === bet.id ? "bg-[var(--surface-2-new)]" : "")}>
-                          <td className="border-b border-[var(--border-new)] py-5 pr-3">
+                      {showing.map((bet) => {
+                        const isExpanded = expandedBetId === bet.id;
+                        const legs = Array.isArray(bet.legs) ? bet.legs : [];
+                        return (
+                        <React.Fragment key={bet.id}>
+                        <tr
+                          onClick={() => setExpandedBetId(isExpanded ? null : bet.id)}
+                          className={"cursor-pointer transition-colors hover:bg-[var(--surface-new)] " + (editingBetId === bet.id ? "bg-[var(--surface-2-new)]" : "") + (isExpanded ? " bg-[var(--surface-new)]" : "")}
+                        >
+                          <td className={"py-5 pr-3 " + (isExpanded ? "" : "border-b border-[var(--border-new)]")}>
                             <div className="flex items-center gap-3">
                               <div className={"h-1.5 w-1.5 shrink-0 rounded-full " + dotClass(bet.result)} />
                               <div>
                                 <div className="flex items-baseline gap-2">
                                   <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3-new)]">{bet.sport || "OTHER"}</span>
                                   <span className="text-[13px] font-medium text-[var(--text-new)]">{betTitle(bet)}</span>
+                                  <svg width="10" height="10" viewBox="0 0 12 12" className={"text-[var(--text-3-new)] transition-transform " + (isExpanded ? "rotate-90" : "")}><path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                 </div>
                                 {(bet.source === "grid_build" || bet.bookmaker || bet.notes) ? (
                                   <div className="mt-1 text-[11px] text-[var(--text-3-new)]">
@@ -3431,19 +3441,97 @@ export default function BettingTrackerWebsite() {
                               </div>
                             </div>
                           </td>
-                          <td className="mono-nums border-b border-[var(--border-new)] py-5 text-right text-[12px] text-[var(--text-3-new)]">{bet.date}</td>
-                          <td className="mono-nums border-b border-[var(--border-new)] py-5 text-right text-[13px] text-[var(--text-2-new)]">{formatCurrency(bet.stake)}</td>
-                          <td className="mono-nums border-b border-[var(--border-new)] py-5 text-right text-[13px] text-[var(--text-2-new)]">{bet.result === "pending" ? formatCurrency(bet.returnAmount) : formatCurrency(bet.returnAmount)}</td>
-                          <td className={"mono-nums border-b border-[var(--border-new)] py-5 text-right text-[13px] font-medium " + (bet.profitLoss > 0 ? "text-[var(--positive-new)]" : bet.profitLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-3-new)]")}>{bet.result === "pending" ? "—" : formatCurrency(bet.profitLoss)}</td>
-                          <td className={"border-b border-[var(--border-new)] py-5 text-right text-[10px] font-medium uppercase tracking-[0.08em] " + statusColor(bet.result)}>{statusLabel(bet.result)}</td>
-                          <td className="border-b border-[var(--border-new)] py-5 text-right">
-                            <div className="flex justify-end gap-2">
+                          <td className={"mono-nums py-5 text-right text-[12px] text-[var(--text-3-new)] " + (isExpanded ? "" : "border-b border-[var(--border-new)]")}>{bet.date}</td>
+                          <td className={"mono-nums py-5 text-right text-[13px] text-[var(--text-2-new)] " + (isExpanded ? "" : "border-b border-[var(--border-new)]")}>{formatCurrency(bet.stake)}</td>
+                          <td className={"mono-nums py-5 text-right text-[13px] text-[var(--text-2-new)] " + (isExpanded ? "" : "border-b border-[var(--border-new)]")}>{bet.result === "pending" ? formatCurrency(bet.returnAmount) : formatCurrency(bet.returnAmount)}</td>
+                          <td className={"mono-nums py-5 text-right text-[13px] font-medium " + (bet.profitLoss > 0 ? "text-[var(--positive-new)]" : bet.profitLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-3-new)]") + (isExpanded ? "" : " border-b border-[var(--border-new)]")}>{bet.result === "pending" ? "—" : formatCurrency(bet.profitLoss)}</td>
+                          <td className={"py-5 text-right text-[10px] font-medium uppercase tracking-[0.08em] " + statusColor(bet.result) + (isExpanded ? "" : " border-b border-[var(--border-new)]")}>{statusLabel(bet.result)}</td>
+                          <td className={"py-5 text-right " + (isExpanded ? "" : "border-b border-[var(--border-new)]")}>
+                            <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                               <button onClick={() => startEditingBet(bet)} className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-new)]">Edit</button>
                               <button onClick={() => deleteBet(bet.id)} className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--danger-new)]">Delete</button>
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        {/* Smooth expand panel for the selected bet — slides open below the row with a max-height transition.
+                            Shows: 4-cell summary (combined odds · stake · return · P/L), then a per-leg breakdown with
+                            hit/miss indicators when the bet has leg data, otherwise notes + metadata. */}
+                        <tr>
+                          <td colSpan="7" className="p-0">
+                            <div className={"grid overflow-hidden border-b border-[var(--border-new)] bg-[var(--surface-new)] transition-[grid-template-rows] duration-300 ease-out " + (isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+                              <div className="overflow-hidden">
+                                <div className="px-6 pb-7 pt-2">
+                                  {/* Summary cells */}
+                                  <div className="grid grid-cols-4 border-y border-[var(--border-new)] py-5">
+                                    <div className="pr-5">
+                                      <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Odds</div>
+                                      <div className="mono-nums mt-1.5 text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{bet.odds ? `$${formatOdds(bet.odds)}` : "—"}</div>
+                                    </div>
+                                    <div className="border-l border-[var(--border-new)] px-5">
+                                      <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Stake</div>
+                                      <div className="mono-nums mt-1.5 text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{formatCurrency(bet.stake)}</div>
+                                    </div>
+                                    <div className="border-l border-[var(--border-new)] px-5">
+                                      <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Return</div>
+                                      <div className="mono-nums mt-1.5 text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{formatCurrency(bet.returnAmount)}</div>
+                                    </div>
+                                    <div className="border-l border-[var(--border-new)] pl-5">
+                                      <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Profit / Loss</div>
+                                      <div className={"mono-nums mt-1.5 text-[22px] font-semibold tracking-[-0.02em] leading-none " + (bet.profitLoss > 0 ? "text-[var(--positive-new)]" : bet.profitLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-3-new)]")}>{bet.result === "pending" ? "Pending" : formatCurrency(bet.profitLoss)}</div>
+                                    </div>
+                                  </div>
+
+                                  {/* Legs breakdown (only for multis with leg data) */}
+                                  {legs.length ? (
+                                    <div className="mt-6">
+                                      <div className="mb-3 flex items-baseline justify-between">
+                                        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Legs · {legs.length}</div>
+                                        {bet.result === "win" ? <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--positive-new)]">All hit</div>
+                                          : bet.result === "loss" ? <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--danger-new)]">Multi failed</div>
+                                          : <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--warning-new)]">Pending</div>}
+                                      </div>
+                                      <div className="rounded-xl border border-[var(--border-new)] bg-[var(--bg-new)]">
+                                        {legs.map((leg, i) => {
+                                          // hit can be: true (hit), false (missed), null/undefined (pending or unknown)
+                                          const hit = leg.hit === true ? "won" : leg.hit === false ? "lost" : (bet.result === "win" ? "won" : bet.result === "loss" ? "pending" : "pending");
+                                          const label = hit === "won" ? "✓" : hit === "lost" ? "✗" : "·";
+                                          const labelClass = hit === "won" ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : hit === "lost" ? "bg-[var(--danger-soft-new)] text-[var(--danger-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]";
+                                          return (
+                                            <div key={i} className={"grid grid-cols-[28px_1fr_80px] items-center gap-4 px-4 py-3 " + (i > 0 ? "border-t border-[var(--border-new)]" : "")}>
+                                              <div className={"grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold " + labelClass}>{label}</div>
+                                              <div>
+                                                <div className="text-[13px] font-medium text-[var(--text-new)]">{leg.player || leg.name || `Leg ${i + 1}`}{leg.line ? <span className="font-normal text-[var(--text-3-new)]"> — {leg.line}</span> : null}</div>
+                                                {leg.game || leg.result || leg.reason ? (
+                                                  <div className="mt-0.5 text-[11px] text-[var(--text-3-new)]">
+                                                    {leg.game ? <span>{leg.game}</span> : null}
+                                                    {leg.game && (leg.result || leg.reason) ? " · " : ""}
+                                                    {leg.result ? <span>{leg.result}</span> : leg.reason ? <span>{leg.reason}</span> : null}
+                                                  </div>
+                                                ) : null}
+                                              </div>
+                                              <div className="mono-nums text-right text-[13px] text-[var(--text-2-new)]">{leg.odds ? `$${formatOdds(leg.odds)}` : "—"}</div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    /* Single bet or no leg data — just show notes if present */
+                                    bet.notes ? (
+                                      <div className="mt-5">
+                                        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Notes</div>
+                                        <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)]">{bet.notes}</p>
+                                      </div>
+                                    ) : null
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                        </React.Fragment>
+                        );
+                      })}
                       {!filtered.length ? (
                         <tr><td colSpan="7" className="py-10 text-center text-sm text-[var(--text-3-new)]">No bets {statusFilter !== "all" ? `with ${statusFilter} status` : "added yet"}.</td></tr>
                       ) : null}
