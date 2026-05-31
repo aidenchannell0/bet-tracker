@@ -1186,9 +1186,41 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   // Target odds set: search combinations (one leg per player) whose combined odds
   // land within a tolerance of the target. Tolerance widens only if no tighter combo
   // exists. Prefer requested leg count, then market variety, then highest chance.
-  const shortlist = perPlayerLines
-    .sort((a, b) => (b.empirical >= minHit) - (a.empirical >= minHit) || b.score - a.score)
-    .slice(0, 24);
+  //
+  // Shortlist construction has to balance two failure modes:
+  //   (a) top-N by score alone gets dominated by near-locks (cheap lines, high
+  //       form chance, modest edge), leaving no mid-odds legs to combine toward
+  //       higher targets — a 3-leg \$5 target then under-shoots to ~\$2.50.
+  //   (b) blindly pulling high-odds legs in pushes weak/low-confidence picks
+  //       into the search, which can survive the combo search and degrade quality.
+  // Resolution: bucket by odds and take top legs from each band. Near-locks
+  // still dominate the cheap end (so Safer builds at low targets stay good)
+  // but higher targets get genuine candidates at every price level.
+  const ranked = perPlayerLines.sort(
+    (a, b) => (b.empirical >= minHit) - (a.empirical >= minHit) || b.score - a.score
+  );
+  const oddsBands = [
+    { min: 1.0, max: 1.3, take: 6 },   // near-locks
+    { min: 1.3, max: 1.6, take: 5 },   // strong favourites
+    { min: 1.6, max: 2.0, take: 5 },   // ~50/50 lines
+    { min: 2.0, max: 3.0, take: 5 },   // longer
+    { min: 3.0, max: Infinity, take: 3 }, // long shots
+  ];
+  const seen = new Set();
+  const shortlist = [];
+  for (const band of oddsBands) {
+    let kept = 0;
+    for (const p of ranked) {
+      if (kept >= band.take) break;
+      if (seen.has(p)) continue;
+      const o = Number(p.odds);
+      if (o >= band.min && o < band.max) {
+        shortlist.push(p);
+        seen.add(p);
+        kept += 1;
+      }
+    }
+  }
   if (!shortlist.length) return ordered.slice(0, wantCount || 3);
 
   const minLegs = 2;
