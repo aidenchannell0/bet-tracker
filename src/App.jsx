@@ -2072,19 +2072,27 @@ function MobileBottomNav({ activePage, setActivePage, formRef }) {
     window.setTimeout(() => formRef?.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
 
-  // Color-only active state (no chunky pills) — even, clean, and theme-aware:
-  // text-[#11203B] flips to light in dark mode via the global CSS override.
+  // 2026 refresh: subtle glassmorphism on the dark base, active tab uses the
+  // primary text token (no chunky pill), Add stays warning-gold for contrast.
   const tab = (active) =>
     "flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition active:scale-95 " +
-    (active ? "font-semibold text-[#11203B]" : "font-medium text-slate-400");
+    (active ? "font-semibold text-[var(--text-new)]" : "font-medium text-[var(--text-3-new)]");
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-[#FAF7EF]/95 px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] shadow-[0_-4px_16px_rgba(0,0,0,0.12)] backdrop-blur md:hidden">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-50 px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:hidden"
+      style={{
+        background: "rgba(10, 10, 11, 0.85)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderTop: "1px solid var(--border-new)",
+      }}
+    >
       <div className="mx-auto flex max-w-md items-stretch">
         <button type="button" onClick={goToDashboard} className={tab(activePage === "app")}>
           {NAV_ICONS.home}<span>Home</span>
         </button>
-        <button type="button" onClick={goToAddBet} className="flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-[11px] font-semibold text-[#C49A4A] transition active:scale-95">
+        <button type="button" onClick={goToAddBet} className="flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-[11px] font-semibold text-[var(--accent-new)] transition active:scale-95">
           {NAV_ICONS.add}<span>Add</span>
         </button>
         <button type="button" onClick={() => setActivePage("edge")} className={tab(activePage === "edge")}>
