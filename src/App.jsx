@@ -3446,7 +3446,13 @@ export default function BettingTrackerWebsite() {
               and P/L-by-sport horizontal bar visualisation. */}
           {activePage === "tracker" && bets.length > 0 ? (() => {
             const settled = bets.filter(b => b.result === "win" || b.result === "loss");
-            const recentForm = settled.slice(-20).reverse();
+            // Sort by date descending so the FIRST element is the most recent
+            // settled bet, regardless of how `bets` came back from Supabase
+            // (could be oldest-first or newest-first depending on the query).
+            const recentForm = settled
+              .slice()
+              .sort((a, b) => new Date(b.date) - new Date(a.date))
+              .slice(0, 20);
             const sportTotals = breakdowns.bySport.slice().sort((a, b) => (b.profit || 0) - (a.profit || 0));
             const maxSportAbs = Math.max(1, ...sportTotals.map(s => Math.abs(s.profit || 0)));
             return (
