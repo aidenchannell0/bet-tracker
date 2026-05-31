@@ -1495,47 +1495,42 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                 MultiPick.<br />Form-backed multis.
               </h1>
               <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">A smarter way to build structured example multis using market lines, recent trends and risk scoring.</p>
-              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-300 bg-[#FAF7EF] px-4 py-3 text-sm">
+              {/* Subscription state — small inline pill below the subtitle, not
+                  a big bordered card. Free-tier users see a tiny 'X of N
+                  builds left' link; Pro users see a thin 'Manage subscription'
+                  link. The marketing/disclaimer cards moved out of the header —
+                  the 'What is MultiPick' explainer + Important disclaimer now
+                  live in the Disclaimer page; users land on the controls and
+                  output immediately, not on copy. */}
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-[var(--text-3-new)]">
                 {entitlement.subscribed ? (
                   <>
-                    <span className="font-semibold text-[#2E7D5B]">MultiPick Pro — unlimited builds ✓</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--positive-soft-new)] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--positive-new)]">Pro · unlimited</span>
                     <button
                       type="button"
                       onClick={startManageBilling}
                       disabled={openingPortal}
-                      className="ml-auto text-xs font-medium text-slate-500 underline hover:text-slate-700 disabled:opacity-50"
+                      className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)] disabled:opacity-50"
                     >
                       {openingPortal ? "Opening…" : "Manage subscription"}
                     </button>
                   </>
                 ) : (
                   <>
-                    <span className="font-medium text-[#11203B]">
-                      {gatedNow ? "You're out of free builds this week" : `${buildsLeft} of ${entitlement.limit} free builds left this week`}
+                    <span className="text-[11px] uppercase tracking-[0.06em]">
+                      {gatedNow ? "Out of free builds" : `${buildsLeft} of ${entitlement.limit} free builds left`}
                     </span>
-                    <Button type="button" onClick={startUpgrade} disabled={upgrading} className="ml-auto">
+                    <button type="button" onClick={startUpgrade} disabled={upgrading} className="text-[11px] uppercase tracking-[0.06em] text-[var(--accent-new)] hover:opacity-80 disabled:opacity-50">
                       {upgrading ? "Starting…" : "Upgrade"}
-                    </Button>
+                    </button>
                   </>
                 )}
               </div>
-              <div className="mt-3 inline-flex max-w-xl items-center rounded-2xl border border-[#C49A4A]/50 bg-[#C49A4A]/15 px-4 py-3 text-sm leading-6 text-[#11203B] shadow-sm">
-                <span className="mr-2">✨</span><span><span className="font-semibold">Live AFL data connected:</span> real player stats, hit rates and market lines power the multi builder.</span>
-              </div>
-              <div className="mt-3 max-w-3xl rounded-2xl border border-slate-300 bg-[#FAF7EF] p-4 text-sm leading-6 text-slate-700">
-                <p className="font-semibold text-[#11203B]">What is MultiPick?</p>
-                <p className="mt-1">MultiPick is an AI-powered multi builder. It helps create structured example multis, explain risk levels, compare market types and show what data should be checked before making decisions. MultiPick is designed to be structured and data-focused, not a betting tips service.</p>
-              </div>
             </div>
-            <div className="space-y-4 lg:pt-10">
-              <div className="rounded-2xl border border-[#C49A4A]/40 bg-[#C49A4A]/15 p-4 text-sm leading-6 text-[#11203B] shadow-sm">
-                <span className="font-semibold">Important:</span> MultiPick is for informational analysis only. It is not betting advice, financial advice, or a guarantee of results. Always make your own decision and gamble responsibly.
-              </div>
-              <div className="flex flex-col items-start gap-3 lg:items-end">
-                <div className="rounded-2xl border border-slate-200 bg-[#FAF7EF] px-4 py-3 text-sm text-slate-600 shadow-sm">
-                  <span className="font-semibold text-[#11203B]">Live AFL data</span><br />Powered by current odds and AFL Tables stats
-                </div>
-              </div>
+            <div className="hidden">
+              {/* Original right-rail warning + 'Live AFL data' badge removed —
+                  the Disclaimer/Important copy now lives on the Disclaimer
+                  page only, and the AFL-data badge was just decoration. */}
             </div>
           </header>
 
@@ -1760,13 +1755,15 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                   </div>
 
                   {/* Legs — vertical rows with hair-thin dividers */}
-                  <div className="rounded-2xl border border-[var(--border-new)] overflow-hidden divide-y divide-[var(--border-new)]">
+                  {/* Legs list — Layout B preview style: NO card backgrounds.
+                      Each row is just hairline-divided. Cleaner editorial feel. */}
+                  <div className="divide-y divide-[var(--border-new)]">
                     {(multiOutput?.legs || exampleLegs).map((leg, index) => {
                       const matchupPct = leg.matchupFactor && leg.matchupFactor !== 1 ? Math.round((leg.matchupFactor - 1) * 100) : null;
                       const ageDays = leg.formAsOf ? Math.floor((Date.now() - new Date(leg.formAsOf + "T00:00:00").getTime()) / 86400000) : null;
                       const stale = ageDays !== null && ageDays >= 10;
                       return (
-                        <div key={`${leg.name}-${index}`} className="bg-[var(--surface-new)] hover:bg-[var(--surface-2-new)] transition-colors p-5 md:p-6 grid grid-cols-[36px_1fr] md:grid-cols-[36px_1fr_140px_140px] gap-x-5 gap-y-3 items-center">
+                        <div key={`${leg.name}-${index}`} className="hover:bg-[var(--surface-new)]/40 transition-colors p-5 md:py-6 md:px-0 grid grid-cols-[36px_1fr] md:grid-cols-[36px_1fr_140px_140px] gap-x-5 gap-y-3 items-center">
                           <div className="mono-nums text-xs text-[var(--text-3-new)] tracking-[0.05em]">{String(index + 1).padStart(2, "0")}</div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-3">
