@@ -3792,20 +3792,67 @@ export default function BettingTrackerWebsite() {
                                           const hit = leg.hit === true ? "won" : leg.hit === false ? "lost" : (bet.result === "win" ? "won" : bet.result === "loss" ? "pending" : "pending");
                                           const label = hit === "won" ? "✓" : hit === "lost" ? "✗" : "·";
                                           const labelClass = hit === "won" ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : hit === "lost" ? "bg-[var(--danger-soft-new)] text-[var(--danger-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]";
+
+                                          // Pull the line (the threshold) and the actual value (what the player
+                                          // got to). For settled bets we use leg.actual when present, fall back
+                                          // to leg.recentAvg (saved with the multi) or parse 'averaging X' out
+                                          // of the reason text. Pending bets just show line + recentAvg.
+                                          const lineNum = typeof leg.line === "number" ? leg.line : parseFloat(String(leg.line || "").replace(/[^0-9.]/g, ""));
+                                          let actualNum = typeof leg.actual === "number" ? leg.actual
+                                            : typeof leg.recentAvg === "number" ? leg.recentAvg
+                                            : typeof leg.avg10 === "number" ? leg.avg10
+                                            : null;
+                                          if (actualNum == null && typeof leg.reason === "string") {
+                                            const m = leg.reason.match(/averaging\s+([0-9.]+)/i);
+                                            if (m) actualNum = parseFloat(m[1]);
+                                          }
+                                          const haveBar = !isNaN(lineNum) && lineNum > 0 && actualNum != null && !isNaN(actualNum);
+                                          // Scale: make the line sit around 50% so the eye can easily compare
+                                          // a 'just cleared' bar vs a 'smashed it' bar. Cap actuals at 2.2x line.
+                                          let linePct = 50;
+                                          let actualPct = 0;
+                                          if (haveBar) {
+                                            const max = Math.max(lineNum * 2, actualNum * 1.05);
+                                            linePct = (lineNum / max) * 100;
+                                            actualPct = (actualNum / max) * 100;
+                                          }
+                                          const barCleared = haveBar && actualNum >= lineNum;
+                                          const barFillClass = barCleared ? "bg-[var(--positive-new)]" : "bg-[var(--danger-new)]";
+
                                           return (
-                                            <div key={i} className={"grid grid-cols-[28px_1fr_80px] items-center gap-4 px-4 py-3 " + (i > 0 ? "border-t border-[var(--border-new)]" : "")}>
+                                            <div key={i} className={"grid grid-cols-[28px_1fr_90px] items-start gap-4 px-4 py-4 " + (i > 0 ? "border-t border-[var(--border-new)]" : "")}>
                                               <div className={"grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold " + labelClass}>{label}</div>
-                                              <div>
-                                                <div className="text-[13px] font-medium text-[var(--text-new)]">{leg.player || leg.name || `Leg ${i + 1}`}{leg.line ? <span className="font-normal text-[var(--text-3-new)]"> — {leg.line}</span> : null}</div>
+                                              <div className="min-w-0">
+                                                <div className="text-[13px] font-medium text-[var(--text-new)]">{leg.player || leg.name || `Leg ${i + 1}`}{leg.line ? <span className="font-normal text-[var(--text-3-new)]"> — <span className="mono-nums">{leg.line}</span></span> : null}</div>
                                                 {leg.game || leg.result || leg.reason ? (
-                                                  <div className="mt-0.5 text-[11px] text-[var(--text-3-new)]">
+                                                  <div className="mt-1 text-[11px] text-[var(--text-3-new)]">
                                                     {leg.game ? <span>{leg.game}</span> : null}
                                                     {leg.game && (leg.result || leg.reason) ? " · " : ""}
                                                     {leg.result ? <span>{leg.result}</span> : leg.reason ? <span>{leg.reason}</span> : null}
                                                   </div>
                                                 ) : null}
+                                                {/* Line vs actual progress bar — visualises 'how much they
+                                                    cleared by' (or fell short by). Vertical dashed marker at
+                                                    the line position, filled bar to the actual value. */}
+                                                {haveBar ? (
+                                                  <div className="mt-3">
+                                                    <div className="relative h-1.5 overflow-hidden rounded-full bg-[var(--surface-2-new)]">
+                                                      <div className={"absolute inset-y-0 left-0 rounded-full " + barFillClass} style={{ width: `${Math.min(100, actualPct)}%`, opacity: 0.85 }} />
+                                                      <div className="absolute inset-y-0 w-px bg-[var(--text-2-new)]" style={{ left: `${linePct}%` }} />
+                                                    </div>
+                                                    <div className="mt-1 flex justify-between text-[10px] text-[var(--text-3-new)]">
+                                                      <span>Line <span className="mono-nums text-[var(--text-2-new)]">{lineNum}</span></span>
+                                                      <span className={barCleared ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>{barCleared ? "Cleared at" : "Got to"} <span className="mono-nums">{actualNum.toFixed(1)}</span></span>
+                                                    </div>
+                                                  </div>
+                                                ) : null}
                                               </div>
-                                              <div className="mono-nums text-right text-[13px] text-[var(--text-2-new)]">{leg.odds ? `$${formatOdds(leg.odds)}` : "—"}</div>
+                                              <div className="pt-0.5">
+                                                <div className="mono-nums text-right text-[13px] text-[var(--text-2-new)]">{leg.odds ? `$${formatOdds(leg.odds)}` : "—"}</div>
+                                                {haveBar ? (
+                                                  <div className={"mono-nums mt-1 text-right text-[10px] font-medium " + (barCleared ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{barCleared ? "+" : ""}{(actualNum - lineNum).toFixed(1)}</div>
+                                                ) : null}
+                                              </div>
                                             </div>
                                           );
                                         })}
