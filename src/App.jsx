@@ -2944,31 +2944,29 @@ export default function BettingTrackerWebsite() {
             </Card>
           </div>
 
-          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <ColoredStatCard
-              title={selectedSportFilter === "All sports" ? "Total Profit/Loss" : selectedSportFilter + " Profit/Loss"}
-              value={formatCurrency(stats.totalProfit)}
-              helper="Overall betting result"
-              tone={stats.totalProfit >= 0 ? "green" : "red"}
-            />
-            <ColoredStatCard
-              title={selectedSportFilter === "All sports" ? "Win Rate" : selectedSportFilter + " Win Rate"}
-              value={stats.winRate.toFixed(1) + "%"}
-              helper={stats.wins + " wins, " + stats.losses + " losses"}
-              tone="green"
-            />
-            <ColoredStatCard
-              title={selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"}
-              value={stats.roi.toFixed(1) + "%"}
-              helper="Profit compared to total staked"
-              tone={stats.roi >= 0 ? "green" : "red"}
-            />
-            <ColoredStatCard
-              title={selectedSportFilter === "All sports" ? "Total Staked" : selectedSportFilter + " Staked"}
-              value={formatCurrency(stats.totalStaked)}
-              helper={"Returned: " + formatCurrency(stats.totalReturned)}
-              tone="neutral"
-            />
+          {/* Editorial stat strip — Layout B. Hairline dividers between cells,
+              no card backgrounds, massive mono numerals. */}
+          <section className="grid grid-cols-2 border-y border-[var(--border-new)] py-9 lg:grid-cols-4">
+            <div className="relative px-0 pr-7 lg:border-r lg:border-[var(--border-new)]">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Profit / loss" : selectedSportFilter + " P/L"}</div>
+              <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(stats.totalProfit)}</div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Overall betting result</div>
+            </div>
+            <div className="relative px-7 lg:border-r lg:border-[var(--border-new)]">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Win rate" : selectedSportFilter + " win rate"}</div>
+              <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{stats.winRate.toFixed(1)}%</div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">{stats.wins}W · {stats.losses}L</div>
+            </div>
+            <div className="relative px-0 pr-7 mt-9 lg:mt-0 lg:px-7 lg:border-r lg:border-[var(--border-new)]">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "ROI" : selectedSportFilter + " ROI"}</div>
+              <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{(stats.roi >= 0 ? "+" : "") + stats.roi.toFixed(1)}%</div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Profit vs total staked</div>
+            </div>
+            <div className="relative px-7 mt-9 lg:mt-0 lg:pl-7 lg:pr-0">
+              <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">{selectedSportFilter === "All sports" ? "Total staked" : selectedSportFilter + " staked"}</div>
+              <div className="mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">{formatCurrency(stats.totalStaked)}</div>
+              <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Returned {formatCurrency(stats.totalReturned)}</div>
+            </div>
           </section>
 
           <section className="grid gap-6 lg:grid-cols-5">
