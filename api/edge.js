@@ -882,9 +882,14 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
     player_steals: "steals",
   };
 
-  // For each unique player+market+line, keep the BEST (highest) price across all
-  // bookmakers, and record which book offers it — that's the most accurate, useful odds.
+  // For each unique player+market+line, keep the BEST (highest) Over price and
+  // also remember the Under price from the SAME bookmaker so we can later de-vig
+  // the implied probability. We need same-book pairing because Over/Under prices
+  // across books don't form a single coherent market — they'd give a meaningless
+  // "fair probability" if mixed.
   const bestByKey = new Map();
+  // For Unders: indexed by player+market+line+book. Filled in pass 1, looked up in pass 2.
+  const undersByKey = new Map();
 
   for (const bookmaker of event?.bookmakers || []) {
     if (!bookmakerMatches(bookmaker, preferredBook)) continue;
@@ -892,14 +897,20 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
       if (!overMarketKeys.includes(market.key)) continue;
 
       for (const outcome of market.outcomes || []) {
-        const isOver = outcome.name === "Over" || market.key.includes("_over");
-        if (!isOver) continue;
-
         const player = outcome.description || outcome.name;
-        if (!player || player === "Over") continue;
+        if (!player || player === "Over" || player === "Under") continue;
 
         const price = Number(outcome.price);
         if (!price || price <= 1) continue;
+
+        const isOver = outcome.name === "Over" || market.key.includes("_over");
+        const bookKey = `${player}-${market.key}-${outcome.point}-${bookmaker.key}`;
+
+        if (!isOver) {
+          // Stash the Under for same-book pairing
+          undersByKey.set(bookKey, price);
+          continue;
+        }
 
         const key = `${player}-${market.key}-${outcome.point}`;
         const existing = bestByKey.get(key);
@@ -911,13 +922,24 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
           marketKey: market.key,
           line: outcome.point,
           odds: price,
+          // Remember which book gave this best Over price + its bookKey so we can
+          // pair it with the Under from that SAME book in a second pass.
           bookmaker: bookmaker.title,
+          bookKey,
           homeTeam: event.homeTeam,
           awayTeam: event.awayTeam,
           gameLabel: `${event.homeTeam} vs ${event.awayTeam}`,
         });
       }
     }
+  }
+
+  // Pass 2: attach the Under price from the same book that's offering our best
+  // Over. If that book didn't expose an Under (some books only post the Over),
+  // leave it null — de-vig in enrichProps falls back to raw 1/odds.
+  for (const prop of bestByKey.values()) {
+    prop.underOdds = undersByKey.get(prop.bookKey) ?? null;
+    delete prop.bookKey; // internal — not useful downstream
   }
 
   props.push(...bestByKey.values());
@@ -929,10 +951,41 @@ function impliedProbFromOdds(odds) {
   return value > 1 ? 1 / value : null;
 }
 
+// De-vig the implied probability using the matching Under price from the same
+// bookmaker. Raw 1/odds_over bakes in the book's margin (typically 3–8%), so
+// our +EV calculation systematically understates edge. The fair probability is
+// p_over / (p_over + p_under), which removes the vig assuming it's split
+// proportionally between the two sides. Falls back to raw if Under not
+// available (some books only post Over).
+function fairProbFromOverUnder(oddsOver, oddsUnder) {
+  const pOver = impliedProbFromOdds(oddsOver);
+  if (pOver == null) return null;
+  const pUnder = impliedProbFromOdds(oddsUnder);
+  if (pUnder == null || pUnder <= 0) return pOver;
+  return pOver / (pOver + pUnder);
+}
+
 function computeHitRate(values, line) {
   if (!values?.length || line == null) return null;
   const hits = values.filter((v) => v >= line).length;
   return { hits, total: values.length, prob: hits / values.length };
+}
+
+// Exponentially-weighted hit rate. `values` is most-recent first (game[0] is
+// the latest game). Returns effective hits / effective total — both floats —
+// so the empirical-Bayes shrinkage downstream still works without changes.
+// A "hot streak" 4 games ago will count for less than the same streak now.
+// Decay = 0.85 → game 0 weighs 1.0, game 4 weighs 0.52, game 9 weighs 0.23.
+function weightedHitRate(values, line, decay = 0.85) {
+  if (!values?.length || line == null) return null;
+  let wHits = 0;
+  let wTotal = 0;
+  for (let i = 0; i < values.length; i++) {
+    const w = Math.pow(decay, i);
+    wTotal += w;
+    if (values[i] >= line) wHits += w;
+  }
+  return { hits: wHits, total: wTotal, prob: wHits / wTotal };
 }
 
 function parseOddsValue(targetOdds) {
@@ -989,7 +1042,10 @@ function enrichProps(props, aflStats, factors = null) {
     // Actual recent-form hit rates (shown in leg details as-is)
     const hr5 = computeHitRate(ms.last5Values, prop.line);
     const hr10 = computeHitRate(ms.last10Values, prop.line);
-    const implied = impliedProbFromOdds(prop.odds);
+    // De-vigged implied probability when we have both sides from the same book.
+    // Falls back to raw 1/odds when Under isn't available.
+    const impliedRaw = impliedProbFromOdds(prop.odds);
+    const implied = fairProbFromOverUnder(prop.odds, prop.underOdds);
 
     // Opponent = the other team in this game; factor = how much they concede on
     // this metric vs league average (1 = neutral / unknown).
@@ -1003,22 +1059,36 @@ function enrichProps(props, aflStats, factors = null) {
       matchupFactor = factors[opponent][prop.metric];
     }
 
-    // Laplace-smoothed probabilities (rule of succession) so small samples and
-    // perfect records don't read as a literal 100% / 0% chance. Blend recent
-    // (last 5) with the larger, steadier sample (last 10).
-    const smoothed = (hr) => (hr ? (hr.hits + 1) / (hr.total + 2) : null);
+    // Empirical-Bayes shrinkage toward 0.5 (the bookmaker's implicit median —
+    // they set lines near where the player is roughly 50/50 to clear them).
+    // Beta(3,3) prior gives an effective sample size of 6, so a 3-game perfect
+    // record reads as (3+3)/(3+6)=67% instead of the raw 100%, and a 10-game
+    // 8-hits-from-10 reads as (8+3)/(10+6)=69% instead of 80%. This tames
+    // small-sample noise without flattening genuine signal: at 30+ games the
+    // shrinkage is mostly negligible. Empirically much closer to the
+    // bookmaker's implied probability than Laplace +1/+2 was.
+    const PRIOR_HITS = 3;
+    const PRIOR_TOTAL = 6;
+    const smoothed = (hr) =>
+      hr ? (hr.hits + PRIOR_HITS) / (hr.total + PRIOR_TOTAL) : null;
     const blend = (a, b) => (a != null && b != null ? a * 0.4 + b * 0.6 : b != null ? b : a);
 
-    // Base (unadjusted) empirical from the actual hit rates
-    const empBase = blend(smoothed(hr5), smoothed(hr10));
+    // Time-weighted hit rates feed the empirical calculation — last game weighs
+    // more than five-games-ago. The raw hr5/hr10 above stay unweighted for
+    // display ("Cleared this line in 7/10 recent games" reads cleanly).
+    const whr5 = weightedHitRate(ms.last5Values, prop.line);
+    const whr10 = weightedHitRate(ms.last10Values, prop.line);
+
+    // Base (unadjusted) empirical from the weighted hit rates
+    const empBase = blend(smoothed(whr5), smoothed(whr10));
 
     // Matchup-adjusted via value-scaling — accurate for continuous lines (e.g. ~25
     // disposals), where nudging the values flips some games across the line.
     const scaleVals = (vals) =>
       matchupFactor === 1 ? vals || [] : (vals || []).map((v) => v * matchupFactor);
     const empScaled = blend(
-      smoothed(computeHitRate(scaleVals(ms.last5Values), prop.line)),
-      smoothed(computeHitRate(scaleVals(ms.last10Values), prop.line))
+      smoothed(weightedHitRate(scaleVals(ms.last5Values), prop.line)),
+      smoothed(weightedHitRate(scaleVals(ms.last10Values), prop.line))
     );
 
     let empirical = empScaled;
@@ -1050,7 +1120,8 @@ function enrichProps(props, aflStats, factors = null) {
       sampleSize: (ms.last10Values || []).length,
       hr5,
       hr10,
-      implied,
+      implied,        // fair (de-vigged) probability used for edge calc
+      impliedRaw,     // raw 1/odds — kept for transparency/diagnostics
       empirical,
       edge,
       margin: ms.recentAvg != null ? Number((ms.recentAvg - prop.line).toFixed(1)) : null,
