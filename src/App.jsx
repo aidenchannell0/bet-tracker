@@ -724,6 +724,35 @@ function PasswordRecoveryScreen({ newPassword, setNewPassword, loading, message,
   );
 }
 
+// Shared top nav — Layout B editorial style. Appears on Dashboard, Tracker,
+// MultiPick, and Settings pages on desktop. Mobile uses MobileBottomNav.
+function TopNav({ activePage, setActivePage, handleLogout }) {
+  const tabClass = (key) =>
+    "text-[12px] font-medium uppercase tracking-[0.06em] transition-colors " +
+    (activePage === key ? "text-[var(--text-new)]" : "text-[var(--text-3-new)] hover:text-[var(--text-2-new)]");
+  return (
+    <nav className="mb-2 hidden items-center justify-between border-b border-[var(--border-new)] pb-5 md:flex">
+      <button
+        type="button"
+        onClick={() => setActivePage && setActivePage("app")}
+        className="flex items-center gap-3"
+      >
+        <div className="grid h-7 w-7 place-items-center rounded bg-[var(--accent-new)] text-[12px] font-bold text-[var(--bg-new)]">M</div>
+        <div className="text-[13px] font-semibold tracking-[0.02em] text-[var(--text-new)]">MULTIPICK</div>
+      </button>
+      <div className="flex items-center gap-6">
+        <button onClick={() => setActivePage("app")} className={tabClass("app")}>Dashboard</button>
+        <button onClick={() => setActivePage("tracker")} className={tabClass("tracker")}>Tracker</button>
+        <button onClick={() => setActivePage("edge")} className={tabClass("edge")}>MultiPick</button>
+        <button onClick={() => setActivePage("settings")} className={tabClass("settings")}>Settings</button>
+        {handleLogout ? (
+          <button onClick={handleLogout} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Log out</button>
+        ) : null}
+      </div>
+    </nav>
+  );
+}
+
 function Footer({ setActivePage }) {
   return (
     <footer className="border-t border-slate-200 py-6 text-sm text-slate-500">
@@ -745,8 +774,10 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
   return (
     <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <TopNav activePage="settings" setActivePage={setActivePage} />
+        </div>
         <div className="mx-auto max-w-3xl space-y-6">
-          <button onClick={() => setActivePage("app")} className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">← Back to dashboard</button>
           <div className="border-b border-[var(--border-new)] pb-8">
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">MultiPick · Account</p>
             <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[44px]">Settings.</h1>
@@ -1444,6 +1475,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken }) {
     <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
+          <TopNav activePage="edge" setActivePage={setActivePage} />
           {propsStatus && propsStatus.propsAvailable && propsStatus.roundKey !== propsDismissedRound ? (
             <div className="flex items-center gap-3 rounded-2xl border border-[#2E7D5B]/40 bg-[#2E7D5B]/10 px-4 py-3 text-sm">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#2E7D5B]" />
@@ -2105,11 +2137,11 @@ function MobileBottomNav({ activePage, setActivePage, formRef }) {
         <button type="button" onClick={goToDashboard} className={tab(activePage === "app")}>
           {NAV_ICONS.home}<span>Home</span>
         </button>
-        <button type="button" onClick={goToAddBet} className="flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-[11px] font-semibold text-[var(--accent-new)] transition active:scale-95">
-          {NAV_ICONS.add}<span>Add</span>
+        <button type="button" onClick={() => setActivePage("tracker")} className={tab(activePage === "tracker")}>
+          {NAV_ICONS.home}<span>Tracker</span>
         </button>
         <button type="button" onClick={() => setActivePage("edge")} className={tab(activePage === "edge")}>
-          {NAV_ICONS.build}<span>Build</span>
+          {NAV_ICONS.build}<span>MultiPick</span>
         </button>
         <button type="button" onClick={() => setActivePage("settings")} className={tab(activePage === "settings")}>
           {NAV_ICONS.settings}<span>Settings</span>
@@ -2637,20 +2669,7 @@ export default function BettingTrackerWebsite() {
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl">
 
-          {/* Layout B editorial top nav — brand mark + uppercase nav.
-              Desktop only; mobile keeps the bottom nav. */}
-          <nav className="mb-2 hidden items-center justify-between border-b border-[var(--border-new)] pb-5 md:flex">
-            <div className="flex items-center gap-3">
-              <div className="grid h-7 w-7 place-items-center rounded bg-[var(--accent-new)] text-[12px] font-bold text-[var(--bg-new)]">M</div>
-              <div className="text-[13px] font-semibold tracking-[0.02em]">MULTIPICK</div>
-            </div>
-            <div className="flex gap-6">
-              <button onClick={() => setActivePage("app")} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-new)]">Dashboard</button>
-              <button onClick={() => setActivePage("edge")} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">MultiPick</button>
-              <button onClick={() => setActivePage("settings")} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Settings</button>
-              <button onClick={handleLogout} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Log out</button>
-            </div>
-          </nav>
+          <TopNav activePage={activePage} setActivePage={setActivePage} handleLogout={handleLogout} />
 
           <div className="space-y-4 md:hidden">
             {/* Mobile editorial header — compact version of the desktop hero. */}
@@ -2884,12 +2903,14 @@ export default function BettingTrackerWebsite() {
               meta (date + email), action buttons + sport filter right-aligned. */}
           <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 md:grid-cols-[1.4fr_1fr] md:items-end">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })} · {session.user.email}</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{activePage === "tracker" ? `${new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })} — ${bets.length} bets logged` : `${new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })} · ${session.user.email}`}</p>
               <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[52px]">
-                Track every bet.<br />Read every result.
+                {activePage === "tracker" ? <>My bets,<br />by the numbers.</> : <>Track every bet.<br />Read every result.</>}
               </h1>
               <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">
-                Your performance, by the numbers. Profit/loss, ROI, win rate, weekly trends — all backed by your saved bets.
+                {activePage === "tracker"
+                  ? "Every wager logged, settled or pending. Filter, sort, and review your bet history."
+                  : "Your performance, by the numbers. Profit/loss, ROI, win rate, weekly trends — all backed by your saved bets."}
               </p>
             </div>
             <div className="flex flex-col items-end gap-2.5">
@@ -2959,9 +2980,10 @@ export default function BettingTrackerWebsite() {
             </div>
           </section>
 
-          {/* Add Bet + Chart — Layout B editorial: both unboxed, hairline section
-              dividers, bare-underline form inputs that focus to text-new. The
-              chart sits on the page background instead of in a card. */}
+          {/* Add Bet + Chart — Dashboard page only. Layout B editorial: both
+              unboxed, hairline section dividers, bare-underline form inputs.
+              The chart sits on the page background instead of in a card. */}
+          {activePage === "app" ? (
           <section className="grid gap-10 border-b border-[var(--border-new)] py-10 lg:grid-cols-5">
             <div className="lg:col-span-2" ref={formRef}>
               <div className="mb-5 flex items-baseline justify-between">
@@ -3079,7 +3101,9 @@ export default function BettingTrackerWebsite() {
               </div>
             </div>
           </section>
+          ) : null}
 
+          {activePage === "app" ? (
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <ColoredStatCard
               title="Biggest Win"
@@ -3102,12 +3126,13 @@ export default function BettingTrackerWebsite() {
               tone={stats.longestLosingStreak > 0 ? "red" : "neutral"}
             />
           </section>
+          ) : null}
 
-          {/* Bet history — Layout B editorial table.
+          {/* Bet history — Tracker page only. Layout B editorial table.
               Top: status filter pills + sort dropdown. Below: proper table
               with column headers (BET / DATE / STAKE / RETURN / P/L / STATUS),
               hairline borders, mono numerals, status dots and sport tags. */}
-          {(() => {
+          {activePage === "tracker" ? (() => {
             // Include settled + pending bets in the table, filtered by sport.
             const tableBets = selectedSportFilter === "All sports"
               ? bets
@@ -3252,7 +3277,7 @@ export default function BettingTrackerWebsite() {
                 ) : null}
               </>
             );
-          })()}
+          })() : null}
 
           </div>
 
