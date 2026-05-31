@@ -2321,6 +2321,41 @@ export default function BettingTrackerWebsite() {
     setBetslipExtract(null);
     setBetslipError("");
   };
+
+  // Drag-and-drop for the betslip screenshot. Tracks dragOver to highlight
+  // the dropzone with the accent colour while a file is hovering over it.
+  const [betslipDragOver, setBetslipDragOver] = useState(false);
+
+  const handleBetslipDragOver = (event) => {
+    event.preventDefault();
+    if (!betslipDragOver) setBetslipDragOver(true);
+  };
+
+  const handleBetslipDragLeave = (event) => {
+    // Ignore drag-leave when moving onto a child element of the dropzone.
+    if (event.currentTarget.contains(event.relatedTarget)) return;
+    setBetslipDragOver(false);
+  };
+
+  const handleBetslipDrop = (event) => {
+    event.preventDefault();
+    setBetslipDragOver(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setBetslipError("Please drop an image file");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        setBetslipImage(result);
+        parseBetslip(result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
   const [mobileAddBetOpen, setMobileAddBetOpen] = useState(false);
 
   useEffect(() => {
@@ -3121,16 +3156,28 @@ export default function BettingTrackerWebsite() {
                 {editingBetId ? <Button type="button" variant="ghost" onClick={resetBetForm}>Cancel</Button> : null}
               </div>
 
-              {/* Betslip OCR — paste a screenshot of your bookmaker's slip and
-                  OpenAI vision will pre-fill the form. Hidden when editing. */}
+              {/* Betslip OCR — paste, drag-and-drop, or file-upload a
+                  screenshot of your bookmaker's slip and OpenAI vision will
+                  pre-fill the form. Hidden when editing an existing bet. */}
               {!editingBetId ? (
-                <div className="mb-6 rounded-xl border border-dashed border-[var(--border-new)] bg-[var(--surface-new)] px-4 py-4">
+                <div
+                  onDragOver={handleBetslipDragOver}
+                  onDragLeave={handleBetslipDragLeave}
+                  onDrop={handleBetslipDrop}
+                  className={"mb-6 rounded-xl border border-dashed px-4 py-4 transition-colors " + (betslipDragOver ? "border-[var(--accent-new)] bg-[var(--accent-soft-new)]" : "border-[var(--border-new)] bg-[var(--surface-new)]")}
+                >
                   {!betslipImage && !betslipParsing ? (
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
+                      <div className="pointer-events-none">
                         <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Quick add · AI vision</div>
                         <div className="mt-1.5 text-[13px] text-[var(--text-2-new)]">
-                          <span className="text-[var(--text-new)] font-medium">Paste a betslip screenshot</span> here (⌘V) — we'll read the stake, odds and legs and fill the form for you.
+                          {betslipDragOver ? (
+                            <span className="text-[var(--accent-new)] font-medium">Drop the screenshot to read it</span>
+                          ) : (
+                            <>
+                              <span className="text-[var(--text-new)] font-medium">Drop, paste, or upload a betslip screenshot</span> — we'll read the stake, odds and legs and fill the form for you.
+                            </>
+                          )}
                         </div>
                       </div>
                       <label className="cursor-pointer rounded-lg border border-[var(--border-new)] bg-transparent px-3.5 py-2 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-2-new)] hover:border-[var(--border-strong-new)] hover:text-[var(--text-new)]">
