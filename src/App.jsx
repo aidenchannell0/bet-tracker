@@ -728,7 +728,7 @@ function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassw
         <Card className="w-full">
           <div className="p-6 md:p-8">
             <p className="text-sm font-medium text-slate-500">Online version</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">Pickd</h1>
+            <h1 className="brand-wordmark mt-1 flex items-baseline text-3xl font-bold tracking-[-0.045em]"><span>Pickd</span><span className="text-[var(--accent-new)]">.</span></h1>
             <p className="mt-2 text-sm text-slate-600">Create an account or log in to save your bets online and access them from any device.</p>
             {authMode === "reset" ? <p className="mt-2 text-sm text-slate-600">Enter your email and we will send you a password reset link.</p> : null}
 
@@ -799,13 +799,17 @@ function TopNav({ activePage, setActivePage, handleLogout }) {
     (activePage === key ? "text-[var(--text-new)]" : "text-[var(--text-3-new)] hover:text-[var(--text-2-new)]");
   return (
     <nav className="mb-2 flex flex-col gap-3 border-b border-[var(--border-new)] pb-4 md:flex-row md:items-center md:justify-between md:pb-5">
+      {/* Brand wordmark — "Pickd." with a lime accent dot. The period reads
+          as a confirmed pick / decision made; uses Inter Tight at tight
+          letter-spacing for a confident, editorial wordmark. */}
       <button
         type="button"
         onClick={() => setActivePage && setActivePage("app")}
-        className="flex items-center gap-3"
+        className="brand-wordmark flex items-baseline leading-none"
+        aria-label="Pickd home"
       >
-        <div className="grid h-7 w-7 place-items-center rounded bg-[var(--accent-new)] text-[12px] font-bold text-[var(--bg-new)]">P</div>
-        <div className="text-[13px] font-semibold tracking-[0.02em] text-[var(--text-new)]">PICKD</div>
+        <span className="text-[22px] font-bold tracking-[-0.045em] text-[var(--text-new)]">Pickd</span>
+        <span className="text-[22px] font-bold tracking-[-0.045em] text-[var(--accent-new)]">.</span>
       </button>
       <div className="-mx-2 flex items-center gap-4 overflow-x-auto px-2 md:gap-6 md:overflow-visible">
         <button onClick={() => setActivePage("app")} className={tabClass("app") + " whitespace-nowrap"}>Dashboard</button>

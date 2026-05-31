@@ -52,6 +52,14 @@ html, body {
   background: linear-gradient(90deg, var(--positive-new) 0%, var(--warning-new) 50%, var(--danger-new) 100%);
 }
 
+/* Brand wordmark — "Pickd." Uses Inter Tight at tight letter-spacing.
+   Applied to the TopNav brand button, mobile nav brand, landing hero,
+   and anywhere else the locked wordmark needs to render. */
+.brand-wordmark {
+  font-family: 'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
 /* ── Stat-detail modal — full-screen takeover ────────────────────── */
 @keyframes statModalBackdropIn {
   from {
