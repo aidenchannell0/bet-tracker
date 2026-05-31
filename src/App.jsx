@@ -2152,6 +2152,8 @@ export default function BettingTrackerWebsite() {
   const [loadingBets, setLoadingBets] = useState(false);
   const [editingBetId, setEditingBetId] = useState(null);
   const [showAllBets, setShowAllBets] = useState(false);
+  // Layout B editorial bet table — filter by status pill (all / pending / won / lost).
+  const [statusFilter, setStatusFilter] = useState("all");
   const [mobileBetsOpen, setMobileBetsOpen] = useState(false);
   const [selectedSportFilter, setSelectedSportFilter] = useState("All sports");
   const fileInputRef = useRef(null);
@@ -2635,6 +2637,21 @@ export default function BettingTrackerWebsite() {
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl">
 
+          {/* Layout B editorial top nav — brand mark + uppercase nav.
+              Desktop only; mobile keeps the bottom nav. */}
+          <nav className="mb-2 hidden items-center justify-between border-b border-[var(--border-new)] pb-5 md:flex">
+            <div className="flex items-center gap-3">
+              <div className="grid h-7 w-7 place-items-center rounded bg-[var(--accent-new)] text-[12px] font-bold text-[var(--bg-new)]">B</div>
+              <div className="text-[13px] font-semibold tracking-[0.02em]">BET GRID</div>
+            </div>
+            <div className="flex gap-6">
+              <button onClick={() => setActivePage("app")} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-new)]">Dashboard</button>
+              <button onClick={() => setActivePage("edge")} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Grid Build</button>
+              <button onClick={() => setActivePage("settings")} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Settings</button>
+              <button onClick={handleLogout} className="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Log out</button>
+            </div>
+          </nav>
+
           <div className="space-y-4 md:hidden">
             {/* Mobile editorial header — compact version of the desktop hero. */}
             <header className="space-y-2 border-b border-[var(--border-new)] pb-4">
@@ -2877,12 +2894,10 @@ export default function BettingTrackerWebsite() {
             </div>
             <div className="flex flex-col items-end gap-2.5">
               <div className="flex flex-wrap justify-end gap-2">
-                <Button onClick={() => setActivePage("edge")}>Open Grid Build</Button>
-                <Button onClick={() => setActivePage("settings")} variant="outline">Settings</Button>
-                <Button onClick={handleLogout} variant="ghost">Log out</Button>
+                <Button variant="outline" onClick={exportCsv}>Export CSV</Button>
+                <Button onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}><span className="mr-1 text-base font-normal leading-none">+</span> Add bet</Button>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)]">
-                <span className="mr-1">Sport</span>
                 <select
                   value={selectedSportFilter}
                   onChange={(event) => { setSelectedSportFilter(event.target.value); setShowAllBets(false); }}
@@ -3088,54 +3103,156 @@ export default function BettingTrackerWebsite() {
             />
           </section>
 
-          <Card>
-            <div className="p-5">
-              <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-                <div>
-                  <h2 className="text-xl font-semibold">Bet history</h2>
-                  <p className="text-sm text-slate-500">Edit or delete entries if you make a mistake.</p>
-                </div>
-                <p className="text-sm text-slate-500">Showing {visibleBets.length} of {filteredBets.length} bets{selectedSportFilter !== "All sports" ? " for " + selectedSportFilter : ""}</p>
-              </div>
-
-              <div className="mt-4 space-y-3 md:hidden">
-                {visibleBets.map((bet) => (
-                  <div key={bet.id} className={"rounded-2xl border border-slate-200 p-4 " + (editingBetId === bet.id ? "bg-slate-50" : "bg-[#FAF7EF]")}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-[#11203B]">{bet.date}</p>
-                        <p className="mt-1 text-xs capitalize text-slate-500">{bet.sport || "Other"} · {bet.result} · Odds {bet.odds || "-"}</p>
-                      </div>
-                      <p className={"text-base font-semibold " + (bet.profitLoss >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(bet.profitLoss)}</p>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-xl bg-[#E8E2D4] p-3"><p className="text-xs text-slate-500">Stake</p><p className="font-medium text-[#11203B]">{formatCurrency(bet.stake)}</p></div>
-                      <div className="rounded-xl bg-[#E8E2D4] p-3"><p className="text-xs text-slate-500">Return</p><p className="font-medium text-[#11203B]">{formatCurrency(bet.returnAmount)}</p></div>
-                    </div>
-                    {bet.notes ? <p className="mt-3 text-sm text-slate-600">{bet.notes}</p> : null}
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <Button variant="outline" onClick={() => startEditingBet(bet)} className="w-full">Edit</Button>
-                      <Button variant="ghost" onClick={() => deleteBet(bet.id)} className="w-full">Delete</Button>
-                    </div>
-                  </div>
-                ))}
-                {!bets.length ? <div className="rounded-2xl bg-[#E8E2D4] p-8 text-center text-sm text-slate-500">No bets added yet.</div> : null}
-              </div>
-
-              <div className="mt-4 hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[820px] text-left text-sm">
-                  <thead><tr className="border-b text-slate-500"><th className="py-3 pr-4 font-medium">Date</th><th className="py-3 pr-4 font-medium">Sport</th><th className="py-3 pr-4 font-medium">Stake</th><th className="py-3 pr-4 font-medium">Odds</th><th className="py-3 pr-4 font-medium">Result</th><th className="py-3 pr-4 font-medium">Return</th><th className="py-3 pr-4 font-medium">Profit/Loss</th><th className="py-3 pr-4 font-medium">Notes</th><th className="py-3 pr-4 font-medium">Actions</th></tr></thead>
-                  <tbody>
-                    {visibleBets.map((bet) => (
-                      <tr key={bet.id} className={"border-b last:border-0 " + (editingBetId === bet.id ? "bg-slate-50" : "")}><td className="py-3 pr-4">{bet.date}</td><td className="py-3 pr-4"><span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{bet.sport || "Other"}</span></td><td className="py-3 pr-4">{formatCurrency(bet.stake)}</td><td className="py-3 pr-4">{bet.odds || "-"}</td><td className="py-3 pr-4 capitalize">{bet.result}</td><td className="py-3 pr-4">{formatCurrency(bet.returnAmount)}</td><td className={"py-3 pr-4 font-medium " + (bet.profitLoss >= 0 ? "text-[#2E7D5B]" : "text-[#A94442]")}>{formatCurrency(bet.profitLoss)}</td><td className="max-w-[240px] truncate py-3 pr-4 text-slate-600">{bet.notes || "-"}</td><td className="py-3 pr-4"><div className="flex gap-2"><Button variant="ghost" onClick={() => startEditingBet(bet)}>Edit</Button><Button variant="ghost" onClick={() => deleteBet(bet.id)}>Delete</Button></div></td></tr>
+          {/* Bet history — Layout B editorial table.
+              Top: status filter pills + sort dropdown. Below: proper table
+              with column headers (BET / DATE / STAKE / RETURN / P/L / STATUS),
+              hairline borders, mono numerals, status dots and sport tags. */}
+          {(() => {
+            // Include settled + pending bets in the table, filtered by sport.
+            const tableBets = selectedSportFilter === "All sports"
+              ? bets
+              : bets.filter(b => (b.sport || "Other") === selectedSportFilter);
+            const counts = {
+              all: tableBets.length,
+              pending: tableBets.filter(b => b.result === "pending" || b.status === "pending").length,
+              won: tableBets.filter(b => b.result === "win").length,
+              lost: tableBets.filter(b => b.result === "loss").length,
+            };
+            const filtered = statusFilter === "all" ? tableBets
+              : statusFilter === "won" ? tableBets.filter(b => b.result === "win")
+              : statusFilter === "lost" ? tableBets.filter(b => b.result === "loss")
+              : statusFilter === "pending" ? tableBets.filter(b => b.result === "pending" || b.status === "pending")
+              : tableBets;
+            const showing = showAllBets ? filtered : filtered.slice(0, 6);
+            const dotClass = (r) => r === "win" ? "bg-[var(--positive-new)]" : r === "loss" ? "bg-[var(--danger-new)]" : r === "pending" ? "bg-[var(--warning-new)]" : "bg-[var(--text-3-new)]";
+            const statusLabel = (r) => r === "win" ? "Won" : r === "loss" ? "Lost" : r === "pending" ? "Pending" : "Void";
+            const statusColor = (r) => r === "win" ? "text-[var(--positive-new)]" : r === "loss" ? "text-[var(--danger-new)]" : r === "pending" ? "text-[var(--warning-new)]" : "text-[var(--text-3-new)]";
+            const betTitle = (bet) => {
+              const legCount = Array.isArray(bet.legs) ? bet.legs.length : 0;
+              if (legCount >= 2) return `${legCount}-leg multi`;
+              if (bet.betType) return bet.betType;
+              return "Single";
+            };
+            return (
+              <>
+                {/* Filter + sort row */}
+                <div className="flex items-center justify-between border-b border-[var(--border-new)] py-5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { key: "all", label: "All", count: counts.all },
+                      { key: "pending", label: "Pending", count: counts.pending },
+                      { key: "won", label: "Won", count: counts.won },
+                      { key: "lost", label: "Lost", count: counts.lost },
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setStatusFilter(tab.key)}
+                        className={"cursor-pointer rounded-full border px-3 py-1.5 text-[12px] transition-colors " + (statusFilter === tab.key ? "border-[var(--text-new)] bg-[var(--text-new)] font-medium text-[var(--bg-new)]" : "border-[var(--border-new)] bg-transparent text-[var(--text-2-new)] hover:border-[var(--border-strong-new)]")}
+                      >
+                        {tab.label} <span className={statusFilter === tab.key ? "ml-1 opacity-60" : "ml-1 text-[var(--text-3-new)]"}>{tab.count}</span>
+                      </button>
                     ))}
-                    {!bets.length ? <tr><td colSpan="9" className="py-10 text-center text-slate-500">No bets added yet.</td></tr> : null}
-                  </tbody>
-                </table>
-              </div>
-              {filteredBets.length > 5 ? <div className="mt-5 flex justify-center"><Button type="button" variant="outline" onClick={() => setShowAllBets((current) => !current)}>{showAllBets ? "Show less" : `Show all bets (${filteredBets.length})`}</Button></div> : null}
-            </div>
-          </Card>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)]">
+                    Sort
+                    <span className="cursor-pointer text-[12px] normal-case tracking-normal text-[var(--text-2-new)] hover:text-[var(--text-new)]">Most recent</span>
+                  </div>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="space-y-1 border-b border-[var(--border-new)] py-2 md:hidden">
+                  {showing.map((bet) => (
+                    <div key={bet.id} className="border-b border-[var(--border-new)] py-4 last:border-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className={"h-2 w-2 shrink-0 rounded-full " + dotClass(bet.result)} />
+                          <div>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3-new)]">{bet.sport || "OTHER"}</span>
+                              <span className="text-sm font-medium text-[var(--text-new)]">{betTitle(bet)}</span>
+                            </div>
+                            <div className="mt-1 text-[11px] text-[var(--text-3-new)]">{bet.date}{bet.bookmaker ? ` · ${bet.bookmaker}` : ""}</div>
+                          </div>
+                        </div>
+                        <span className={"mono-nums text-sm font-medium " + (bet.profitLoss >= 0 ? "text-[var(--positive-new)]" : bet.profitLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-3-new)]")}>{bet.result === "pending" ? "—" : formatCurrency(bet.profitLoss)}</span>
+                      </div>
+                      <div className="mt-2 flex justify-between text-[11px] text-[var(--text-3-new)]">
+                        <span>Stake <span className="mono-nums text-[var(--text-2-new)]">{formatCurrency(bet.stake)}</span></span>
+                        <span>Return <span className="mono-nums text-[var(--text-2-new)]">{formatCurrency(bet.returnAmount)}</span></span>
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <button onClick={() => startEditingBet(bet)} className="rounded border border-[var(--border-new)] px-3 py-1 text-[11px] uppercase tracking-[0.06em] text-[var(--text-2-new)] hover:text-[var(--text-new)]">Edit</button>
+                        <button onClick={() => deleteBet(bet.id)} className="rounded border border-[var(--border-new)] px-3 py-1 text-[11px] uppercase tracking-[0.06em] text-[var(--text-2-new)] hover:border-[var(--danger-new)] hover:text-[var(--danger-new)]">Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                  {!bets.length ? <div className="py-10 text-center text-sm text-[var(--text-3-new)]">No bets added yet.</div> : null}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[720px] border-collapse text-left">
+                    <thead>
+                      <tr>
+                        <th className="border-b border-[var(--border-new)] py-4 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Bet</th>
+                        <th className="border-b border-[var(--border-new)] py-4 text-right text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Date</th>
+                        <th className="border-b border-[var(--border-new)] py-4 text-right text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Stake</th>
+                        <th className="border-b border-[var(--border-new)] py-4 text-right text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Return</th>
+                        <th className="border-b border-[var(--border-new)] py-4 text-right text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">P / L</th>
+                        <th className="border-b border-[var(--border-new)] py-4 text-right text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Status</th>
+                        <th className="border-b border-[var(--border-new)] py-4 text-right text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {showing.map((bet) => (
+                        <tr key={bet.id} className={"cursor-pointer transition-colors hover:bg-[var(--surface-new)] " + (editingBetId === bet.id ? "bg-[var(--surface-2-new)]" : "")}>
+                          <td className="border-b border-[var(--border-new)] py-5 pr-3">
+                            <div className="flex items-center gap-3">
+                              <div className={"h-1.5 w-1.5 shrink-0 rounded-full " + dotClass(bet.result)} />
+                              <div>
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3-new)]">{bet.sport || "OTHER"}</span>
+                                  <span className="text-[13px] font-medium text-[var(--text-new)]">{betTitle(bet)}</span>
+                                </div>
+                                {(bet.source === "grid_build" || bet.bookmaker || bet.notes) ? (
+                                  <div className="mt-1 text-[11px] text-[var(--text-3-new)]">
+                                    {bet.source === "grid_build" ? "Grid Build" : "Manual"}{bet.bookmaker ? ` · ${bet.bookmaker}` : ""}{bet.odds ? ` · @ ${formatOdds(bet.odds)}` : ""}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="mono-nums border-b border-[var(--border-new)] py-5 text-right text-[12px] text-[var(--text-3-new)]">{bet.date}</td>
+                          <td className="mono-nums border-b border-[var(--border-new)] py-5 text-right text-[13px] text-[var(--text-2-new)]">{formatCurrency(bet.stake)}</td>
+                          <td className="mono-nums border-b border-[var(--border-new)] py-5 text-right text-[13px] text-[var(--text-2-new)]">{bet.result === "pending" ? formatCurrency(bet.returnAmount) : formatCurrency(bet.returnAmount)}</td>
+                          <td className={"mono-nums border-b border-[var(--border-new)] py-5 text-right text-[13px] font-medium " + (bet.profitLoss > 0 ? "text-[var(--positive-new)]" : bet.profitLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-3-new)]")}>{bet.result === "pending" ? "—" : formatCurrency(bet.profitLoss)}</td>
+                          <td className={"border-b border-[var(--border-new)] py-5 text-right text-[10px] font-medium uppercase tracking-[0.08em] " + statusColor(bet.result)}>{statusLabel(bet.result)}</td>
+                          <td className="border-b border-[var(--border-new)] py-5 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button onClick={() => startEditingBet(bet)} className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-new)]">Edit</button>
+                              <button onClick={() => deleteBet(bet.id)} className="text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--danger-new)]">Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {!filtered.length ? (
+                        <tr><td colSpan="7" className="py-10 text-center text-sm text-[var(--text-3-new)]">No bets {statusFilter !== "all" ? `with ${statusFilter} status` : "added yet"}.</td></tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+
+                {filtered.length > 6 ? (
+                  <div className="mt-5 flex justify-center">
+                    <button type="button" onClick={() => setShowAllBets((current) => !current)} className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-2-new)] hover:text-[var(--text-new)]">
+                      {showAllBets ? "Show less" : `View all ${filtered.length} →`}
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            );
+          })()}
 
           </div>
 
