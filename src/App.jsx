@@ -2326,51 +2326,35 @@ function LandingPage({ setActivePage, setAuthMode }) {
             </div>
           </section>
 
-          {/* ─────────────── PICKD vs MULTILAB ───────────────
-              Direct, confident comparison. We undercut on price + offer
-              both tracker and builder, which they don't pair. */}
+          {/* ─────────────── WHAT'S IN PICKD ───────────────
+              Editorial feature manifest — confident, brand-only, no
+              competitor names. Big numbers, mono labels, hairline rows. */}
           <section className="border-b border-[var(--border-new)] py-20 md:py-28">
             <div className="max-w-[640px]">
-              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Why Pickd</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">What's inside</p>
               <h2 className="brand-wordmark mt-3 text-[36px] font-bold leading-[0.95] tracking-[-0.045em] md:text-[52px]">
-                MultiLab quality.<br />Fairer price<span className="text-[var(--accent-new)]">.</span>
+                Everything in one place<span className="text-[var(--accent-new)]">.</span>
               </h2>
               <p className="mt-5 text-[15px] leading-[1.6] text-[var(--text-2-new)]">
-                You've probably tried other tools. Here's the honest comparison — no marketing fluff, just what you get.
+                Tracker, multi builder, betslip OCR and calibrated analytics — engineered together so the data flows from input to decision without you copying and pasting.
               </p>
             </div>
 
-            <div className="mt-12 overflow-x-auto">
-              <table className="w-full min-w-[560px] text-left text-[13px]">
-                <thead>
-                  <tr className="border-b border-[var(--border-strong-new)] text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)]">
-                    <th className="py-3.5 pr-6 font-medium">Feature</th>
-                    <th className="py-3.5 pr-6 font-medium text-[var(--accent-new)]">Pickd</th>
-                    <th className="py-3.5 pr-6 font-medium">MultiLab</th>
-                    <th className="py-3.5 font-medium">Spreadsheet</th>
-                  </tr>
-                </thead>
-                <tbody className="text-[var(--text-2-new)]">
-                  {[
-                    ["Monthly price", "$28", "$29.99", "Free"],
-                    ["AI multi builder", "✓ MultiPick", "✓ Edge AI", "—"],
-                    ["Bet tracker", "✓ Built-in", "✓ Slip only", "Manual"],
-                    ["Multi-sport (AFL + NBA)", "✓", "—", "Manual"],
-                    ["Betslip OCR (paste & parse)", "✓", "—", "—"],
-                    ["Calibration scoreboard", "✓", "—", "—"],
-                    ["Correlation-aware odds", "✓", "✓", "—"],
-                    ["Honest +EV signals", "✓", "✓", "—"],
-                    ["Form-backed predictions", "✓", "✓", "—"],
-                  ].map(([feature, pickd, ml, sheet], i) => (
-                    <tr key={i} className="border-b border-[var(--border-new)]">
-                      <td className="py-3.5 pr-6 font-medium text-[var(--text-new)]">{feature}</td>
-                      <td className="py-3.5 pr-6 text-[var(--accent-new)]">{pickd}</td>
-                      <td className="py-3.5 pr-6">{ml}</td>
-                      <td className="py-3.5">{sheet}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="mt-12 grid divide-y divide-[var(--border-new)] border-y border-[var(--border-new)]">
+              {[
+                { num: "01", title: "Full bet tracker", desc: "Stake, odds, return, sport, bookmaker, notes — logged and analysed automatically." },
+                { num: "02", title: "MultiPick AI multi builder", desc: "Form-backed multis with transparent edge math. Refine by chat. Honest +EV signals." },
+                { num: "03", title: "Betslip OCR", desc: "Paste any bookmaker screenshot. Vision model reads stake, odds and every leg. No manual entry." },
+                { num: "04", title: "Calibration scoreboard", desc: "Every prediction gets logged with model probability + outcome. The math is publicly verifiable." },
+                { num: "05", title: "Multi-sport coverage", desc: "AFL and NBA at launch. Player props, line markets, head-to-head — all unified." },
+                { num: "06", title: "Correlation-aware odds", desc: "Same-game legs priced honestly with pairwise correlation matrix, not naively multiplied." },
+              ].map((item) => (
+                <div key={item.num} className="grid grid-cols-[48px_1fr] items-baseline gap-5 py-5 md:grid-cols-[64px_1fr_2fr] md:gap-8 md:py-6">
+                  <div className="mono-nums text-[12px] font-medium text-[var(--text-3-new)] md:text-[13px]">{item.num}</div>
+                  <div className="brand-wordmark text-[16px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[18px]">{item.title}</div>
+                  <div className="col-start-2 text-[13px] leading-[1.55] text-[var(--text-2-new)] md:col-start-3 md:text-[14px]">{item.desc}</div>
+                </div>
+              ))}
             </div>
           </section>
 
@@ -2427,7 +2411,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
                   ))}
                 </ul>
                 <Button onClick={() => openAuth("signup")} className="mt-7 w-full py-3 text-[14px]">Upgrade to Pro →</Button>
-                <p className="mt-3 text-center text-[10px] text-[var(--text-3-new)]">vs MultiLab at $29.99/mo — ~65% cheaper effective</p>
+                <p className="mt-3 text-center text-[10px] text-[var(--text-3-new)]">Cancel anytime from Settings · No long-term commitment</p>
               </div>
             </div>
           </section>
@@ -2457,7 +2441,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
                   },
                   {
                     q: "How does the AI work?",
-                    a: "MultiPick reads last-5 / last-10 game logs, dev-vigs the market price into an implied probability, applies Empirical Bayes shrinkage with a book-anchored prior, and adjusts for opponent matchup. Then it scores +EV legs. All the math is visible.",
+                    a: "MultiPick runs a five-stage statistical pipeline. First, the market line is de-vigged — the over/under odds pair gets the bookmaker's overround stripped out using a power-law adjustment, recovering the book's true implied probability rather than the naive 1/odds. Second, the player's last-15 game logs are pulled and weighted with an exponential time-decay kernel so recent form dominates older samples. Third, an Empirical Bayes posterior is computed — the raw hit rate is regressed toward a Beta(α,β) prior anchored to the de-vigged book probability, with sample size determining how aggressively to shrink. Fourth, the posterior is matchup-adjusted by the opponent's stat-specific concession rate vs the league median. Fifth, each candidate leg is scored by expected value (model_p × decimal_odds − 1) and ranked. For same-game multis, a pairwise correlation matrix discounts the independence assumption that vanilla parlays use. A beam search over the leg shortlist then composes a multi closest to your target odds while maximising combined edge. Every prediction is logged with its probability and outcome, so Brier scores and calibration curves stay publicly verifiable rather than theoretical.",
                   },
                   {
                     q: "Refund policy?",
