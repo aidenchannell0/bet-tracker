@@ -1493,15 +1493,26 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   // the user's target — e.g. NBA $2.00 target with no sub-$1.59 lines gets a $5.86
   // build instead of the $4.12 floor. $0.50 buckets keep tight builds unaffected.
   const diffBucket = (c) => Math.floor(c.diff / 0.5);
-  pool.sort(
-    (a, b) =>
-      a.legPenalty - b.legPenalty ||
-      diffBucket(a) - diffBucket(b) ||
-      a.diversityPenalty - b.diversityPenalty ||
-      a.balance - b.balance ||
-      b.prob - a.prob ||
-      a.diff - b.diff
-  );
+  // Safer / Balanced prefer combos with higher combined hit chance (= every
+  // leg is short-odds AND high-empirical) over balanced leg pricing. The
+  // user explicitly wants Safer/Balanced multis to *feel* safer, even if
+  // that means uneven leg sizes (e.g. three $1.30 legs vs two $1.45+$1.50).
+  // Aggressive keeps the old balance-first sort so it can still chase
+  // edge-rich asymmetric combos.
+  const preferProbOverBalance = riskProfile !== "Aggressive";
+  pool.sort((a, b) => {
+    if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
+    if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
+    if (a.diversityPenalty !== b.diversityPenalty) return a.diversityPenalty - b.diversityPenalty;
+    if (preferProbOverBalance) {
+      if (b.prob !== a.prob) return b.prob - a.prob;
+      if (a.balance !== b.balance) return a.balance - b.balance;
+    } else {
+      if (a.balance !== b.balance) return a.balance - b.balance;
+      if (b.prob !== a.prob) return b.prob - a.prob;
+    }
+    return a.diff - b.diff;
+  });
   return pool[0].legs.sort((a, b) => b.score - a.score);
 }
 
