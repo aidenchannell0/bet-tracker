@@ -1811,7 +1811,11 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                       <div className="mt-3.5 mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">${multiOutput ? formatOdds(multiOutput.combinedOdds) : displayedTargetOdds.replace("$", "")}</div>
                       <div className="mt-3 text-xs text-[var(--text-3-new)]">{(() => {
                         if (!multiOutput) return "Target";
-                        const target = parseOddsValue ? parseFloat(String(displayedTargetOdds).replace(/[^0-9.]/g, "")) : null;
+                        // parseFloat returns NaN for un-parseable strings, which is falsy
+                        // when used with !target, so no need for a separate gate. Previously
+                        // we had `parseOddsValue ? parseFloat(...) : null` referencing an
+                        // undefined symbol — ReferenceError crashed the page on Build multi.
+                        const target = parseFloat(String(displayedTargetOdds).replace(/[^0-9.]/g, ""));
                         const combined = Number(multiOutput.combinedOdds);
                         if (!target || !combined) return `Target ${displayedTargetOdds}`;
                         const closeness = Math.abs((combined - target) / target * 100);
