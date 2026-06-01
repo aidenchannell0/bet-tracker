@@ -4119,9 +4119,147 @@ export default function BettingTrackerWebsite() {
               triggers a remount on page switch so the page-fade-in CSS
               animation re-fires every time the user navigates. */}
           <div key={activePage} className="space-y-6 page-fade-in">
+
+          {/* ───────────── MOBILE HERO + CAROUSEL (under md) ─────────────
+              Concept #02 — Hero stat + horizontal scroll. Mobile gets a
+              dedicated layout: greeting + massive headline number, a
+              horizontal-scroll carousel of secondary stats, a quick-add
+              panel, and a recent-activity feed. Desktop view is unchanged
+              and the editorial header/stat-strip below are hidden under
+              the md breakpoint via `hidden md:`. */}
+          {(() => {
+            // Friendly first name from the auth email (falls back to "there").
+            const emailLocal = (session?.user?.email || "").split("@")[0] || "";
+            const firstName = emailLocal
+              .replace(/[._-]/g, " ")
+              .split(" ")[0]
+              .replace(/^./, (c) => c.toUpperCase());
+            const isTracker = activePage === "tracker";
+            const heroNumber = isTracker ? String(bets.length) : formatCurrency(stats.totalProfit);
+            const heroLabel = isTracker ? "Bets logged" : "Profit / loss";
+            const heroTone = isTracker
+              ? "text-[var(--text-new)]"
+              : stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]";
+            return (
+              <section className="md:hidden">
+                {/* Hero block */}
+                <div className="border-b border-[var(--border-new)] pb-7 pt-2">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">
+                    <span className="text-[var(--accent-new)]">●</span> Live · {new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })}
+                  </p>
+                  <h1 className="brand-wordmark mt-2 text-[22px] font-semibold tracking-[-0.025em] text-[var(--text-new)]">Hey, {firstName || "there"}.</h1>
+                  <div className={"mono-nums mt-5 text-[64px] font-semibold leading-[0.9] tracking-[-0.045em] " + heroTone}>{heroNumber}</div>
+                  <div className="mt-3 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{heroLabel}</div>
+                  {!isTracker ? (
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[var(--text-3-new)]">
+                      <span>
+                        <span className={subStats.weekProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>
+                          {subStats.weekProfit >= 0 ? "▲ +" : "▼ "}<span className="mono-nums">{formatCurrency(subStats.weekProfit).replace("-", "")}</span>
+                        </span>
+                        <span className="ml-1">this week</span>
+                      </span>
+                      <span><span className="mono-nums text-[var(--text-2-new)]">{subStats.settledCount}</span> settled</span>
+                    </div>
+                  ) : (
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[var(--text-3-new)]">
+                      <span><span className="mono-nums text-[var(--text-2-new)]">{subStats.settledCount}</span> settled</span>
+                      <span><span className="mono-nums text-[var(--text-2-new)]">{subStats.pendingCount}</span> pending</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Horizontal scroll carousel — Win rate / ROI / In flight.
+                    -mx-5 + px-5 lets the cards bleed to the screen edge and
+                    flow off the right, signalling there's more to scroll. */}
+                <div className="-mx-5 mt-5 flex gap-3 overflow-x-auto px-5 pb-2 snap-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                  <button type="button" onClick={() => openStatDetail("winrate")} className="snap-start shrink-0 w-[160px] rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4 text-left active:opacity-80">
+                    <div className="text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Win rate</div>
+                    <div className="mono-nums mt-2.5 text-[24px] font-semibold leading-none">{stats.winRate.toFixed(1)}%</div>
+                    <div className="mt-2.5 text-[10px] text-[var(--text-3-new)]">
+                      {subStats.winRateDelta != null ? (
+                        <span className={subStats.winRateDelta >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>{subStats.winRateDelta >= 0 ? "▲ +" : "▼ "}<span className="mono-nums">{Math.abs(subStats.winRateDelta).toFixed(1)}pp</span></span>
+                      ) : <span>—</span>}
+                      <span className="ml-1">mo/mo</span>
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => openStatDetail("roi")} className="snap-start shrink-0 w-[160px] rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4 text-left active:opacity-80">
+                    <div className="text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Return on stake</div>
+                    <div className={"mono-nums mt-2.5 text-[24px] font-semibold leading-none " + (stats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{(stats.roi >= 0 ? "+" : "") + stats.roi.toFixed(1)}%</div>
+                    <div className="mt-2.5 text-[10px] text-[var(--text-3-new)]"><span className="mono-nums text-[var(--text-2-new)]">{formatCurrency(stats.totalStaked)}</span> staked</div>
+                  </button>
+                  <button type="button" onClick={() => openStatDetail("inflight")} className="snap-start shrink-0 w-[160px] rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4 text-left active:opacity-80">
+                    <div className="text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">In flight</div>
+                    <div className="mono-nums mt-2.5 text-[24px] font-semibold leading-none">{formatCurrency(subStats.inFlightTotal)}</div>
+                    <div className="mt-2.5 text-[10px] text-[var(--text-3-new)]"><span className="mono-nums text-[var(--text-2-new)]">{subStats.pendingCount}</span> pending{subStats.pendingTonight > 0 ? <> · <span className="mono-nums">{subStats.pendingTonight}</span> tonight</> : null}</div>
+                  </button>
+                  {/* Edge card — only on Dashboard, links to MultiPick page */}
+                  {!isTracker ? (
+                    <button type="button" onClick={() => setActivePage("edge")} className="snap-start shrink-0 w-[160px] rounded-2xl border border-[var(--accent-new)] bg-[var(--accent-soft-new)] p-4 text-left active:opacity-80">
+                      <div className="text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--accent-new)]">MultiPick</div>
+                      <div className="mt-2.5 text-[16px] font-semibold leading-[1.1] text-[var(--text-new)]">Build a multi <span aria-hidden>→</span></div>
+                      <div className="mt-2.5 text-[10px] text-[var(--text-3-new)]">AI · form-backed legs</div>
+                    </button>
+                  ) : null}
+                </div>
+
+                {/* Quick add panel — Dashboard only. Tracker doesn't need
+                    this because the bet list IS the page. */}
+                {!isTracker ? (
+                  <div className="mt-7 border-y border-[var(--border-new)] py-5">
+                    <div className="mb-3 flex items-baseline justify-between">
+                      <h3 className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Quick add</h3>
+                      <span className="text-[10px] text-[var(--text-3-new)]"><span className="mono-nums text-[var(--text-2-new)]">{bets.length}</span> bets logged</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button type="button" onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="flex flex-col gap-1.5 rounded-xl bg-[var(--accent-new)] p-4 text-left text-[var(--bg-new)] active:opacity-90">
+                        <span className="text-[14px] leading-none">+</span>
+                        <span className="text-[13px] font-semibold leading-none">Add bet</span>
+                      </button>
+                      <button type="button" onClick={() => setActivePage("edge")} className="flex flex-col gap-1.5 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4 text-left text-[var(--text-new)] active:opacity-80">
+                        <span className="text-[14px] leading-none text-[var(--accent-new)]">✦</span>
+                        <span className="text-[13px] font-semibold leading-none">New multi</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Recent activity feed — Dashboard only. Tracker has its
+                    own full bet list further down the page. */}
+                {!isTracker && bets.length > 0 ? (
+                  <div className={"mt-5 pb-3 " + (isTracker ? "" : "border-b border-[var(--border-new)]")}>
+                    <div className="mb-2 flex items-baseline justify-between">
+                      <h3 className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Recent activity</h3>
+                      <button type="button" onClick={() => setActivePage("tracker")} className="text-[11px] font-medium text-[var(--accent-new)]">View all →</button>
+                    </div>
+                    {bets.slice(0, 5).map((bet) => {
+                      const isWin = bet.result === "win";
+                      const isLoss = bet.result === "loss";
+                      const pl = Number(bet.profitLoss || 0);
+                      return (
+                        <div key={bet.id} className="grid grid-cols-[20px_1fr_auto] items-center gap-3 border-t border-[var(--border-new)] py-3">
+                          <div className={"grid h-4 w-4 place-items-center rounded-full text-[9px] font-bold " + (isWin ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : isLoss ? "bg-[var(--danger-soft-new)] text-[var(--danger-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>{isWin ? "✓" : isLoss ? "✕" : "·"}</div>
+                          <div className="min-w-0">
+                            <div className="truncate text-[13px] font-medium text-[var(--text-new)]">{bet.notes || bet.betType || bet.sport || "Bet"}</div>
+                            <div className="mt-0.5 text-[10px] text-[var(--text-3-new)]"><span className="mono-nums">{bet.date}</span> · <span className="mono-nums">{formatCurrency(bet.stake)}</span> stake</div>
+                          </div>
+                          {(isWin || isLoss) ? (
+                            <div className={"mono-nums text-[13px] font-semibold " + (pl >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{pl >= 0 ? "+" : ""}{formatCurrency(pl)}</div>
+                          ) : (
+                            <div className="text-[10px] uppercase tracking-[0.06em] text-[var(--warning-new)]">Pending</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </section>
+            );
+          })()}
+
           {/* 2026 Layout B editorial header — 52px display title, eyebrow
-              meta (date + email), action buttons + sport filter right-aligned. */}
-          <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 md:grid-cols-[1.4fr_1fr] md:items-end">
+              meta (date + email), action buttons + sport filter right-aligned.
+              Hidden on mobile (the dedicated hero above takes its place). */}
+          <header className="hidden gap-10 border-b border-[var(--border-new)] pb-9 md:grid md:grid-cols-[1.4fr_1fr] md:items-end">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{activePage === "tracker" ? `${new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })} — ${bets.length} bets logged` : `${new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })} · ${session.user.email}`}</p>
               <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[52px]">
@@ -4180,8 +4318,10 @@ export default function BettingTrackerWebsite() {
               or month) and a context line below. Final cell shows IN FLIGHT
               (pending bets) instead of total staked, mirroring preview B.
               Each cell is now a button — clicking opens a detail modal with a
-              chart + summary, scaling up from the cell as its origin. */}
-          <section className="grid grid-cols-2 border-y border-[var(--border-new)] py-9 lg:grid-cols-4">
+              chart + summary, scaling up from the cell as its origin.
+              Hidden on mobile — the dedicated mobile hero + carousel above
+              covers these stats with a more thumb-friendly layout. */}
+          <section className="hidden grid-cols-2 border-y border-[var(--border-new)] py-9 md:grid lg:grid-cols-4">
             <button type="button" onClick={() => openStatDetail("pl")} className="stat-cell relative px-0 pr-7 text-left lg:border-r lg:border-[var(--border-new)]">
               <StatHoverPreview statKey="pl" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Profit / loss" : selectedSportFilter + " P/L"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>

@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pickd — mobile concepts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+    <style>
+      :root {
+        --bg: #0a0a0b;
+        --surface: #111114;
+        --surface-2: #16161a;
+        --border: rgba(255,255,255,0.06);
+        --border-strong: rgba(255,255,255,0.12);
+        --text: #f5f5f7;
+        --text-2: #9d9da3;
+        --text-3: #5d5d63;
+        --accent: #d4f23a;
+        --accent-soft: rgba(212,242,58,0.12);
+        --positive: #4ade80;
+        --positive-soft: rgba(74,222,128,0.12);
+        --danger: #f87171;
+        --danger-soft: rgba(248,113,113,0.10);
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        font-family: 'Inter', sans-serif;
+        background: #0a0a0b;
+        color: var(--text);
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums slashed-zero; letter-spacing: -0.01em; }
+      .brand { font-family: 'Inter Tight', sans-serif; }
+      .page-wrap { max-width: 1900px; margin: 0 auto; padding: 56px 24px 96px; }
+
+      /* Header */
+      header.intro { border-bottom: 1px solid var(--border); padding-bottom: 32px; margin-bottom: 48px; }
+      .eyebrow { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); }
+      h1 { font-family: 'Inter Tight', sans-serif; font-size: 40px; font-weight: 700; letter-spacing: -0.045em; margin: 14px 0 12px; line-height: 0.92; }
+      .intro p { color: var(--text-2); font-size: 14px; line-height: 1.6; max-width: 720px; margin: 0; }
+
+      /* Grid of mobile previews */
+      .concept-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+        gap: 56px;
+      }
+
+      .concept {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .concept-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .concept-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); letter-spacing: 0.08em; font-weight: 500; }
+      .concept-name { font-family: 'Inter Tight', sans-serif; font-size: 20px; font-weight: 600; letter-spacing: -0.025em; color: var(--text); }
+      .concept-desc { font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+
+      /* Phone frame */
+      .phones {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+      }
+      .phone {
+        width: 360px;
+        height: 760px;
+        border-radius: 36px;
+        border: 1.5px solid rgba(255,255,255,0.12);
+        background: var(--bg);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 0 0 6px rgba(255,255,255,0.02);
+      }
+      .phone-label {
+        position: absolute;
+        top: -22px; left: 0;
+        font-size: 10px;
+        color: var(--text-3);
+        font-family: 'JetBrains Mono', monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      /* Notch */
+      .phone::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 50%;
+        width: 110px; height: 24px;
+        background: #0a0a0b;
+        border-radius: 0 0 12px 12px;
+        transform: translateX(-50%);
+        z-index: 10;
+      }
+      .status-bar {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 26px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text);
+        z-index: 5;
+      }
+      .status-bar .time { font-family: 'JetBrains Mono', monospace; }
+      .status-bar .icons { display: flex; gap: 6px; align-items: center; }
+      .status-bar svg { display: block; }
+      .phone-content {
+        position: absolute;
+        top: 38px; left: 0; right: 0; bottom: 0;
+        overflow-y: auto;
+        scrollbar-width: none;
+      }
+      .phone-content::-webkit-scrollbar { display: none; }
+
+      /* Bottom nav (shared across mobile concepts) */
+      .bot-nav {
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 78px;
+        background: rgba(10, 10, 11, 0.92);
+        backdrop-filter: blur(14px);
+        border-top: 1px solid var(--border);
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        padding-bottom: 18px;
+        z-index: 9;
+      }
+      .bot-nav .tab {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        color: var(--text-3);
+        font-size: 9px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .bot-nav .tab.active { color: var(--text); }
+      .bot-nav .tab.active .dot { background: var(--accent); }
+      .bot-nav .tab .icon { width: 22px; height: 22px; display: grid; place-items: center; opacity: 0.9; }
+      .bot-nav .dot { width: 3px; height: 3px; border-radius: 50%; background: transparent; }
+
+      /* ─────────────── CONCEPT 1: Editorial stack ─────────────── */
+      .c1 .body { padding: 14px 18px 100px; }
+      .c1 .topnav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 0 18px;
+      }
+      .c1 .topnav .wordmark { font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: -0.045em; }
+      .c1 .topnav .wordmark .dot { color: var(--accent); }
+      .c1 .topnav .ham { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-size: 14px; color: var(--text-2); }
+      .c1 .header { padding: 8px 0 26px; border-bottom: 1px solid var(--border); }
+      .c1 .header .date { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); }
+      .c1 .header h1 { font-family: 'Inter Tight', sans-serif; font-size: 36px; font-weight: 700; letter-spacing: -0.045em; line-height: 0.93; margin: 12px 0 0; }
+      .c1 .header p { font-size: 12.5px; line-height: 1.55; color: var(--text-2); margin: 10px 0 0; max-width: 290px; }
+
+      /* Stat strip — stacked single column with rich sublines */
+      .c1 .strip { display: flex; flex-direction: column; gap: 0; }
+      .c1 .stat-cell { padding: 22px 0; border-bottom: 1px solid var(--border); }
+      .c1 .stat-cell:last-child { border-bottom: none; }
+      .c1 .stat-cell .lbl { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); display: flex; align-items: center; justify-content: space-between; }
+      .c1 .stat-cell .lbl .chev { color: var(--text-3); }
+      .c1 .stat-cell .value { font-family: 'JetBrains Mono', monospace; font-size: 40px; font-weight: 600; letter-spacing: -0.04em; line-height: 1; margin-top: 12px; }
+      .c1 .stat-cell .value.pos { color: var(--positive); }
+      .c1 .stat-cell .sub { display: flex; gap: 12px; margin-top: 10px; font-size: 11px; color: var(--text-3); flex-wrap: wrap; }
+      .c1 .stat-cell .sub .mono-bold { color: var(--positive); font-family: 'JetBrains Mono', monospace; }
+      .c1 .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 24px 0; }
+      .c1 .quick-actions .btn {
+        padding: 14px;
+        border-radius: 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        text-align: left;
+      }
+      .c1 .quick-actions .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+      .c1 .quick-actions .lbl-sm { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+      .c1 .quick-actions .name { font-size: 14px; font-weight: 600; margin-top: 4px; }
+
+      /* ─────────────── CONCEPT 2: Hero stat + horizontal scroll ─────────────── */
+      .c2 .body { padding: 14px 0 100px; }
+      .c2 .topnav { display: flex; align-items: center; justify-content: space-between; padding: 6px 18px 18px; }
+      .c2 .topnav .wordmark { font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: -0.045em; }
+      .c2 .topnav .wordmark .dot { color: var(--accent); }
+      .c2 .topnav .ham { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-size: 14px; color: var(--text-2); }
+      .c2 .hero { padding: 16px 18px 28px; border-bottom: 1px solid var(--border); }
+      .c2 .hero .eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); font-weight: 500; }
+      .c2 .hero .greeting { font-family: 'Inter Tight', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.025em; margin: 6px 0 14px; }
+      .c2 .hero .big {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 76px;
+        font-weight: 600;
+        letter-spacing: -0.05em;
+        line-height: 0.9;
+        color: var(--positive);
+      }
+      .c2 .hero .big-lbl { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); margin-top: 12px; }
+      .c2 .hero .sub-row { display: flex; gap: 14px; margin-top: 14px; font-size: 12px; color: var(--text-3); }
+      .c2 .hero .sub-row .mono-bold { font-family: 'JetBrains Mono', monospace; color: var(--positive); font-weight: 600; }
+      .c2 .hscroll { display: flex; gap: 12px; padding: 22px 18px 16px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); }
+      .c2 .hscroll::-webkit-scrollbar { display: none; }
+      .c2 .hscroll .card {
+        flex: 0 0 180px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+        padding: 14px;
+      }
+      .c2 .hscroll .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); }
+      .c2 .hscroll .val { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600; letter-spacing: -0.025em; margin-top: 8px; }
+      .c2 .hscroll .val.pos { color: var(--positive); }
+      .c2 .hscroll .sub { font-size: 10px; color: var(--text-3); margin-top: 6px; }
+      .c2 .quick-add { padding: 18px; border-bottom: 1px solid var(--border); }
+      .c2 .quick-add .header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+      .c2 .quick-add .label { font-family: 'Inter Tight', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+      .c2 .quick-add .meta { font-size: 11px; color: var(--text-3); }
+      .c2 .quick-add .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .c2 .quick-add .btn { padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; gap: 4px; }
+      .c2 .quick-add .btn .ic { font-size: 16px; color: var(--accent); }
+      .c2 .quick-add .btn .nm { font-size: 13px; font-weight: 600; }
+      .c2 .quick-add .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+      .c2 .quick-add .btn.primary .ic { color: var(--bg); }
+      .c2 .recent { padding: 18px; }
+      .c2 .recent .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); font-weight: 500; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+      .c2 .recent .row { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border); align-items: center; }
+      .c2 .recent .row .ic { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; }
+      .c2 .recent .row .ic.win { background: var(--positive-soft); color: var(--positive); }
+      .c2 .recent .row .ic.loss { background: var(--danger-soft); color: var(--danger); }
+      .c2 .recent .nm { font-size: 13px; font-weight: 500; }
+      .c2 .recent .meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+      .c2 .recent .pl { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; }
+      .c2 .recent .pl.pos { color: var(--positive); }
+      .c2 .recent .pl.neg { color: var(--danger); }
+
+      /* ─────────────── CONCEPT 3: Card feed (snap scroll) ─────────────── */
+      .c3 .body { padding: 14px 0 100px; }
+      .c3 .topnav { display: flex; align-items: center; justify-content: space-between; padding: 6px 18px 16px; }
+      .c3 .topnav .wordmark { font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: -0.045em; }
+      .c3 .topnav .wordmark .dot { color: var(--accent); }
+      .c3 .topnav .ham { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-size: 14px; color: var(--text-2); }
+      .c3 .pill-row { display: flex; gap: 6px; padding: 0 18px 18px; overflow-x: auto; scrollbar-width: none; }
+      .c3 .pill-row::-webkit-scrollbar { display: none; }
+      .c3 .pill {
+        padding: 8px 14px;
+        border-radius: 100px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        color: var(--text-2);
+        white-space: nowrap;
+      }
+      .c3 .pill.active { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+      .c3 .feed { display: flex; flex-direction: column; gap: 14px; padding: 0 18px; }
+      .c3 .card { border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(180deg, var(--surface) 0%, #0c0c0e 100%); overflow: hidden; }
+      .c3 .card-head { padding: 16px 18px; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--border); }
+      .c3 .card-eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); font-weight: 500; }
+      .c3 .card-title { font-family: 'Inter Tight', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.02em; margin-top: 4px; }
+      .c3 .card-action { font-size: 16px; color: var(--text-3); }
+      .c3 .card-body { padding: 22px 18px; }
+      .c3 .big-num { font-family: 'JetBrains Mono', monospace; font-size: 48px; font-weight: 600; letter-spacing: -0.04em; line-height: 0.95; }
+      .c3 .big-num.pos { color: var(--positive); }
+      .c3 .big-num.neg { color: var(--danger); }
+      .c3 .sub-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+      .c3 .sub-stats .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); }
+      .c3 .sub-stats .val { font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 600; margin-top: 4px; }
+      .c3 .mini-spark { height: 36px; margin-top: 16px; }
+      .c3 .heatmap { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 14px; }
+      .c3 .heat { width: 18px; height: 18px; border-radius: 3px; }
+      .c3 .heat.w { background: var(--positive); opacity: 0.85; }
+      .c3 .heat.l { background: var(--danger); opacity: 0.7; }
+
+      /* ─────────────── CONCEPT 4: Linear-style dense data ─────────────── */
+      .c4 .body { padding: 14px 0 100px; background: #08080a; min-height: 100%; }
+      .c4 .topnav { display: flex; align-items: center; justify-content: space-between; padding: 6px 16px 14px; }
+      .c4 .topnav .left { display: flex; align-items: center; gap: 10px; }
+      .c4 .topnav .wordmark { font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: -0.04em; }
+      .c4 .topnav .wordmark .dot { color: var(--accent); }
+      .c4 .topnav .breadcrumb { font-size: 11px; color: var(--text-3); }
+      .c4 .topnav .actions { display: flex; gap: 8px; }
+      .c4 .topnav .iconbtn { width: 28px; height: 28px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; font-size: 12px; color: var(--text-2); }
+      .c4 .status-strip {
+        display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      }
+      .c4 .status-strip > div { padding: 12px 10px; border-right: 1px solid var(--border); }
+      .c4 .status-strip > div:last-child { border-right: none; }
+      .c4 .status-strip .lbl { font-size: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); }
+      .c4 .status-strip .val { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; margin-top: 4px; letter-spacing: -0.02em; }
+      .c4 .status-strip .val.pos { color: var(--positive); }
+      .c4 .status-strip .val.neg { color: var(--danger); }
+      .c4 .section-header { padding: 18px 16px 8px; display: flex; align-items: baseline; justify-content: space-between; }
+      .c4 .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); font-weight: 500; }
+      .c4 .section-action { font-size: 11px; color: var(--accent); font-weight: 500; }
+      .c4 .row {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 12px;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        align-items: center;
+      }
+      .c4 .row:last-child { border-bottom: 1px solid var(--border); }
+      .c4 .row .sport-tag {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 9px;
+        font-weight: 600;
+        padding: 4px 6px;
+        border-radius: 4px;
+        background: var(--surface-2);
+        color: var(--text-3);
+        letter-spacing: 0.04em;
+      }
+      .c4 .row .name { font-size: 13px; font-weight: 500; }
+      .c4 .row .meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+      .c4 .row .right { text-align: right; }
+      .c4 .row .pl { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; }
+      .c4 .row .pl.pos { color: var(--positive); }
+      .c4 .row .pl.neg { color: var(--danger); }
+      .c4 .row .status-pill { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin-top: 4px; }
+      .c4 .row .status-pill.live { color: var(--accent); }
+
+      footer { margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-3); }
+    </style>
+  </head>
+  <body>
+    <main class="page-wrap">
+      <header class="intro">
+        <p class="eyebrow">Pickd — Mobile concepts · v1</p>
+        <h1>Four mobile directions.</h1>
+        <p>Each phone shows the Dashboard view at iPhone Pro size (360 × 760 with notch + status bar). Tracker / MultiPick views would inherit the same chrome. The shared bottom nav sits across all four — switch between Dashboard, Tracker, MultiPick, Settings.</p>
+      </header>
+
+      <div class="concept-grid">
+
+        <!-- ─────────────── CONCEPT 1 ─────────────── -->
+        <div class="concept">
+          <div class="concept-meta">
+            <div><span class="concept-num">01</span></div>
+            <div class="concept-name">Editorial stack</div>
+            <div class="concept-desc">Direct port of the desktop editorial style. Pickd. wordmark, big headline, single-column stat strip with rich sublines. Each stat tappable. Quick-action cards under the strip for "Add bet" / "New multi". Most faithful to desktop.</div>
+          </div>
+          <div class="phones">
+            <div class="phone">
+              <span class="phone-label">DASHBOARD</span>
+              <div class="status-bar">
+                <span class="time">9:41</span>
+                <span class="icons mono">●●● ●●●●</span>
+              </div>
+              <div class="phone-content c1">
+                <div class="body">
+                  <div class="topnav">
+                    <div class="wordmark">Pickd<span class="dot">.</span></div>
+                    <div class="ham">≡</div>
+                  </div>
+                  <div class="header">
+                    <div class="date">April 2026 · 42 bets logged</div>
+                    <h1>Bet smart.<br/>Track smarter.</h1>
+                    <p>Your performance, by the numbers. P/L, ROI, win rate, weekly trends.</p>
+                  </div>
+                  <div class="strip">
+                    <div class="stat-cell">
+                      <div class="lbl">Profit / loss <span class="chev">↗</span></div>
+                      <div class="value pos">+$246.50</div>
+                      <div class="sub">
+                        <span><span class="mono-bold">▲ +$48</span> this week</span>
+                        <span><span class="mono">22</span> settled</span>
+                      </div>
+                    </div>
+                    <div class="stat-cell">
+                      <div class="lbl">Win rate <span class="chev">↗</span></div>
+                      <div class="value">58.3%</div>
+                      <div class="sub">
+                        <span><span class="mono-bold">▲ +2.1pp</span> mo/mo</span>
+                        <span><span class="mono">13W·9L</span></span>
+                      </div>
+                    </div>
+                    <div class="stat-cell">
+                      <div class="lbl">Return on stake <span class="chev">↗</span></div>
+                      <div class="value pos">+12.8%</div>
+                      <div class="sub">
+                        <span><span class="mono">$1,920</span> staked</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="quick-actions">
+                    <div class="btn primary">
+                      <div class="lbl-sm">Quick</div>
+                      <div class="name">+ Add bet</div>
+                    </div>
+                    <div class="btn">
+                      <div class="lbl-sm">AI</div>
+                      <div class="name">New multi →</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <nav class="bot-nav">
+                <div class="tab active"><div class="icon">▤</div><span>Dashboard</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">▦</div><span>Tracker</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">⚡</div><span>MultiPick</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">⚙</div><span>Settings</span><div class="dot"></div></div>
+              </nav>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─────────────── CONCEPT 2 ─────────────── -->
+        <div class="concept">
+          <div class="concept-meta">
+            <div><span class="concept-num">02</span></div>
+            <div class="concept-name">Hero stat + horizontal scroll</div>
+            <div class="concept-desc">One massive P/L number anchors the screen. Other stats are a horizontal-scroll carousel below. Quick-add panel for "+ Bet" / "✦ Multi". Compact recent-bets feed at the bottom. Most modern / app-store feeling.</div>
+          </div>
+          <div class="phones">
+            <div class="phone">
+              <span class="phone-label">DASHBOARD</span>
+              <div class="status-bar">
+                <span class="time">9:41</span>
+                <span class="icons mono">●●● ●●●●</span>
+              </div>
+              <div class="phone-content c2">
+                <div class="body">
+                  <div class="topnav">
+                    <div class="wordmark">Pickd<span class="dot">.</span></div>
+                    <div class="ham">≡</div>
+                  </div>
+                  <div class="hero">
+                    <div class="eyebrow">● Live · April 2026</div>
+                    <div class="greeting">Hey, Aiden.</div>
+                    <div class="big">+$246.50</div>
+                    <div class="big-lbl">Profit / loss</div>
+                    <div class="sub-row">
+                      <span><span class="mono-bold">▲ +$48</span> this week</span>
+                      <span>22 settled</span>
+                    </div>
+                  </div>
+                  <div class="hscroll">
+                    <div class="card">
+                      <div class="lbl">Win rate</div>
+                      <div class="val">58.3%</div>
+                      <div class="sub">▲ +2.1pp · 13W·9L</div>
+                    </div>
+                    <div class="card">
+                      <div class="lbl">ROI</div>
+                      <div class="val pos">+12.8%</div>
+                      <div class="sub">$1,920 staked</div>
+                    </div>
+                    <div class="card">
+                      <div class="lbl">In flight</div>
+                      <div class="val">$84.00</div>
+                      <div class="sub">3 pending · 2 tonight</div>
+                    </div>
+                  </div>
+                  <div class="quick-add">
+                    <div class="header">
+                      <div class="label">Quick add</div>
+                      <div class="meta">42 bets logged</div>
+                    </div>
+                    <div class="btn-row">
+                      <div class="btn primary">
+                        <span class="ic">+</span>
+                        <span class="nm">Add bet</span>
+                      </div>
+                      <div class="btn">
+                        <span class="ic">✦</span>
+                        <span class="nm">New multi</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="recent">
+                    <div class="section-label">Recent activity<span style="color: var(--text-3);">→</span></div>
+                    <div class="row">
+                      <div class="ic win">✓</div>
+                      <div><div class="nm">3-leg AFL multi</div><div class="meta">Yesterday · $18.70 stake</div></div>
+                      <div class="pl pos">+$19.07</div>
+                    </div>
+                    <div class="row">
+                      <div class="ic loss">✕</div>
+                      <div><div class="nm">5-leg NBA multi</div><div class="meta">Apr 28 · $25.00 stake</div></div>
+                      <div class="pl neg">−$25.00</div>
+                    </div>
+                    <div class="row">
+                      <div class="ic win">✓</div>
+                      <div><div class="nm">SGM · Hawthorn</div><div class="meta">Apr 27 · $10.00 stake</div></div>
+                      <div class="pl pos">+$18.40</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <nav class="bot-nav">
+                <div class="tab active"><div class="icon">▤</div><span>Dashboard</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">▦</div><span>Tracker</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">⚡</div><span>MultiPick</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">⚙</div><span>Settings</span><div class="dot"></div></div>
+              </nav>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─────────────── CONCEPT 3 ─────────────── -->
+        <div class="concept">
+          <div class="concept-meta">
+            <div><span class="concept-num">03</span></div>
+            <div class="concept-name">Card feed (snap scroll)</div>
+            <div class="concept-desc">Each metric becomes its own rich card with a visualisation. Filter pills at the top swap context (All / AFL / NBA). Most visually rich — each card is full-detail at a glance. Tapping a card expands to the full detail modal we built.</div>
+          </div>
+          <div class="phones">
+            <div class="phone">
+              <span class="phone-label">DASHBOARD</span>
+              <div class="status-bar">
+                <span class="time">9:41</span>
+                <span class="icons mono">●●● ●●●●</span>
+              </div>
+              <div class="phone-content c3">
+                <div class="body">
+                  <div class="topnav">
+                    <div class="wordmark">Pickd<span class="dot">.</span></div>
+                    <div class="ham">≡</div>
+                  </div>
+                  <div class="pill-row">
+                    <div class="pill active">All sports</div>
+                    <div class="pill">AFL</div>
+                    <div class="pill">NBA</div>
+                    <div class="pill">NRL</div>
+                  </div>
+                  <div class="feed">
+                    <div class="card">
+                      <div class="card-head">
+                        <div>
+                          <div class="card-eyebrow">Profit / loss · 12 weeks</div>
+                          <div class="card-title">Trajectory ↗</div>
+                        </div>
+                        <div class="card-action">↗</div>
+                      </div>
+                      <div class="card-body">
+                        <div class="big-num pos">+$246.50</div>
+                        <svg class="mini-spark" viewBox="0 0 300 36" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stop-color="#4ade80" stop-opacity="0.30" />
+                              <stop offset="100%" stop-color="#4ade80" stop-opacity="0" />
+                            </linearGradient>
+                          </defs>
+                          <path d="M0,26 L25,24 L50,22 L75,18 L100,20 L125,14 L150,12 L175,9 L200,11 L225,7 L250,5 L275,3 L300,2 L300,36 L0,36 Z" fill="url(#grad)" />
+                          <path d="M0,26 L25,24 L50,22 L75,18 L100,20 L125,14 L150,12 L175,9 L200,11 L225,7 L250,5 L275,3 L300,2" fill="none" stroke="#4ade80" stroke-width="1.5" />
+                        </svg>
+                        <div class="sub-stats">
+                          <div><div class="lbl">This week</div><div class="val pos" style="color: var(--positive);">+$48</div></div>
+                          <div><div class="lbl">Settled</div><div class="val">22</div></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card">
+                      <div class="card-head">
+                        <div>
+                          <div class="card-eyebrow">Recent form · last 20</div>
+                          <div class="card-title">70% strike rate</div>
+                        </div>
+                        <div class="card-action">↗</div>
+                      </div>
+                      <div class="card-body">
+                        <div class="heatmap">
+                          <div class="heat w"></div><div class="heat w"></div><div class="heat l"></div><div class="heat w"></div><div class="heat w"></div>
+                          <div class="heat w"></div><div class="heat w"></div><div class="heat l"></div><div class="heat w"></div><div class="heat w"></div>
+                          <div class="heat l"></div><div class="heat w"></div><div class="heat w"></div><div class="heat w"></div><div class="heat l"></div>
+                          <div class="heat w"></div><div class="heat w"></div><div class="heat w"></div><div class="heat w"></div><div class="heat l"></div>
+                        </div>
+                        <div class="sub-stats">
+                          <div><div class="lbl">Wins</div><div class="val" style="color: var(--positive);">14</div></div>
+                          <div><div class="lbl">Losses</div><div class="val" style="color: var(--danger);">6</div></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <nav class="bot-nav">
+                <div class="tab active"><div class="icon">▤</div><span>Dashboard</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">▦</div><span>Tracker</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">⚡</div><span>MultiPick</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">⚙</div><span>Settings</span><div class="dot"></div></div>
+              </nav>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─────────────── CONCEPT 4 ─────────────── -->
+        <div class="concept">
+          <div class="concept-meta">
+            <div><span class="concept-num">04</span></div>
+            <div class="concept-name">Linear-style dense data</div>
+            <div class="concept-desc">Power-user feel. Compact status strip across the top with all four stats visible at once. Dense data rows below with sport tags. Mono-heavy. For people who want maximum signal per pixel and minimal scrolling.</div>
+          </div>
+          <div class="phones">
+            <div class="phone">
+              <span class="phone-label">DASHBOARD</span>
+              <div class="status-bar">
+                <span class="time">9:41</span>
+                <span class="icons mono">●●● ●●●●</span>
+              </div>
+              <div class="phone-content c4">
+                <div class="body">
+                  <div class="topnav">
+                    <div class="left">
+                      <div class="wordmark">Pickd<span class="dot">.</span></div>
+                      <div class="breadcrumb">/ Dashboard</div>
+                    </div>
+                    <div class="actions">
+                      <div class="iconbtn">⌕</div>
+                      <div class="iconbtn">+</div>
+                    </div>
+                  </div>
+                  <div class="status-strip">
+                    <div>
+                      <div class="lbl">P/L</div>
+                      <div class="val pos">+$246</div>
+                    </div>
+                    <div>
+                      <div class="lbl">WIN%</div>
+                      <div class="val">58.3</div>
+                    </div>
+                    <div>
+                      <div class="lbl">ROI</div>
+                      <div class="val pos">+12.8</div>
+                    </div>
+                    <div>
+                      <div class="lbl">PEND</div>
+                      <div class="val">$84</div>
+                    </div>
+                  </div>
+                  <div class="section-header">
+                    <span class="section-label">Recent bets · 5</span>
+                    <span class="section-action">View all</span>
+                  </div>
+                  <div class="row">
+                    <span class="sport-tag">AFL</span>
+                    <div><div class="name">3-leg multi · @2.02</div><div class="meta">Today · $18.70 · WON</div></div>
+                    <div class="right"><div class="pl pos">+$19.07</div></div>
+                  </div>
+                  <div class="row">
+                    <span class="sport-tag">NBA</span>
+                    <div><div class="name">5-leg multi · @4.20</div><div class="meta">Apr 28 · $25.00 · LOST</div></div>
+                    <div class="right"><div class="pl neg">−$25.00</div></div>
+                  </div>
+                  <div class="row">
+                    <span class="sport-tag">AFL</span>
+                    <div><div class="name">SGM Hawthorn · @2.84</div><div class="meta">Apr 27 · $10.00 · WON</div></div>
+                    <div class="right"><div class="pl pos">+$18.40</div></div>
+                  </div>
+                  <div class="row">
+                    <span class="sport-tag">AFL</span>
+                    <div><div class="name">H2H Bombers · @1.85</div><div class="meta">Apr 26 · $30.00 · WON</div></div>
+                    <div class="right"><div class="pl pos">+$25.50</div></div>
+                  </div>
+                  <div class="row">
+                    <span class="sport-tag">NBA</span>
+                    <div><div class="name">4-leg multi · @3.20</div><div class="meta">Apr 25 · $20.00 · PEND</div></div>
+                    <div class="right"><div class="status-pill live">● 2 LIVE</div></div>
+                  </div>
+                  <div class="section-header">
+                    <span class="section-label">In flight · $84</span>
+                    <span class="section-action">View</span>
+                  </div>
+                </div>
+              </div>
+              <nav class="bot-nav">
+                <div class="tab active"><div class="icon">▤</div><span>Dashboard</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">▦</div><span>Tracker</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">⚡</div><span>MultiPick</span><div class="dot"></div></div>
+                <div class="tab"><div class="icon">⚙</div><span>Settings</span><div class="dot"></div></div>
+              </nav>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <footer>
+        All four respect the existing Pickd brand (dark base, lime accent, mono numerals, Inter Tight wordmark). Whichever you pick will be ported to Tracker / MultiPick / Settings with the same chrome. Hybrids are fine — e.g. Concept 02's hero on Dashboard + Concept 04's dense rows on Tracker.
+      </footer>
+    </main>
+  </body>
+</html>
