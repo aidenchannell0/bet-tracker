@@ -957,64 +957,73 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
         <div className="mx-auto max-w-7xl space-y-6">
           <TopNav activePage="settings" setActivePage={setActivePage} />
         </div>
-        <div className="mx-auto max-w-3xl space-y-6">
-          <div className="border-b border-[var(--border-new)] pb-8">
+        {/* Mobile-friendly settings — larger tap targets (py-3 minimum),
+            generous section padding, hairline dividers between sections
+            instead of stacked card-in-card. Editorial header matches the
+            rest of the site. */}
+        <div className="mx-auto max-w-3xl">
+          <div className="border-b border-[var(--border-new)] pb-7 md:pb-8">
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">PICKD · Account</p>
-            <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[44px]">Settings.</h1>
-            <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">Manage exports, backups and account-level bet data actions.</p>
+            <h1 className="mt-3.5 text-[36px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[44px]">Settings.</h1>
+            <p className="mt-3 max-w-[480px] text-[14px] leading-relaxed text-[var(--text-2-new)]">Manage exports, backups and account-level bet data actions.</p>
           </div>
-          <Card>
-            <div className="p-6 md:p-8">
 
-              <div className="mt-6 space-y-5">
-                <div className="rounded-2xl border border-slate-200 p-4">
-                  <h2 className="text-lg font-semibold">Appearance</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">Choose your preferred display mode.</p>
-                  <div className="mt-4 flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setDarkMode(false)}
-                      className={"rounded-xl px-4 py-2 text-sm font-medium transition border " + (!darkMode ? "bg-[#11203B] text-white border-transparent" : "border-slate-300 bg-[#FAF7EF] text-slate-700 hover:bg-[#E8E2D4]")}
-                    >
-                      Light
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDarkMode(true)}
-                      className={"rounded-xl px-4 py-2 text-sm font-medium transition border " + (darkMode ? "bg-[#11203B] text-white border-transparent" : "border-slate-300 bg-[#FAF7EF] text-slate-700 hover:bg-[#E8E2D4]")}
-                    >
-                      Dark
-                    </button>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-slate-200 p-4">
-                  <h2 className="text-lg font-semibold">Export data</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">Download your bet history for spreadsheets or personal backups.</p>
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                    <Button onClick={exportCsv} variant="outline" disabled={!bets.length}>Export CSV</Button>
-                    <Button onClick={exportBackup} variant="outline" disabled={!bets.length}>Export Backup</Button>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 p-4">
-                  <h2 className="text-lg font-semibold">Import backup</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">Import a Pickd JSON backup. Imported bets will be added to your online account.</p>
-                  <div className="mt-4">
-                    <Button onClick={() => fileInputRef.current && fileInputRef.current.click()} variant="outline">Import Backup</Button>
-                    <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={importBackup} className="hidden" />
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-[#D9A39B] bg-[#F3DDD7] p-4">
-                  <h2 className="text-lg font-semibold text-red-900">Danger zone</h2>
-                  <p className="mt-1 text-sm leading-6 text-red-800">Delete all saved bets from this account. This does not delete your account, but the bet entries will be removed.</p>
-                  <div className="mt-4">
-                    <Button onClick={clearAllBets} variant="outline" disabled={!bets.length} className="border-red-300 text-red-900 hover:bg-red-100">Delete All Bets</Button>
-                  </div>
-                </div>
+          <div className="divide-y divide-[var(--border-new)]">
+            {/* Appearance */}
+            <section className="py-7 md:py-9">
+              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">01 — Appearance</p>
+              <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Display mode</h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">Pickd defaults to dark. Switch to light if you prefer warmer surfaces.</p>
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setDarkMode(false)}
+                  className={"rounded-xl px-4 py-3 text-[14px] font-medium transition active:opacity-80 " + (!darkMode ? "bg-[var(--text-new)] text-[var(--bg-new)]" : "border border-[var(--border-new)] bg-[var(--surface-new)] text-[var(--text-2-new)]")}
+                >
+                  Light
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDarkMode(true)}
+                  className={"rounded-xl px-4 py-3 text-[14px] font-medium transition active:opacity-80 " + (darkMode ? "bg-[var(--text-new)] text-[var(--bg-new)]" : "border border-[var(--border-new)] bg-[var(--surface-new)] text-[var(--text-2-new)]")}
+                >
+                  Dark
+                </button>
               </div>
-            </div>
-          </Card>
+            </section>
+
+            {/* Export */}
+            <section className="py-7 md:py-9">
+              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">02 — Export</p>
+              <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Download your data</h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">CSV for spreadsheets, JSON for personal backups. Your bet history is portable — never locked in.</p>
+              <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
+                <Button onClick={exportCsv} variant="outline" disabled={!bets.length} className="w-full py-3 sm:w-auto sm:flex-1">Export CSV</Button>
+                <Button onClick={exportBackup} variant="outline" disabled={!bets.length} className="w-full py-3 sm:w-auto sm:flex-1">Export JSON backup</Button>
+              </div>
+            </section>
+
+            {/* Import */}
+            <section className="py-7 md:py-9">
+              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">03 — Import</p>
+              <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Restore a backup</h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">Import a Pickd JSON backup. Imported bets get added to your online account.</p>
+              <div className="mt-5">
+                <Button onClick={() => fileInputRef.current && fileInputRef.current.click()} variant="outline" className="w-full py-3 sm:w-auto">Choose backup file</Button>
+                <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={importBackup} className="hidden" />
+              </div>
+            </section>
+
+            {/* Danger zone */}
+            <section className="py-7 md:py-9">
+              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--danger-new)]">04 — Danger zone</p>
+              <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Delete all bets</h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">Removes every bet entry from this account. Your account itself stays — but the bet history is gone for good. Export a backup first if you want a copy.</p>
+              <div className="mt-5">
+                <Button onClick={clearAllBets} variant="outline" disabled={!bets.length} className="w-full border-[var(--danger-new)] py-3 text-[var(--danger-new)] hover:bg-[var(--danger-soft-new)] sm:w-auto">Delete all bets</Button>
+              </div>
+            </section>
+          </div>
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
@@ -1843,7 +1852,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                  Tokens are in index.css under "2026 minimalist refresh".
                  Old version preserved in src/App.legacy.jsx. */
               <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--bg-new)] overflow-hidden">
-                <div className="p-5 md:p-8">
+                <div className="p-4 md:p-8">
                   {/* Editorial header — eyebrow on the left, meta on the
                       right, like the preview. */}
                   <div className="flex items-start justify-between gap-4 border-b border-[var(--border-new)] pb-5">
@@ -4875,11 +4884,175 @@ export default function BettingTrackerWebsite() {
               if (bet.betType) return bet.betType;
               return "Single";
             };
+            // Shared expansion helper — same summary + leg detail JSX used by
+            // both the desktop table row and the mobile card. Without this
+            // the mobile cards would have to duplicate ~200 lines of leg
+            // rendering (achievement pill, target marker, fallback states).
+            // Returns the full detail panel with grid-rows transition wrapper.
+            const renderBetExpansion = (bet, isOpen) => {
+              const legs = Array.isArray(bet.legs) ? bet.legs : [];
+              return (
+                <div className={"grid overflow-hidden transition-[grid-template-rows] duration-300 ease-out " + (isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+                  <div className="overflow-hidden">
+                    <div className="px-4 pb-6 pt-1 md:px-6 md:pt-2 md:pb-7">
+                      {/* Summary cells — 2x2 on mobile, 4-col on desktop */}
+                      <div className="grid grid-cols-2 gap-y-5 border-y border-[var(--border-new)] py-5 md:grid-cols-4 md:gap-y-0">
+                        <div className="pr-3 md:pr-5">
+                          <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Odds</div>
+                          <div className="mono-nums mt-1.5 text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{bet.odds ? `$${formatOdds(bet.odds)}` : "—"}</div>
+                        </div>
+                        <div className="border-l border-[var(--border-new)] pl-3 md:px-5">
+                          <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Stake</div>
+                          <div className="mono-nums mt-1.5 text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{formatCurrency(bet.stake)}</div>
+                        </div>
+                        <div className="pr-3 md:border-l md:border-[var(--border-new)] md:px-5">
+                          <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Return</div>
+                          <div className="mono-nums mt-1.5 text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{formatCurrency(bet.returnAmount)}</div>
+                        </div>
+                        <div className="border-l border-[var(--border-new)] pl-3 md:pl-5">
+                          <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Profit / Loss</div>
+                          <div className={"mono-nums mt-1.5 text-[20px] md:text-[22px] font-semibold tracking-[-0.02em] leading-none " + (bet.profitLoss > 0 ? "text-[var(--positive-new)]" : bet.profitLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-3-new)]")}>{bet.result === "pending" ? "Pending" : formatCurrency(bet.profitLoss)}</div>
+                        </div>
+                      </div>
+
+                      {/* Legs breakdown (only for multis with leg data) */}
+                      {legs.length ? (
+                        <div className="mt-6">
+                          <div className="mb-3 flex items-baseline justify-between">
+                            <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Legs · {legs.length}</div>
+                            {bet.result === "win" ? <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--positive-new)]">All hit</div>
+                              : bet.result === "loss" ? <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--danger-new)]">Multi failed</div>
+                              : <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--warning-new)]">Pending</div>}
+                          </div>
+                          <div className="rounded-xl border border-[var(--border-new)] bg-[var(--bg-new)]">
+                            {legs.map((leg, i) => {
+                              const hit = leg.hit === true ? "won" : leg.hit === false ? "lost" : (bet.result === "win" ? "won" : bet.result === "loss" ? "pending" : "pending");
+                              const label = hit === "won" ? "✓" : hit === "lost" ? "✕" : "·";
+                              const labelClass = hit === "won" ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : hit === "lost" ? "bg-[var(--surface-2-new)] text-[var(--text-3-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]";
+                              const lineNum = typeof leg.line === "number" ? leg.line : parseFloat(String(leg.line || "").replace(/[^0-9.]/g, ""));
+                              const fetchedActuals = legActualsByBet[bet.id];
+                              const fetched = fetchedActuals ? fetchedActuals[i] : undefined;
+                              let actualNum = fetched && typeof fetched.actual === "number" ? fetched.actual
+                                : typeof leg.actual === "number" ? leg.actual
+                                : null;
+                              const actualsLoading = !fetchedActuals && bet.status !== "pending";
+                              const haveBar = !isNaN(lineNum) && lineNum > 0 && actualNum != null && !isNaN(actualNum);
+                              const barCleared = haveBar && actualNum >= lineNum;
+                              let max = 1, actualPct = 0, linePct = 0;
+                              if (haveBar) {
+                                max = Math.max(actualNum, lineNum) * 1.15;
+                                actualPct = (actualNum / max) * 100;
+                                linePct = (lineNum / max) * 100;
+                              }
+                              const statName = (() => {
+                                const src = leg.line || leg.market || "";
+                                const m = String(src).match(/([a-zA-Z][a-zA-Z\s]+)$/);
+                                if (m) return m[1].trim().replace(/^./, (c) => c.toUpperCase());
+                                return leg.market || null;
+                              })();
+                              const lineDisplay = (() => {
+                                const src = leg.line || "";
+                                const m = String(src).match(/^([0-9.]+\+?)/);
+                                return m ? m[1] : String(src);
+                              })();
+                              return (
+                                <div key={i} className={"px-4 py-5 " + (i > 0 ? "border-t border-[var(--border-new)]" : "")}>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--text-new)]">
+                                        {leg.player || leg.name || `Leg ${i + 1}`}
+                                        {lineDisplay ? <span className="ml-1.5 text-[var(--text-2-new)]"> {lineDisplay}</span> : null}
+                                      </div>
+                                      {statName || leg.game ? (
+                                        <div className="mt-0.5 text-[12px] text-[var(--text-3-new)]">
+                                          {statName ? `To get ${statName}` : leg.game}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                    <div className={"grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold " + labelClass}>{label}</div>
+                                  </div>
+                                  {haveBar ? (
+                                    <div className="relative mt-4 h-[26px]">
+                                      <div className="absolute inset-x-0 top-[10px] h-[6px] rounded-full bg-[var(--surface-2-new)]" />
+                                      <div
+                                        className={"absolute top-[10px] left-0 h-[6px] rounded-full transition-all " + (barCleared ? "bg-[var(--accent-new)]" : "bg-[var(--danger-new)]")}
+                                        style={{ width: `${Math.max(2, actualPct)}%`, boxShadow: barCleared ? "0 0 10px rgba(212,242,58,0.45)" : "none" }}
+                                      />
+                                      {!barCleared ? (
+                                        <div className="absolute top-0 bottom-0 w-px bg-[var(--text-3-new)] opacity-60" style={{ left: `${linePct}%` }}>
+                                          <span className="mono-nums absolute -top-0.5 left-1 text-[9px] text-[var(--text-3-new)]">{lineNum}</span>
+                                        </div>
+                                      ) : null}
+                                      <div
+                                        className={"mono-nums absolute top-0 -translate-x-1/2 rounded-full px-2.5 py-1 text-[12px] font-bold leading-none transition-all " + (barCleared ? "bg-[var(--accent-new)] text-[var(--bg-new)]" : "bg-[var(--danger-new)] text-[var(--bg-new)]")}
+                                        style={{ left: `${Math.min(96, Math.max(6, actualPct))}%`, boxShadow: barCleared ? "0 2px 10px rgba(212,242,58,0.35)" : "0 2px 8px rgba(248,113,113,0.30)" }}
+                                      >
+                                        {Number.isInteger(actualNum) ? actualNum : actualNum.toFixed(1)}
+                                      </div>
+                                    </div>
+                                  ) : (hit === "won" || hit === "lost") ? (
+                                    <div className="relative mt-4 h-[26px]">
+                                      <div className="absolute inset-x-0 top-[10px] h-[6px] rounded-full bg-[var(--surface-2-new)]" />
+                                      <div
+                                        className={"absolute top-[10px] left-0 h-[6px] rounded-full " + (hit === "won" ? "bg-[var(--accent-new)]" : "bg-[var(--danger-new)]")}
+                                        style={{ width: hit === "won" ? "95%" : "40%", boxShadow: hit === "won" ? "0 0 10px rgba(212,242,58,0.45)" : "0 0 8px rgba(248,113,113,0.30)" }}
+                                      />
+                                      <div
+                                        className={"mono-nums absolute top-0 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase leading-none tracking-[0.06em] " + (hit === "won" ? "bg-[var(--accent-new)] text-[var(--bg-new)]" : "bg-[var(--danger-new)] text-[var(--bg-new)]")}
+                                        style={{ left: hit === "won" ? "95%" : "40%", boxShadow: hit === "won" ? "0 2px 10px rgba(212,242,58,0.35)" : "0 2px 8px rgba(248,113,113,0.30)" }}
+                                      >
+                                        {hit === "won" ? "Won" : "Lost"}
+                                      </div>
+                                    </div>
+                                  ) : actualsLoading ? (
+                                    <div className="relative mt-4 h-[26px]">
+                                      <div className="absolute inset-x-0 top-[10px] h-[6px] overflow-hidden rounded-full bg-[var(--surface-2-new)]">
+                                        <div className="absolute inset-0 animate-pulse bg-[var(--border-strong-new)]" />
+                                      </div>
+                                    </div>
+                                  ) : !isNaN(lineNum) && lineNum > 0 ? (
+                                    <div className="relative mt-4 h-[26px]">
+                                      <div className="absolute inset-x-0 top-[10px] h-[6px] rounded-full bg-[var(--surface-2-new)]" />
+                                      <div className="absolute top-[3px] left-1/2 -translate-x-1/2 text-[10px] text-[var(--text-3-new)]">
+                                        Line <span className="mono-nums text-[var(--text-2-new)]">{lineNum}</span> · awaiting game
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                  <div className="mt-3 flex items-baseline justify-between gap-3 text-[11px]">
+                                    <div className="min-w-0 text-[var(--text-3-new)]">
+                                      {leg.game ? <span>{leg.game}</span> : null}
+                                      {leg.game && leg.result ? " · " : ""}
+                                      {leg.result ? <span>{leg.result}</span> : null}
+                                    </div>
+                                    <div className="flex shrink-0 items-baseline gap-3">
+                                      {haveBar ? (
+                                        <span className={"mono-nums font-medium " + (barCleared ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{barCleared ? "+" : ""}{(actualNum - lineNum).toFixed(1)}</span>
+                                      ) : null}
+                                      <span className="mono-nums text-[var(--text-2-new)]">{leg.odds ? `$${formatOdds(leg.odds)}` : "—"}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : bet.notes ? (
+                        <div className="mt-5">
+                          <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Notes</div>
+                          <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)]">{bet.notes}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            };
             return (
               <>
-                {/* Filter + sort row */}
-                <div className="flex items-center justify-between border-b border-[var(--border-new)] py-5">
-                  <div className="flex flex-wrap gap-1.5">
+                {/* Filter + sort row — pills scroll horizontally on mobile,
+                    wrap on tablet+. Sort label hides on mobile to save space. */}
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--border-new)] py-4 md:py-5">
+                  <div className="-mx-1 flex flex-nowrap gap-1.5 overflow-x-auto px-1 md:flex-wrap md:overflow-visible [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                     {[
                       { key: "all", label: "All", count: counts.all },
                       { key: "pending", label: "Pending", count: counts.pending },
@@ -4890,45 +5063,70 @@ export default function BettingTrackerWebsite() {
                         key={tab.key}
                         type="button"
                         onClick={() => setStatusFilter(tab.key)}
-                        className={"cursor-pointer rounded-full border px-3 py-1.5 text-[12px] transition-colors " + (statusFilter === tab.key ? "border-[var(--text-new)] bg-[var(--text-new)] font-medium text-[var(--bg-new)]" : "border-[var(--border-new)] bg-transparent text-[var(--text-2-new)] hover:border-[var(--border-strong-new)]")}
+                        className={"cursor-pointer whitespace-nowrap rounded-full border px-3 py-1.5 text-[12px] transition-colors " + (statusFilter === tab.key ? "border-[var(--text-new)] bg-[var(--text-new)] font-medium text-[var(--bg-new)]" : "border-[var(--border-new)] bg-transparent text-[var(--text-2-new)] hover:border-[var(--border-strong-new)]")}
                       >
                         {tab.label} <span className={statusFilter === tab.key ? "ml-1 opacity-60" : "ml-1 text-[var(--text-3-new)]"}>{tab.count}</span>
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)]">
+                  <div className="hidden items-center gap-2 text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)] md:flex">
                     Sort
                     <span className="cursor-pointer text-[12px] normal-case tracking-normal text-[var(--text-2-new)] hover:text-[var(--text-new)]">Most recent</span>
                   </div>
                 </div>
 
-                {/* Mobile cards */}
-                <div className="space-y-1 border-b border-[var(--border-new)] py-2 md:hidden">
-                  {showing.map((bet) => (
-                    <div key={bet.id} className="border-b border-[var(--border-new)] py-4 last:border-0">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className={"h-2 w-2 shrink-0 rounded-full " + dotClass(bet.result)} />
-                          <div>
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3-new)]">{bet.sport || "OTHER"}</span>
-                              <span className="text-sm font-medium text-[var(--text-new)]">{betTitle(bet)}</span>
+                {/* Mobile cards — full feature parity with desktop table. Each
+                    card is tappable to toggle expand; expanded reveals the same
+                    summary cells + leg detail (achievement pills, progress
+                    bars, target markers) that desktop shows. */}
+                <div className="border-b border-[var(--border-new)] md:hidden">
+                  {showing.map((bet) => {
+                    const isExpanded = expandedBetId === bet.id;
+                    return (
+                      <div key={bet.id} className={"border-b border-[var(--border-new)] last:border-0 transition-colors " + (isExpanded ? "bg-[var(--surface-new)]" : "")}>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedBetId(isExpanded ? null : bet.id)}
+                          className="w-full px-1 py-4 text-left active:opacity-80"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className={"h-2 w-2 shrink-0 rounded-full " + dotClass(bet.result)} />
+                              <div className="min-w-0">
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3-new)]">{bet.sport || "OTHER"}</span>
+                                  <span className="text-[14px] font-medium text-[var(--text-new)]">{betTitle(bet)}</span>
+                                  <svg width="10" height="10" viewBox="0 0 12 12" className={"shrink-0 text-[var(--text-3-new)] transition-transform " + (isExpanded ? "rotate-90" : "")}>
+                                    <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </div>
+                                <div className="mt-1 text-[11px] text-[var(--text-3-new)]"><span className="mono-nums">{bet.date}</span>{bet.bookmaker ? ` · ${bet.bookmaker}` : ""}</div>
+                              </div>
                             </div>
-                            <div className="mt-1 text-[11px] text-[var(--text-3-new)]">{bet.date}{bet.bookmaker ? ` · ${bet.bookmaker}` : ""}</div>
+                            <div className="text-right">
+                              <span className={"mono-nums text-[14px] font-semibold " + (bet.profitLoss > 0 ? "text-[var(--positive-new)]" : bet.profitLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-3-new)]")}>{bet.result === "pending" ? "—" : formatCurrency(bet.profitLoss)}</span>
+                              <div className={"mt-0.5 text-[9px] font-medium uppercase tracking-[0.08em] " + statusColor(bet.result)}>{statusLabel(bet.result)}</div>
+                            </div>
                           </div>
-                        </div>
-                        <span className={"mono-nums text-sm font-medium " + (bet.profitLoss >= 0 ? "text-[var(--positive-new)]" : bet.profitLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-3-new)]")}>{bet.result === "pending" ? "—" : formatCurrency(bet.profitLoss)}</span>
+                          {!isExpanded ? (
+                            <div className="mt-2 flex justify-between pl-5 text-[11px] text-[var(--text-3-new)]">
+                              <span>Stake <span className="mono-nums text-[var(--text-2-new)]">{formatCurrency(bet.stake)}</span></span>
+                              <span>Return <span className="mono-nums text-[var(--text-2-new)]">{formatCurrency(bet.returnAmount)}</span></span>
+                            </div>
+                          ) : null}
+                        </button>
+                        {/* Expanded detail — summary cells + legs */}
+                        {renderBetExpansion(bet, isExpanded)}
+                        {/* Edit / Delete actions when expanded */}
+                        {isExpanded ? (
+                          <div className="flex gap-2 px-4 pb-4" onClick={(e) => e.stopPropagation()}>
+                            <button type="button" onClick={() => startEditingBet(bet)} className="flex-1 rounded-lg border border-[var(--border-new)] px-3 py-2.5 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-2-new)] active:opacity-80 hover:text-[var(--text-new)]">Edit</button>
+                            <button type="button" onClick={() => deleteBet(bet.id)} className="flex-1 rounded-lg border border-[var(--border-new)] px-3 py-2.5 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-2-new)] active:opacity-80 hover:border-[var(--danger-new)] hover:text-[var(--danger-new)]">Delete</button>
+                          </div>
+                        ) : null}
                       </div>
-                      <div className="mt-2 flex justify-between text-[11px] text-[var(--text-3-new)]">
-                        <span>Stake <span className="mono-nums text-[var(--text-2-new)]">{formatCurrency(bet.stake)}</span></span>
-                        <span>Return <span className="mono-nums text-[var(--text-2-new)]">{formatCurrency(bet.returnAmount)}</span></span>
-                      </div>
-                      <div className="mt-3 flex gap-2">
-                        <button onClick={() => startEditingBet(bet)} className="rounded border border-[var(--border-new)] px-3 py-1 text-[11px] uppercase tracking-[0.06em] text-[var(--text-2-new)] hover:text-[var(--text-new)]">Edit</button>
-                        <button onClick={() => deleteBet(bet.id)} className="rounded border border-[var(--border-new)] px-3 py-1 text-[11px] uppercase tracking-[0.06em] text-[var(--text-2-new)] hover:border-[var(--danger-new)] hover:text-[var(--danger-new)]">Delete</button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {!bets.length ? <div className="py-10 text-center text-sm text-[var(--text-3-new)]">No bets added yet.</div> : null}
                 </div>
 
