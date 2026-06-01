@@ -287,29 +287,42 @@ function runBasicTests() {
 // in a 32x32 box, clipped to a circle by <TeamCrest>. Keyed by lowercase club name;
 // matched longest-first so "North Melbourne"/"Greater Western Sydney" resolve before
 // "Melbourne"/"Sydney".
+// AFL team crests — SVG guernsey-style patterns, clipped to a circle by the
+// TeamCrest component. Each design echoes the actual jumper: stripes, sashes,
+// chevrons or solid panels in the team's real colours. Updated 2026-06 to
+// match the bookmaker-style references the user provided.
 const TEAM_CRESTS = {
+  // Adelaide Crows — navy / red / gold horizontal bands
   "adelaide": (
     <>
       <rect width="32" height="32" fill="#002b5c" />
-      <rect y="11" width="32" height="10" fill="#ffd200" />
-      <rect y="21" width="32" height="11" fill="#e21937" />
+      <rect y="11" width="32" height="11" fill="#e21937" />
+      <rect y="22" width="32" height="10" fill="#ffd200" />
     </>
   ),
+  // Brisbane Lions — maroon top / navy middle / gold bottom thin band
   "brisbane lions": (
     <>
-      <rect width="32" height="32" fill="#0c2340" />
-      <rect y="12" width="32" height="7" fill="#fdbb30" />
-      <rect y="19" width="32" height="13" fill="#7a002e" />
+      <rect width="32" height="32" fill="#7a002e" />
+      <rect y="11" width="32" height="11" fill="#0c2340" />
+      <rect y="22" width="32" height="10" fill="#fdbb30" />
     </>
   ),
   "brisbane": (
     <>
-      <rect width="32" height="32" fill="#0c2340" />
-      <rect y="12" width="32" height="7" fill="#fdbb30" />
-      <rect y="19" width="32" height="13" fill="#7a002e" />
+      <rect width="32" height="32" fill="#7a002e" />
+      <rect y="11" width="32" height="11" fill="#0c2340" />
+      <rect y="22" width="32" height="10" fill="#fdbb30" />
     </>
   ),
-  "carlton": <rect width="32" height="32" fill="#0e2547" />,
+  // Carlton Blues — solid navy with a subtle inner ring nod to the "C"
+  "carlton": (
+    <>
+      <rect width="32" height="32" fill="#0e2547" />
+      <circle cx="16" cy="16" r="8" fill="none" stroke="#ffffff" strokeWidth="1.6" />
+    </>
+  ),
+  // Collingwood Magpies — black with two white vertical stripes
   "collingwood": (
     <>
       <rect width="32" height="32" fill="#000000" />
@@ -317,12 +330,14 @@ const TEAM_CRESTS = {
       <rect x="18" width="3" height="32" fill="#ffffff" />
     </>
   ),
+  // Essendon Bombers — black with a red diagonal sash
   "essendon": (
     <>
       <rect width="32" height="32" fill="#000000" />
       <polygon points="0,8 8,0 32,24 24,32" fill="#cc2031" />
     </>
   ),
+  // Fremantle Dockers — purple with double white chevrons
   "fremantle": (
     <>
       <rect width="32" height="32" fill="#2a0d54" />
@@ -330,21 +345,25 @@ const TEAM_CRESTS = {
       <polyline points="5,15 16,23 27,15" fill="none" stroke="#ffffff" strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
     </>
   ),
+  // Geelong Cats — white with three navy horizontal hoops
   "geelong": (
     <>
       <rect width="32" height="32" fill="#ffffff" />
-      <rect y="0" width="32" height="5.3" fill="#022b5c" />
-      <rect y="10.6" width="32" height="5.3" fill="#022b5c" />
-      <rect y="21.3" width="32" height="5.3" fill="#022b5c" />
+      <rect y="3" width="32" height="5.5" fill="#022b5c" />
+      <rect y="13.25" width="32" height="5.5" fill="#022b5c" />
+      <rect y="23.5" width="32" height="5.5" fill="#022b5c" />
     </>
   ),
+  // Gold Coast Suns — red with a gold sun-disc emblem
   "gold coast": (
     <>
       <rect width="32" height="32" fill="#d6001c" />
-      <rect y="13" width="32" height="3.5" fill="#f8d000" />
-      <rect y="16.5" width="32" height="3.5" fill="#13357f" />
+      <circle cx="16" cy="16" r="6.5" fill="none" stroke="#f8d000" strokeWidth="1.8" />
+      <ellipse cx="16" cy="16" rx="6.5" ry="2.4" fill="#f8d000" />
+      <rect x="2.5" y="15" width="27" height="2" fill="#13357f" />
     </>
   ),
+  // GWS Giants — orange with a charcoal triangle wedge + white diagonal
   "greater western sydney": (
     <>
       <rect width="32" height="32" fill="#f47920" />
@@ -359,48 +378,57 @@ const TEAM_CRESTS = {
       <line x1="32" y1="3" x2="3" y2="32" stroke="#ffffff" strokeWidth="2.5" />
     </>
   ),
+  // Hawthorn Hawks — brown base with three gold vertical stripes
   "hawthorn": (
     <>
-      <rect width="32" height="32" fill="#fbbf15" />
-      <rect x="11" width="3.2" height="32" fill="#4d2004" />
-      <rect x="18" width="3.2" height="32" fill="#4d2004" />
+      <rect width="32" height="32" fill="#4d2004" />
+      <rect x="6" width="3.5" height="32" fill="#fbbf15" />
+      <rect x="14.25" width="3.5" height="32" fill="#fbbf15" />
+      <rect x="22.5" width="3.5" height="32" fill="#fbbf15" />
     </>
   ),
+  // Melbourne Demons — navy with a red "Y" rising from the bottom
   "melbourne": (
     <>
       <rect width="32" height="32" fill="#0c1c3a" />
-      <polygon points="0,0 32,0 16,22" fill="#d6001c" />
+      <polygon points="0,32 32,32 16,10" fill="#d6001c" />
     </>
   ),
+  // North Melbourne Kangaroos — white with four blue vertical stripes
   "north melbourne": (
     <>
       <rect width="32" height="32" fill="#ffffff" />
-      <rect x="0" width="6" height="32" fill="#013b9f" />
-      <rect x="12" width="6" height="32" fill="#013b9f" />
-      <rect x="24" width="6" height="32" fill="#013b9f" />
+      <rect x="2" width="4.5" height="32" fill="#013b9f" />
+      <rect x="9.5" width="4.5" height="32" fill="#013b9f" />
+      <rect x="17.5" width="4.5" height="32" fill="#013b9f" />
+      <rect x="25.5" width="4.5" height="32" fill="#013b9f" />
     </>
   ),
   "kangaroos": (
     <>
       <rect width="32" height="32" fill="#ffffff" />
-      <rect x="0" width="6" height="32" fill="#013b9f" />
-      <rect x="12" width="6" height="32" fill="#013b9f" />
-      <rect x="24" width="6" height="32" fill="#013b9f" />
+      <rect x="2" width="4.5" height="32" fill="#013b9f" />
+      <rect x="9.5" width="4.5" height="32" fill="#013b9f" />
+      <rect x="17.5" width="4.5" height="32" fill="#013b9f" />
+      <rect x="25.5" width="4.5" height="32" fill="#013b9f" />
     </>
   ),
+  // Port Adelaide Power — black with white + teal chevrons (the Port "V")
   "port adelaide": (
     <>
       <rect width="32" height="32" fill="#000000" />
-      <polyline points="6,8 16,16 26,8" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-      <polyline points="6,13 16,21 26,13" fill="none" stroke="#01b6c7" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+      <polyline points="5,9 16,17 27,9" fill="none" stroke="#ffffff" strokeWidth="2.8" strokeLinejoin="round" strokeLinecap="round" />
+      <polyline points="5,14 16,22 27,14" fill="none" stroke="#01b6c7" strokeWidth="2.8" strokeLinejoin="round" strokeLinecap="round" />
     </>
   ),
+  // Richmond Tigers — black with a yellow diagonal sash
   "richmond": (
     <>
       <rect width="32" height="32" fill="#000000" />
       <polygon points="0,8 8,0 32,24 24,32" fill="#ffd200" />
     </>
   ),
+  // St Kilda Saints — three vertical bands: red / white / black
   "st kilda": (
     <>
       <rect width="32" height="32" fill="#ed0f05" />
@@ -408,30 +436,33 @@ const TEAM_CRESTS = {
       <rect x="21" width="11" height="32" fill="#000000" />
     </>
   ),
+  // Sydney Swans — white with a red shield-V at the top
   "sydney": (
     <>
       <rect width="32" height="32" fill="#ffffff" />
       <polygon points="0,0 32,0 32,11 16,17 0,11" fill="#ed171f" />
     </>
   ),
+  // West Coast Eagles — navy left half, gold right half (split)
   "west coast": (
     <>
       <rect width="32" height="32" fill="#06214f" />
-      <rect width="16" height="32" fill="#f2a900" />
+      <rect x="16" width="16" height="32" fill="#f2a900" />
     </>
   ),
+  // Western Bulldogs — three horizontal bands: red / white / royal blue
   "western bulldogs": (
     <>
-      <rect width="32" height="32" fill="#0a4595" />
-      <rect y="11.5" width="32" height="9" fill="#ffffff" />
-      <rect y="13.5" width="32" height="5" fill="#e1251b" />
+      <rect width="32" height="32" fill="#e1251b" />
+      <rect y="11" width="32" height="10" fill="#ffffff" />
+      <rect y="21" width="32" height="11" fill="#0a4595" />
     </>
   ),
   "bulldogs": (
     <>
-      <rect width="32" height="32" fill="#0a4595" />
-      <rect y="11.5" width="32" height="9" fill="#ffffff" />
-      <rect y="13.5" width="32" height="5" fill="#e1251b" />
+      <rect width="32" height="32" fill="#e1251b" />
+      <rect y="11" width="32" height="10" fill="#ffffff" />
+      <rect y="21" width="32" height="11" fill="#0a4595" />
     </>
   ),
 };
