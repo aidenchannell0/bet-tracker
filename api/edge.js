@@ -1128,6 +1128,9 @@ function enrichProps(props, aflStats, factors = null) {
       recentAvg: ms.recentAvg,
       avg10: ms.avg10,
       last5Values: ms.last5Values || [],
+      // Sent to the frontend so the leg row can render one dot per game in
+      // chronological order (rightmost = most recent). Most-recent-first.
+      last10Values: ms.last10Values || [],
       sampleSize: (ms.last10Values || []).length,
       hr5,
       hr10,

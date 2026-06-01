@@ -1947,7 +1947,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                       return (
                         (() => {
                           // Parse 'X / Y' (cleared / total) out of the reason
-                          // text so we can render filled vs empty dots.
+                          // text — kept as a fallback when the backend hasn't
+                          // sent per-game values (older multis, NBA missing data).
                           let hitN = 0, totalN = 10;
                           if (typeof leg.reason === "string") {
                             const m = leg.reason.match(/(\d+)\s*[\/]\s*(\d+)/);
@@ -1967,6 +1968,26 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                             lineText = playerName.slice(dashIdx + 1).trim();
                             playerName = playerName.slice(0, dashIdx).trim();
                           }
+                          // Per-game hit pattern, chronological. last10Values
+                          // arrives most-recent-first from the backend; we
+                          // reverse so the rightmost dot is the most recent
+                          // game and the leftmost dot is 10 games ago. Each
+                          // dot is filled iff that specific game cleared the
+                          // line (so a miss 4 games ago shows as an empty
+                          // dot at position 4-from-right, not bunched at the
+                          // start). Falls back to "first N filled" when no
+                          // per-game values are present.
+                          const lineNum = (() => {
+                            if (typeof leg.line === "number") return leg.line;
+                            const n = parseFloat(String(leg.line || lineText || "").replace(/[^0-9.]/g, ""));
+                            return Number.isFinite(n) ? n : null;
+                          })();
+                          let hitPattern = null;
+                          if (Array.isArray(leg.last10Values) && leg.last10Values.length > 0 && lineNum != null) {
+                            hitPattern = [...leg.last10Values].reverse().map((v) => Number(v) >= lineNum);
+                            totalN = hitPattern.length;
+                            hitN = hitPattern.filter(Boolean).length;
+                          }
                           return (
                         <div key={`${leg.name}-${index}`} className="hover:bg-[var(--surface-new)]/40 transition-colors py-6 md:px-0 grid grid-cols-[28px_44px_1fr] md:grid-cols-[28px_44px_1fr_120px_140px] gap-x-5 gap-y-3 items-center">
                           <div className="mono-nums text-[12px] text-[var(--text-3-new)] tracking-[0.05em]">{String(index + 1).padStart(2, "0")}</div>
@@ -1983,10 +2004,16 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                             </div>
                             {totalN > 0 ? (
                               <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <div className="flex gap-1">
-                                  {Array.from({ length: totalN }).map((_, dIdx) => (
-                                    <div key={dIdx} className={"h-1.5 w-1.5 rounded-full " + (dIdx < hitN ? "bg-[var(--positive-new)]" : "bg-transparent border border-[var(--text-3-new)]/40")} />
-                                  ))}
+                                <div className="flex gap-1" title="Last 10 games · rightmost = most recent">
+                                  {Array.from({ length: totalN }).map((_, dIdx) => {
+                                    // If we have a real per-game pattern, dIdx maps directly
+                                    // (already reversed so leftmost = oldest, rightmost = most
+                                    // recent). Without it, fall back to first-N-filled.
+                                    const filled = hitPattern ? hitPattern[dIdx] === true : dIdx < hitN;
+                                    return (
+                                      <div key={dIdx} className={"h-1.5 w-1.5 rounded-full " + (filled ? "bg-[var(--positive-new)]" : "bg-transparent border border-[var(--text-3-new)]/40")} />
+                                    );
+                                  })}
                                 </div>
                                 <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)] font-medium"><span className="mono-nums">{hitN} / {totalN}</span> cleared</div>
                               </div>
