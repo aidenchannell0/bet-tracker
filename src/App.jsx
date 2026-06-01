@@ -40,6 +40,50 @@ function formatOdds(value) {
   return Number.isFinite(n) && n > 0 ? n.toFixed(2) : String(value ?? "");
 }
 
+// Convert a player's full name to the scraper's "firstinitial_surname"
+// name_key format (e.g. "Bailey J. Williams" -> "b_williams"). Matches the
+// algorithm in scripts/scrape-{afl,nba}-stats.mjs so a JS-side lookup against
+// afl_player_games / nba_player_games hits the index built for those tables.
+function toNameKey(full) {
+  const words = String(full || "")
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length) return "";
+  const last = words[words.length - 1];
+  return `${words[0][0]}_${last}`;
+}
+
+// Given a leg's line text (e.g. "25+ disposals", "20+ points", "8+ rebounds")
+// and a sport code, return the column name on the player_games table that
+// holds the actual stat. Returns null if the stat can't be identified.
+function statColumnForLeg(lineOrMarket, sport) {
+  const s = String(lineOrMarket || "").toLowerCase();
+  if ((sport || "AFL").toUpperCase() === "NBA") {
+    if (s.includes("point"))    return "pts";
+    if (s.includes("rebound") || s.includes("reb")) return "reb";
+    if (s.includes("assist"))   return "ast";
+    if (s.includes("steal"))    return "stl";
+    if (s.includes("block"))    return "blk";
+    if (s.includes("three") || s.includes("3pt") || s.includes("fg3")) return "fg3m";
+    return null;
+  }
+  // AFL
+  if (s.includes("disposal"))   return "disposals";
+  if (s.includes("goal"))       return "goals";
+  if (s.includes("mark"))       return "marks";
+  if (s.includes("tackle"))     return "tackles";
+  if (s.includes("kick"))       return "kicks";
+  if (s.includes("handball"))   return "handballs";
+  if (s.includes("hitout"))     return "hitouts";
+  if (s.includes("clearance"))  return "clearances";
+  if (s.includes("fantasy") || s.includes("dream"))   return "fantasy_points";
+  if (s.includes("behind"))     return "behinds";
+  return null;
+}
+
 // e.g. "2026-05-07" -> "7 May 2026" (for the per-leg form-freshness label)
 function formatFormDate(iso) {
   const d = new Date(String(iso) + "T00:00:00");
@@ -3134,6 +3178,10 @@ export default function BettingTrackerWebsite() {
   const [statusFilter, setStatusFilter] = useState("all");
   // Click a row in the bet table to smooth-expand its detail panel below.
   const [expandedBetId, setExpandedBetId] = useState(null);
+  // Per-bet cache of real game stats for each leg, fetched from
+  // afl_player_games / nba_player_games when a settled multi expands. Keyed
+  // by bet.id → array of { actual, gameDate } | null per leg index.
+  const [legActualsByBet, setLegActualsByBet] = useState({});
   const [mobileBetsOpen, setMobileBetsOpen] = useState(false);
   const [selectedSportFilter, setSelectedSportFilter] = useState("All sports");
   const fileInputRef = useRef(null);
@@ -3279,6 +3327,52 @@ export default function BettingTrackerWebsite() {
     if (session?.user?.id) loadBets();
     else setBets([]);
   }, [session?.user?.id]);
+
+  // When a settled multi expands, fetch the actual game stats for every leg
+  // from afl_player_games / nba_player_games. We pick the player's first
+  // game on or after the bet's date (within a 14-day window — covers a
+  // typical round). Results are cached per bet id so re-expanding is free.
+  useEffect(() => {
+    if (!supabase || !expandedBetId) return;
+    if (legActualsByBet[expandedBetId]) return; // already fetched
+    const bet = bets.find((b) => b.id === expandedBetId);
+    if (!bet) return;
+    const legs = Array.isArray(bet.legs) ? bet.legs : [];
+    if (!legs.length) return;
+    if (bet.status === "pending") return; // game hasn't happened yet
+    const sport = (bet.sport || "AFL").toUpperCase();
+    const table = sport === "NBA" ? "nba_player_games" : "afl_player_games";
+    const betDate = bet.date;
+    if (!betDate) return;
+    // 14-day search window so we cover a full round / week of fixtures.
+    const start = new Date(betDate + "T00:00:00");
+    const end = new Date(start);
+    end.setDate(end.getDate() + 14);
+    const startIso = start.toISOString().slice(0, 10);
+    const endIso = end.toISOString().slice(0, 10);
+
+    (async () => {
+      const actuals = await Promise.all(legs.map(async (leg) => {
+        const player = leg.player || leg.name || "";
+        const nameKey = toNameKey(player);
+        const statCol = statColumnForLeg(leg.line || leg.market || leg.reason || "", sport);
+        if (!nameKey || !statCol) return null;
+        const { data, error } = await supabase
+          .from(table)
+          .select(`game_date, ${statCol}`)
+          .eq("name_key", nameKey)
+          .gte("game_date", startIso)
+          .lte("game_date", endIso)
+          .order("game_date", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (error || !data) return null;
+        const num = Number(data[statCol]);
+        return Number.isFinite(num) ? { actual: num, gameDate: data.game_date } : null;
+      }));
+      setLegActualsByBet((prev) => ({ ...prev, [expandedBetId]: actuals }));
+    })();
+  }, [expandedBetId, bets]);
 
   const loadBets = async () => {
     if (!supabase || !session?.user?.id) return;
@@ -4684,19 +4778,19 @@ export default function BettingTrackerWebsite() {
                                           const label = hit === "won" ? "✓" : hit === "lost" ? "✕" : "·";
                                           const labelClass = hit === "won" ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : hit === "lost" ? "bg-[var(--surface-2-new)] text-[var(--text-3-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]";
 
-                                          // Pull the line (the threshold) and the actual value (what the player
-                                          // got to). For settled bets we use leg.actual when present, fall back
-                                          // to leg.recentAvg (saved with the multi) or parse 'averaging X' out
-                                          // of the reason text. Pending bets just show line + recentAvg.
+                                          // Pull the line (the threshold) and the actual value (what the
+                                          // player got in the bet's game). Priority order:
+                                          //   1. Real game stat fetched from afl/nba_player_games (truth)
+                                          //   2. leg.actual if the user/scraper saved one
+                                          // We deliberately DO NOT fall back to recent-form averages here —
+                                          // those would mislead the pill into showing the wrong number.
                                           const lineNum = typeof leg.line === "number" ? leg.line : parseFloat(String(leg.line || "").replace(/[^0-9.]/g, ""));
-                                          let actualNum = typeof leg.actual === "number" ? leg.actual
-                                            : typeof leg.recentAvg === "number" ? leg.recentAvg
-                                            : typeof leg.avg10 === "number" ? leg.avg10
+                                          const fetchedActuals = legActualsByBet[bet.id];
+                                          const fetched = fetchedActuals ? fetchedActuals[i] : undefined;
+                                          let actualNum = fetched && typeof fetched.actual === "number" ? fetched.actual
+                                            : typeof leg.actual === "number" ? leg.actual
                                             : null;
-                                          if (actualNum == null && typeof leg.reason === "string") {
-                                            const m = leg.reason.match(/averaging\s+([0-9.]+)/i);
-                                            if (m) actualNum = parseFloat(m[1]);
-                                          }
+                                          const actualsLoading = !fetchedActuals && bet.status !== "pending";
                                           const haveBar = !isNaN(lineNum) && lineNum > 0 && actualNum != null && !isNaN(actualNum);
                                           // Achievement-pill scale: the bar extends up to max(actual, line) × 1.15
                                           // so there's always breathing room at the right. The fill stops at the
@@ -4769,6 +4863,21 @@ export default function BettingTrackerWebsite() {
                                                     style={{ left: `${Math.min(96, Math.max(6, actualPct))}%`, boxShadow: barCleared ? "0 2px 10px rgba(212,242,58,0.35)" : "0 2px 8px rgba(248,113,113,0.30)" }}
                                                   >
                                                     {Number.isInteger(actualNum) ? actualNum : actualNum.toFixed(1)}
+                                                  </div>
+                                                </div>
+                                              ) : actualsLoading ? (
+                                                /* Skeleton loader — actuals still fetching from player_games */
+                                                <div className="relative mt-4 h-[26px]">
+                                                  <div className="absolute inset-x-0 top-[10px] h-[6px] overflow-hidden rounded-full bg-[var(--surface-2-new)]">
+                                                    <div className="absolute inset-0 animate-pulse bg-[var(--border-strong-new)]" />
+                                                  </div>
+                                                </div>
+                                              ) : !isNaN(lineNum) && lineNum > 0 ? (
+                                                /* No game stat found — show line value only, no pill (honest fallback) */
+                                                <div className="relative mt-4 h-[26px]">
+                                                  <div className="absolute inset-x-0 top-[10px] h-[6px] rounded-full bg-[var(--surface-2-new)]" />
+                                                  <div className="absolute top-[3px] left-1/2 -translate-x-1/2 text-[10px] text-[var(--text-3-new)]">
+                                                    Line <span className="mono-nums text-[var(--text-2-new)]">{lineNum}</span>{bet.status === "pending" ? " · awaiting game" : " · stat unavailable"}
                                                   </div>
                                                 </div>
                                               ) : null}
