@@ -1,0 +1,34 @@
+name: Scrape NBA stats
+# balldontlie.io isn't IP-blocked, so this runs reliably on GitHub Actions
+# (unlike the AFL job which used to require a Mac via launchd).
+#
+# Every 4 hours — catches East coast games within ~3h of final buzzer and
+# West coast games within ~5h. NBA_DAYS=3 is an incremental refresh that
+# re-upserts the last 3 days; the one-shot historical backfill is run
+# manually via workflow_dispatch.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+#   BALLDONTLIE_API_KEY
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch: {}
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: node scripts/scrape-nba-stats.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BALLDONTLIE_API_KEY: ${{ secrets.BALLDONTLIE_API_KEY }}
+          NBA_DAYS: "3"
+          BALLDONTLIE_GAP_MS: "1100"
