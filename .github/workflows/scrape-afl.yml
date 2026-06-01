@@ -1,7 +1,10 @@
 name: Scrape AFL stats
 on:
   schedule:
-    - cron: "0 19 * * *"
+        # Every 6 hours — 1 am, 7 am, 1 pm, 7 pm AEST. Tighter than daily, so
+    # freshly-settled bets get their actual game stats within ~6h of
+    # the final siren, not the next morning.
+    - cron: "0 */6 * * *"
   workflow_dispatch: {}
 jobs:
   scrape:
