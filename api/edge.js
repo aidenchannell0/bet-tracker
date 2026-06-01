@@ -13,6 +13,55 @@ const supabaseAdmin =
       )
     : null;
 
+// In-memory cache for the latest isotonic recalibration curve per sport.
+// scripts/recalibrate.mjs writes a new row to model_calibration weekly; this
+// process loads the latest curve once per cold start and applies it to every
+// prediction in enrichProps. Lambda cold starts naturally pick up new curves
+// — if you ever need a faster refresh, clear the cache after curve writes.
+const calibrationCache = new Map();
+async function loadCalibrationCurve(sport) {
+  if (!supabaseAdmin || !sport) return null;
+  const key = String(sport).toUpperCase();
+  if (calibrationCache.has(key)) return calibrationCache.get(key);
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("model_calibration")
+      .select("curve_points,fit_date,n_samples,rmse")
+      .eq("sport", key)
+      .is("market", null)
+      .order("fit_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) {
+      calibrationCache.set(key, null);
+      return null;
+    }
+    const curve = Array.isArray(data.curve_points) ? data.curve_points : null;
+    calibrationCache.set(key, curve);
+    return curve;
+  } catch (error) {
+    calibrationCache.set(key, null);
+    return null;
+  }
+}
+// Linear interpolation between adjacent isotonic curve points. Returns the
+// raw value when no curve is loaded (model_calibration empty until the first
+// recalibrate run lands).
+function applyCalibrationCurve(curve, x) {
+  if (!curve || !curve.length || x == null) return x;
+  if (x <= curve[0].x) return curve[0].y;
+  if (x >= curve[curve.length - 1].x) return curve[curve.length - 1].y;
+  for (let i = 0; i < curve.length - 1; i += 1) {
+    if (x >= curve[i].x && x <= curve[i + 1].x) {
+      const span = curve[i + 1].x - curve[i].x;
+      if (span <= 0) return curve[i].y;
+      const t = (x - curve[i].x) / span;
+      return curve[i].y + t * (curve[i + 1].y - curve[i].y);
+    }
+  }
+  return x;
+}
+
 const FREE_BUILDS_PER_WEEK = 3;
 
 function startOfWeekIso() {
@@ -1014,7 +1063,7 @@ function matchStatsForProp(prop, statsMap) {
 }
 
 // Attach probability, edge and recent-form numbers to each prop
-function enrichProps(props, aflStats, factors = null) {
+function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
   const statsMap = new Map();
   for (const ps of aflStats?.players || []) {
     statsMap.set(String(ps.player || "").toLowerCase(), ps);
@@ -1116,7 +1165,17 @@ function enrichProps(props, aflStats, factors = null) {
       empirical = Math.max(0.02, Math.min(0.98, empBase * matchupFactor));
     }
 
-    const edge = empirical != null && implied != null ? empirical - implied : null;
+    // Apply the fitted isotonic calibration curve if one's loaded — corrects
+    // systematic over/under-confidence using historical predictions vs actuals.
+    // scripts/recalibrate.mjs refits the curve weekly; the more data we have
+    // logged in grid_build_predictions, the sharper this gets. Returns the raw
+    // empirical untouched when no curve is loaded yet.
+    const rawEmpirical = empirical;
+    const calibratedEmpirical = calibrationCurve && empirical != null
+      ? Math.max(0.02, Math.min(0.98, applyCalibrationCurve(calibrationCurve, empirical)))
+      : empirical;
+
+    const edge = calibratedEmpirical != null && implied != null ? calibratedEmpirical - implied : null;
 
     return {
       ...prop,
@@ -1136,7 +1195,9 @@ function enrichProps(props, aflStats, factors = null) {
       hr10,
       implied,        // fair (de-vigged) probability used for edge calc
       impliedRaw,     // raw 1/odds — kept for transparency/diagnostics
-      empirical,
+      empirical: calibratedEmpirical,
+      rawEmpirical,   // pre-calibration value, kept for diagnostics
+      calibrated: calibrationCurve != null,
       edge,
       margin: ms.recentAvg != null ? Number((ms.recentAvg - prop.line).toFixed(1)) : null,
     };
@@ -1547,8 +1608,8 @@ function detectMultiMetricFilter(message, context) {
 }
 
 // Shared computation: enrich props, select legs, compute combined metrics + risk
-function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile, factors = null) {
-  const enriched = enrichProps(props, aflStats, factors);
+function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile, factors = null, calibrationCurve = null) {
+  const enriched = enrichProps(props, aflStats, factors, calibrationCurve);
   const targetOddsValue = parseOddsValue(targetOdds);
   const selected = selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile);
   const srcLabel = aflStats?.source || "Stats";
@@ -2793,7 +2854,10 @@ export default async function handler(req, res) {
         statsAvailable = aflStatsContext.available;
         const defenseContext = await fetchDefenseContext(req);
         defenseFactors = defenseContext.factors;
-        enriched = enrichProps(allProps, aflStatsContext, defenseFactors);
+        // Apply the latest fitted recalibration curve when enriching for the
+        // game-analysis flow too — keeps confidence numbers calibrated everywhere.
+        const aflCurve = await loadCalibrationCurve("AFL");
+        enriched = enrichProps(allProps, aflStatsContext, defenseFactors, aflCurve);
       }
 
       const analysis = {
@@ -3192,9 +3256,15 @@ ${buildAnalysisDataBlock(analysis)}`,
         const defenseContext = await fetchDefenseContext(req, sport);
         const defenseFactors = defenseContext?.factors || null;
 
+        // Self-improvement loop: load the latest fitted recalibration curve for
+        // this sport (written weekly by scripts/recalibrate.mjs) and pass it
+        // into enrichProps + computeAFLMulti. When no curve is loaded yet the
+        // helpers fall through to the raw empirical untouched.
+        const calibrationCurve = await loadCalibrationCurve(sport);
+
         // Edit path: refine the current build in place using the fresh pool, no GPT call.
         if (editAction) {
-          const enrichedPool = enrichProps(allProps, statsContext, defenseFactors);
+          const enrichedPool = enrichProps(allProps, statsContext, defenseFactors, calibrationCurve);
           const editResult = editAFLMulti(enrichedPool, currentMulti, editAction, { sport });
           if (!editResult.ok) {
             return res.status(200).json({
@@ -3235,7 +3305,8 @@ ${buildAnalysisDataBlock(analysis)}`,
           targetLegs,
           targetOdds,
           riskProfile,
-          defenseFactors
+          defenseFactors,
+          calibrationCurve
         );
         const dataBlock = buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile, sport);
         const structuredMulti = buildStructuredMulti(computed, sport, targetOdds);
