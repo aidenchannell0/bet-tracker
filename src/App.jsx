@@ -4681,8 +4681,8 @@ export default function BettingTrackerWebsite() {
                                         {legs.map((leg, i) => {
                                           // hit can be: true (hit), false (missed), null/undefined (pending or unknown)
                                           const hit = leg.hit === true ? "won" : leg.hit === false ? "lost" : (bet.result === "win" ? "won" : bet.result === "loss" ? "pending" : "pending");
-                                          const label = hit === "won" ? "✓" : hit === "lost" ? "✗" : "·";
-                                          const labelClass = hit === "won" ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : hit === "lost" ? "bg-[var(--danger-soft-new)] text-[var(--danger-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]";
+                                          const label = hit === "won" ? "✓" : hit === "lost" ? "✕" : "·";
+                                          const labelClass = hit === "won" ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : hit === "lost" ? "bg-[var(--surface-2-new)] text-[var(--text-3-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]";
 
                                           // Pull the line (the threshold) and the actual value (what the player
                                           // got to). For settled bets we use leg.actual when present, fall back
@@ -4698,54 +4698,94 @@ export default function BettingTrackerWebsite() {
                                             if (m) actualNum = parseFloat(m[1]);
                                           }
                                           const haveBar = !isNaN(lineNum) && lineNum > 0 && actualNum != null && !isNaN(actualNum);
-                                          // New scale: when they CLEARED the line, the actual sits at ~95% of
-                                          // the bar so every hit bar looks satisfyingly 'full' and the line
-                                          // tick shows where the threshold sat. When they MISSED, the bar
-                                          // stops short of the line tick — you can see at a glance how close
-                                          // they were to clearing (and the bar fills in red).
+                                          // Achievement-pill scale: the bar extends up to max(actual, line) × 1.15
+                                          // so there's always breathing room at the right. The fill stops at the
+                                          // actual achievement with a rounded pill on the end showing the number.
+                                          // Misses also show a faint target marker so users see how short they fell.
                                           const barCleared = haveBar && actualNum >= lineNum;
-                                          let linePct = 50;
-                                          let actualPct = 0;
+                                          let max = 1, actualPct = 0, linePct = 0;
                                           if (haveBar) {
-                                            const max = barCleared ? actualNum * 1.05 : lineNum * 1.05;
-                                            linePct = (lineNum / max) * 100;
+                                            max = Math.max(actualNum, lineNum) * 1.15;
                                             actualPct = (actualNum / max) * 100;
+                                            linePct = (lineNum / max) * 100;
                                           }
-                                          const barFillClass = barCleared ? "bg-[var(--positive-new)]" : "bg-[var(--danger-new)]";
+                                          // For "To get X" sub-label, extract the stat name from the leg description.
+                                          // Common patterns: "25+ disposals", "1+ goals", "20+ points". We strip the
+                                          // number and "+" to get just the stat type, then capitalise.
+                                          const statName = (() => {
+                                            const src = leg.line || leg.market || "";
+                                            const m = String(src).match(/([a-zA-Z][a-zA-Z\s]+)$/);
+                                            if (m) return m[1].trim().replace(/^./, (c) => c.toUpperCase());
+                                            return leg.market || null;
+                                          })();
+                                          // Display the line cleanly — "23+" rather than "23+ disposals" so the
+                                          // sub-label can carry the stat name. Strip trailing stat words.
+                                          const lineDisplay = (() => {
+                                            const src = leg.line || "";
+                                            const m = String(src).match(/^([0-9.]+\+?)/);
+                                            return m ? m[1] : String(src);
+                                          })();
 
                                           return (
-                                            <div key={i} className={"grid grid-cols-[28px_1fr_90px] items-start gap-4 px-4 py-4 " + (i > 0 ? "border-t border-[var(--border-new)]" : "")}>
-                                              <div className={"grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold " + labelClass}>{label}</div>
-                                              <div className="min-w-0">
-                                                <div className="text-[13px] font-medium text-[var(--text-new)]">{leg.player || leg.name || `Leg ${i + 1}`}{leg.line ? <span className="font-normal text-[var(--text-3-new)]"> — <span className="mono-nums">{leg.line}</span></span> : null}</div>
-                                                {leg.game || leg.result || leg.reason ? (
-                                                  <div className="mt-1 text-[11px] text-[var(--text-3-new)]">
-                                                    {leg.game ? <span>{leg.game}</span> : null}
-                                                    {leg.game && (leg.result || leg.reason) ? " · " : ""}
-                                                    {leg.result ? <span>{leg.result}</span> : leg.reason ? <span>{leg.reason}</span> : null}
+                                            <div key={i} className={"px-4 py-5 " + (i > 0 ? "border-t border-[var(--border-new)]" : "")}>
+                                              {/* Header row: name + line on left, ✓/✕ pill on right. */}
+                                              <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0 flex-1">
+                                                  <div className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--text-new)]">
+                                                    {leg.player || leg.name || `Leg ${i + 1}`}
+                                                    {lineDisplay ? <span className="ml-1.5 text-[var(--text-2-new)]"> {lineDisplay}</span> : null}
                                                   </div>
-                                                ) : null}
-                                                {/* Line vs actual progress bar — visualises 'how much they
-                                                    cleared by' (or fell short by). Vertical dashed marker at
-                                                    the line position, filled bar to the actual value. */}
-                                                {haveBar ? (
-                                                  <div className="mt-3">
-                                                    <div className="relative h-1.5 overflow-hidden rounded-full bg-[var(--surface-2-new)]">
-                                                      <div className={"absolute inset-y-0 left-0 rounded-full " + barFillClass} style={{ width: `${Math.min(100, actualPct)}%`, opacity: 0.85 }} />
-                                                      <div className="absolute inset-y-0 w-px bg-[var(--text-2-new)]" style={{ left: `${linePct}%` }} />
+                                                  {statName || leg.game ? (
+                                                    <div className="mt-0.5 text-[12px] text-[var(--text-3-new)]">
+                                                      {statName ? `To get ${statName}` : leg.game}
                                                     </div>
-                                                    <div className="mt-1 flex justify-between text-[10px] text-[var(--text-3-new)]">
-                                                      <span>Line <span className="mono-nums text-[var(--text-2-new)]">{lineNum}</span></span>
-                                                      <span className={barCleared ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>{barCleared ? "Cleared at" : "Got to"} <span className="mono-nums">{actualNum.toFixed(1)}</span></span>
-                                                    </div>
-                                                  </div>
-                                                ) : null}
+                                                  ) : null}
+                                                </div>
+                                                <div className={"grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold " + labelClass}>{label}</div>
                                               </div>
-                                              <div className="pt-0.5">
-                                                <div className="mono-nums text-right text-[13px] text-[var(--text-2-new)]">{leg.odds ? `$${formatOdds(leg.odds)}` : "—"}</div>
-                                                {haveBar ? (
-                                                  <div className={"mono-nums mt-1 text-right text-[10px] font-medium " + (barCleared ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{barCleared ? "+" : ""}{(actualNum - lineNum).toFixed(1)}</div>
-                                                ) : null}
+
+                                              {/* Achievement bar — full-width, fat (10px), rounded. Lime if cleared,
+                                                  muted red if missed. A rounded "pill" extends past the bar's end
+                                                  cap with the achieved number. For misses, a faint vertical line
+                                                  marks where the target was so you see how short you fell. */}
+                                              {haveBar ? (
+                                                <div className="relative mt-4 h-[26px]">
+                                                  {/* Track */}
+                                                  <div className="absolute inset-x-0 top-[10px] h-[6px] rounded-full bg-[var(--surface-2-new)]" />
+                                                  {/* Fill */}
+                                                  <div
+                                                    className={"absolute top-[10px] left-0 h-[6px] rounded-full transition-all " + (barCleared ? "bg-[var(--accent-new)]" : "bg-[var(--danger-new)]")}
+                                                    style={{ width: `${Math.max(2, actualPct)}%`, boxShadow: barCleared ? "0 0 10px rgba(212,242,58,0.45)" : "none" }}
+                                                  />
+                                                  {/* Target marker — only for misses, faint vertical line where the line sat */}
+                                                  {!barCleared ? (
+                                                    <div className="absolute top-0 bottom-0 w-px bg-[var(--text-3-new)] opacity-60" style={{ left: `${linePct}%` }}>
+                                                      <span className="mono-nums absolute -top-0.5 left-1 text-[9px] text-[var(--text-3-new)]">{lineNum}</span>
+                                                    </div>
+                                                  ) : null}
+                                                  {/* Achievement pill — sits at the end of the fill */}
+                                                  <div
+                                                    className={"mono-nums absolute top-0 -translate-x-1/2 rounded-full px-2.5 py-1 text-[12px] font-bold leading-none transition-all " + (barCleared ? "bg-[var(--accent-new)] text-[var(--bg-new)]" : "bg-[var(--danger-new)] text-[var(--bg-new)]")}
+                                                    style={{ left: `${Math.min(96, Math.max(6, actualPct))}%`, boxShadow: barCleared ? "0 2px 10px rgba(212,242,58,0.35)" : "0 2px 8px rgba(248,113,113,0.30)" }}
+                                                  >
+                                                    {Number.isInteger(actualNum) ? actualNum : actualNum.toFixed(1)}
+                                                  </div>
+                                                </div>
+                                              ) : null}
+
+                                              {/* Footer row: game + reason on the left, odds + margin on the right. */}
+                                              <div className="mt-3 flex items-baseline justify-between gap-3 text-[11px]">
+                                                <div className="min-w-0 text-[var(--text-3-new)]">
+                                                  {leg.game ? <span>{leg.game}</span> : null}
+                                                  {leg.game && leg.result ? " · " : ""}
+                                                  {leg.result ? <span>{leg.result}</span> : null}
+                                                </div>
+                                                <div className="flex shrink-0 items-baseline gap-3">
+                                                  {haveBar ? (
+                                                    <span className={"mono-nums font-medium " + (barCleared ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{barCleared ? "+" : ""}{(actualNum - lineNum).toFixed(1)}</span>
+                                                  ) : null}
+                                                  <span className="mono-nums text-[var(--text-2-new)]">{leg.odds ? `$${formatOdds(leg.odds)}` : "—"}</span>
+                                                </div>
                                               </div>
                                             </div>
                                           );
