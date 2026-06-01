@@ -1952,15 +1952,27 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                     {(multiOutput?.legs || exampleLegs).map((leg, index) => {
                       const matchupPct = leg.matchupFactor && leg.matchupFactor !== 1 ? Math.round((leg.matchupFactor - 1) * 100) : null;
                       const ageDays = leg.formAsOf ? Math.floor((Date.now() - new Date(leg.formAsOf + "T00:00:00").getTime()) / 86400000) : null;
-                      // Graduated freshness — green ≤ 3d, amber 4-9d, red ≥ 10d.
-                      // Surfaces honestly when MultiPick's prediction is based on
-                      // stale data (e.g. footywire hasn't published this week's
-                      // games yet so the model is reading last week's form).
-                      const freshness = ageDays == null ? null
-                        : ageDays <= 3 ? { label: `Form ${ageDays}d fresh`, tone: "fresh" }
-                        : ageDays <= 9 ? { label: `Form ${ageDays}d old`, tone: "ageing" }
-                        : { label: `Form ${ageDays}d old`, tone: "stale" };
-                      const stale = ageDays !== null && ageDays >= 10;
+                      // Sport-aware freshness label. AFL plays once a week so
+                      // "rounds ago" reads more naturally than "Xd old". NBA
+                      // plays 3-4 times per week so days stays.
+                      const sportContext = multiOutput?.sport || sport;
+                      const isAFLContext = !sportContext || /afl/i.test(String(sportContext));
+                      const freshness = (() => {
+                        if (ageDays == null) return null;
+                        // Tone bands: fresh ≤3d, ageing 4-14d (~2 rounds), stale 15d+
+                        const tone = ageDays <= 3 ? "fresh"
+                          : ageDays <= 14 ? "ageing"
+                          : "stale";
+                        if (isAFLContext) {
+                          const roundsAgo = Math.floor(ageDays / 7);
+                          const label = roundsAgo === 0 ? "Form this round"
+                            : roundsAgo === 1 ? "Form last round"
+                            : `Form ${roundsAgo} rounds ago`;
+                          return { label, tone };
+                        }
+                        return { label: ageDays <= 3 ? `Form ${ageDays}d fresh` : `Form ${ageDays}d old`, tone };
+                      })();
+                      const stale = freshness?.tone === "stale";
                       return (
                         (() => {
                           // Parse 'X / Y' (cleared / total) out of the reason
