@@ -1848,7 +1848,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                       right, like the preview. */}
                   <div className="flex items-start justify-between gap-4 border-b border-[var(--border-new)] pb-5">
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.10em] font-medium text-[var(--text-3-new)]">Grid Build output</p>
+                      <p className="text-[10px] uppercase tracking-[0.10em] font-medium text-[var(--text-3-new)]">MultiPick output</p>
                       <h2 className="mt-2 text-[22px] md:text-[26px] font-medium tracking-[-0.02em] text-[var(--text-new)]">
                         {multiOutput
                           ? <>{multiOutput.legCount}-leg {multiOutput.sport} multi {multiOutput.game ? <span className="text-[var(--text-2-new)]"> · {multiOutput.game}</span> : null}</>
