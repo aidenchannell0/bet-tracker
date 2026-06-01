@@ -13,36 +13,56 @@ const supabaseAdmin =
       )
     : null;
 
-// In-memory cache for the latest isotonic recalibration curve per sport.
-// scripts/recalibrate.mjs writes a new row to model_calibration weekly; this
-// process loads the latest curve once per cold start and applies it to every
-// prediction in enrichProps. Lambda cold starts naturally pick up new curves
-// — if you ever need a faster refresh, clear the cache after curve writes.
+// In-memory cache for the latest isotonic recalibration curves per sport.
+// scripts/recalibrate.mjs writes new rows to model_calibration weekly — one
+// global per sport plus one per market that has ≥50 resolved samples. This
+// loader returns a { global, markets } bundle so enrichProps can prefer the
+// per-market curve and fall back to the global when a market doesn't have
+// enough data yet. Lambda cold starts naturally pick up new curves; if you
+// ever need a faster refresh, clear the cache after curve writes.
 const calibrationCache = new Map();
 async function loadCalibrationCurve(sport) {
   if (!supabaseAdmin || !sport) return null;
   const key = String(sport).toUpperCase();
   if (calibrationCache.has(key)) return calibrationCache.get(key);
   try {
+    // Pull every curve for this sport — global + per-market. Order by fit_date
+    // desc so the first row per (market) is the latest.
     const { data, error } = await supabaseAdmin
       .from("model_calibration")
-      .select("curve_points,fit_date,n_samples,rmse")
+      .select("market,curve_points,fit_date,n_samples,rmse")
       .eq("sport", key)
-      .is("market", null)
-      .order("fit_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error || !data) {
+      .order("fit_date", { ascending: false });
+    if (error || !data || !data.length) {
       calibrationCache.set(key, null);
       return null;
     }
-    const curve = Array.isArray(data.curve_points) ? data.curve_points : null;
-    calibrationCache.set(key, curve);
-    return curve;
+    // Keep only the most recent row per market key (null = global)
+    const seen = new Set();
+    const bundle = { global: null, markets: {} };
+    for (const row of data) {
+      const k = row.market || "__global__";
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const curve = Array.isArray(row.curve_points) ? row.curve_points : null;
+      if (!curve) continue;
+      if (row.market) bundle.markets[row.market] = curve;
+      else bundle.global = curve;
+    }
+    calibrationCache.set(key, bundle);
+    return bundle;
   } catch (error) {
     calibrationCache.set(key, null);
     return null;
   }
+}
+// Pick the right curve for a leg's market: per-market if a curve exists,
+// global otherwise. Returns null if no curves loaded — enrichProps then falls
+// through to the raw empirical, preserving current behaviour.
+function pickCurveForMetric(bundle, metric) {
+  if (!bundle) return null;
+  if (metric && bundle.markets && bundle.markets[metric]) return bundle.markets[metric];
+  return bundle.global || null;
 }
 // Linear interpolation between adjacent isotonic curve points. Returns the
 // raw value when no curve is loaded (model_calibration empty until the first
@@ -1165,15 +1185,40 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
       empirical = Math.max(0.02, Math.min(0.98, empBase * matchupFactor));
     }
 
-    // Apply the fitted isotonic calibration curve if one's loaded — corrects
-    // systematic over/under-confidence using historical predictions vs actuals.
-    // scripts/recalibrate.mjs refits the curve weekly; the more data we have
-    // logged in grid_build_predictions, the sharper this gets. Returns the raw
-    // empirical untouched when no curve is loaded yet.
+    // Rest-days adjustment — AFL teams play on 5-day to 9-day cycles, and
+    // short-rest games tend to underperform. We approximate by checking the
+    // gap between the player's last logged game and today. The penalty is
+    // gentle (max ±4%) so it nudges rather than dominates the model.
+    //   ≤4 days = short rest:        ×0.96 (slightly worse)
+    //    5-6 days = normal:          ×1.00 (unchanged)
+    //    7-9 days = full week+:      ×1.02 (slightly fresher)
+    //   ≥14 days = stale/returning:  ×0.96 (back from injury or layoff)
+    const restDays = matched?.lastGameDate
+      ? Math.floor((Date.now() - new Date(matched.lastGameDate + "T00:00:00").getTime()) / 86400000)
+      : null;
+    let restFactor = 1;
+    if (restDays != null) {
+      if (restDays <= 4) restFactor = 0.96;
+      else if (restDays <= 6) restFactor = 1.00;
+      else if (restDays <= 9) restFactor = 1.02;
+      else if (restDays <= 13) restFactor = 1.00; // long week off, neutral
+      else restFactor = 0.96;                     // returning from break/injury
+    }
+    if (restFactor !== 1 && empirical != null) {
+      empirical = Math.max(0.02, Math.min(0.98, empirical * restFactor));
+    }
+
+    // Apply the fitted isotonic calibration curve if one's loaded. Prefers
+    // the per-market curve when available (e.g. AFL disposals gets its own
+    // curve separate from AFL goals), falls back to the global per-sport
+    // curve, falls through to the raw empirical untouched when no curves
+    // are loaded yet. scripts/recalibrate.mjs refits weekly.
+    const curveForLeg = pickCurveForMetric(calibrationCurve, prop.metric);
     const rawEmpirical = empirical;
-    const calibratedEmpirical = calibrationCurve && empirical != null
-      ? Math.max(0.02, Math.min(0.98, applyCalibrationCurve(calibrationCurve, empirical)))
+    const calibratedEmpirical = curveForLeg && empirical != null
+      ? Math.max(0.02, Math.min(0.98, applyCalibrationCurve(curveForLeg, empirical)))
       : empirical;
+    const calibratedKind = curveForLeg ? (calibrationCurve?.markets?.[prop.metric] ? "per-market" : "global") : null;
 
     const edge = calibratedEmpirical != null && implied != null ? calibratedEmpirical - implied : null;
 
@@ -1197,7 +1242,9 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
       impliedRaw,     // raw 1/odds — kept for transparency/diagnostics
       empirical: calibratedEmpirical,
       rawEmpirical,   // pre-calibration value, kept for diagnostics
-      calibrated: calibrationCurve != null,
+      calibrated: calibratedKind,  // "per-market" | "global" | null
+      restDays,       // days since the player's last logged game
+      restFactor,     // multiplier applied to empirical for rest adjustment
       edge,
       margin: ms.recentAvg != null ? Number((ms.recentAvg - prop.line).toFixed(1)) : null,
     };

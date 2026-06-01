@@ -135,17 +135,10 @@ async function fetchActuals(table, columns, keys, minDate) {
   return out;
 }
 
-async function fitCurveForSport(sport, allPreds, minSamples = 30) {
-  console.log(`\n— Fitting ${sport} —`);
-
-  // Filter predictions to this sport
-  const preds = allPreds.filter((p) => metricSport(p.metric) === sport);
-  if (!preds.length) {
-    console.log(`  No ${sport} predictions logged yet.`);
-    return null;
-  }
-  console.log(`  ${preds.length} ${sport} predictions on record.`);
-
+// Build samples (predicted, hit) once — used by both the global per-sport
+// curve and the per-market curves so we don't refetch player_games twice.
+async function buildSamples(sport, preds) {
+  if (!preds.length) return [];
   const tableName = sport === "AFL" ? "afl_player_games" : "nba_player_games";
   const sportCols = sport === "AFL"
     ? [...AFL_METRICS]
@@ -155,17 +148,13 @@ async function fitCurveForSport(sport, allPreds, minSamples = 30) {
   const minDate = String(preds[0].created_at).slice(0, 10);
 
   const actuals = await fetchActuals(tableName, cols, keys, minDate);
-  console.log(`  ${actuals.length} actual game rows fetched for ${keys.length} unique players.`);
 
-  // Group actuals by name_key for fast lookup
   const byKey = new Map();
   for (const r of actuals) {
     if (!byKey.has(r.name_key)) byKey.set(r.name_key, []);
     byKey.get(r.name_key).push(r);
   }
 
-  // Resolve each prediction against the player's first game on/after the
-  // prediction date. Same logic as api/calibration.js so the two stay aligned.
   const samples = [];
   for (const p of preds) {
     const col = metricColumn(sport, p.metric);
@@ -175,15 +164,17 @@ async function fitCurveForSport(sport, allPreds, minSamples = 30) {
     const g = games.find((x) => x.game_date >= predDate && x[col] != null);
     if (!g) continue;
     const hit = Number(g[col]) >= Number(p.line) ? 1 : 0;
-    samples.push({ x: Number(p.predicted_prob), y: hit });
+    // Carry the metric through so we can group per-market later
+    samples.push({ x: Number(p.predicted_prob), y: hit, metric: p.metric });
   }
+  return samples;
+}
 
-  if (samples.length < minSamples) {
-    console.log(`  Only ${samples.length} resolved samples — need at least ${minSamples}. Skipping fit.`);
-    return null;
-  }
-
-  // Bin into 5pp bands
+// Pure curve-fitting from a sample array. Returns { curve, rmse, samples }
+// or null when there's not enough data. Used both for global per-sport fit
+// and per-market refinement.
+function fitCurve(samples, minSamples = 30) {
+  if (samples.length < minSamples) return null;
   const BIN_SIZE = 0.05;
   const bins = new Map();
   for (const s of samples) {
@@ -200,21 +191,62 @@ async function fitCurveForSport(sport, allPreds, minSamples = 30) {
       w: b.total,
     }))
     .sort((a, b) => a.x - b.x);
-
-  // Apply isotonic
   const curve = isotonicFit(binPoints);
-
-  // Compute calibration RMSE on the raw samples vs the calibrated prediction
   let sumSq = 0;
   for (const s of samples) {
     const cal = applyCurve(curve, s.x);
     sumSq += (s.y - cal) ** 2;
   }
-  const rmse = Math.sqrt(sumSq / samples.length);
+  return { curve, rmse: Math.sqrt(sumSq / samples.length), samples: samples.length, bins: binPoints.length };
+}
 
-  console.log(`  ${samples.length} resolved · ${binPoints.length} bins · curve has ${curve.length} points · RMSE ${(rmse * 100).toFixed(2)}%`);
+async function fitCurveForSport(sport, allPreds, minSamples = 30) {
+  console.log(`\n— Fitting ${sport} —`);
 
-  return { sport, samples: samples.length, curve, rmse };
+  // Filter predictions to this sport
+  const preds = allPreds.filter((p) => metricSport(p.metric) === sport);
+  if (!preds.length) {
+    console.log(`  No ${sport} predictions logged yet.`);
+    return null;
+  }
+  console.log(`  ${preds.length} ${sport} predictions on record.`);
+
+  // Build all resolved samples (used by both global and per-market fits)
+  const samples = await buildSamples(sport, preds);
+  console.log(`  ${samples.length} resolved predictions (out of ${preds.length} logged).`);
+
+  // Global per-sport fit
+  const global = fitCurve(samples, minSamples);
+  if (!global) {
+    console.log(`  Only ${samples.length} resolved — need ${minSamples} to fit global ${sport} curve. Skipping.`);
+    return null;
+  }
+  console.log(`  GLOBAL ${sport}: ${global.samples} samples · ${global.bins} bins · curve has ${global.curve.length} points · RMSE ${(global.rmse * 100).toFixed(2)}%`);
+
+  // Per-market fits — each gets its own curve when it has enough resolved
+  // samples on its own (≥50 — slightly higher than the global threshold
+  // because per-market data is noisier).
+  const byMarket = new Map();
+  for (const s of samples) {
+    if (!byMarket.has(s.metric)) byMarket.set(s.metric, []);
+    byMarket.get(s.metric).push(s);
+  }
+  const marketFits = [];
+  for (const [market, marketSamples] of byMarket) {
+    const fit = fitCurve(marketSamples, 50);
+    if (fit) {
+      console.log(`    · ${market}: ${fit.samples} samples · ${fit.curve.length} points · RMSE ${(fit.rmse * 100).toFixed(2)}%`);
+      marketFits.push({ market, ...fit });
+    } else {
+      console.log(`    · ${market}: only ${marketSamples.length} samples (need ≥50). Falling back to global curve.`);
+    }
+  }
+
+  return {
+    sport,
+    global: { samples: global.samples, curve: global.curve, rmse: global.rmse },
+    markets: marketFits,
+  };
 }
 
 async function main() {
@@ -243,21 +275,19 @@ async function main() {
     return;
   }
 
-  // Persist fitted curves
+  // Persist fitted curves — one global per sport + one per market that had
+  // enough resolved samples. api/edge.js prefers the per-market curve when
+  // available, falls back to global, falls back to raw (no curve loaded yet).
   for (const r of results) {
-    const { error } = await supabase
-      .from("model_calibration")
-      .insert({
-        sport: r.sport,
-        market: null,
-        n_samples: r.samples,
-        curve_points: r.curve,
-        rmse: r.rmse,
-      });
+    const rows = [
+      { sport: r.sport, market: null, n_samples: r.global.samples, curve_points: r.global.curve, rmse: r.global.rmse },
+      ...r.markets.map((m) => ({ sport: r.sport, market: m.market, n_samples: m.samples, curve_points: m.curve, rmse: m.rmse })),
+    ];
+    const { error } = await supabase.from("model_calibration").insert(rows);
     if (error) {
-      console.error(`Failed to store ${r.sport} curve:`, error.message);
+      console.error(`Failed to store ${r.sport} curves:`, error.message);
     } else {
-      console.log(`\nStored ${r.sport} curve: ${r.curve.length} points, ${r.samples} samples, RMSE ${(r.rmse * 100).toFixed(2)}%`);
+      console.log(`\nStored ${rows.length} ${r.sport} curve(s): 1 global + ${r.markets.length} per-market.`);
     }
   }
 
