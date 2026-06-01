@@ -67,10 +67,19 @@ function pickCurveForMetric(bundle, metric) {
 // Linear interpolation between adjacent isotonic curve points. Returns the
 // raw value when no curve is loaded (model_calibration empty until the first
 // recalibrate run lands).
+//
+// Critically: returns x unchanged for inputs OUTSIDE the fitted range. The
+// recalibrate script only sees predictions that the selection layer logged
+// (empirical ≥ minHit ≈ 0.58), so the curve's x domain is narrow — typically
+// [~0.6, ~0.97]. Clamping out-of-range inputs to the boundary y (the old
+// behavior) was the actual Task #106 bug: any low-confidence leg (raw
+// empirical 0.02–0.6) got clamped to curve[0].y ≈ 0.67–0.80, which is how a
+// 0/10-hit $31 long-shot wound up displayed at 67%. Out-of-range = no data
+// to calibrate with → trust the raw value.
 function applyCalibrationCurve(curve, x) {
   if (!curve || !curve.length || x == null) return x;
-  if (x <= curve[0].x) return curve[0].y;
-  if (x >= curve[curve.length - 1].x) return curve[curve.length - 1].y;
+  if (x < curve[0].x) return x;
+  if (x > curve[curve.length - 1].x) return x;
   for (let i = 0; i < curve.length - 1; i += 1) {
     if (x >= curve[i].x && x <= curve[i + 1].x) {
       const span = curve[i + 1].x - curve[i].x;
@@ -972,7 +981,21 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
         const price = Number(outcome.price);
         if (!price || price <= 1) continue;
 
-        const isOver = outcome.name === "Over" || market.key.includes("_over");
+        // An outcome is an Over if either (a) its name explicitly says "Over",
+        // or (b) the market key has "_over" AND the outcome wasn't explicitly
+        // marked "Under". The explicit-Under check is what stops AFL `_over`
+        // markets from accidentally absorbing the Under price as an Over: a
+        // bookmaker that posts `{name:"Under", description:"Joel Amartey",
+        // price:1.03, point:5.5}` in `player_goals_scored_over` used to slip
+        // through here (player===description→not skipped, isOver→true via the
+        // `_over` shortcut), and the $1.03 under price would replace the real
+        // $31 over on first-write or fight it on update. Downstream that
+        // poisoned the EB prior (priorProb ≈ 0.97), pushing 0/10-hit legs to
+        // ~67% confidence — the Task #106 pathology.
+        const isUnder = outcome.name === "Under";
+        const isOver =
+          outcome.name === "Over" ||
+          (!isUnder && market.key.includes("_over"));
         const bookKey = `${player}-${market.key}-${outcome.point}-${bookmaker.key}`;
 
         if (!isOver) {
@@ -1148,7 +1171,13 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
     // strong-vs-book signal still moves the estimate meaningfully (16-game
     // weighted blend); a 3-game streak barely shifts it.
     const PRIOR_WEIGHT = 6;
-    const priorProb = implied != null ? implied : 0.5;
+    // Prior fallback order: de-vigged implied (best), raw 1/odds (still
+    // directional), then 0.5 (truly no information). The old fallback to 0.5
+    // for ANY null implied was unsafe for long-shot markets — e.g. a $31 leg
+    // where the de-vigging path returns null would borrow a 50% prior instead
+    // of the obvious 3.2% from impliedRaw, inflating empirical for 0-hit legs.
+    const priorProb =
+      implied != null ? implied : impliedRaw != null ? impliedRaw : 0.5;
     const smoothed = (hr) =>
       hr ? (hr.hits + priorProb * PRIOR_WEIGHT) / (hr.total + PRIOR_WEIGHT) : null;
     const blend = (a, b) => (a != null && b != null ? a * 0.4 + b * 0.6 : b != null ? b : a);
@@ -1206,6 +1235,26 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
     }
     if (restFactor !== 1 && empirical != null) {
       empirical = Math.max(0.02, Math.min(0.98, empirical * restFactor));
+    }
+
+    // Evidence ceiling: when the player has cleared the line in zero of the
+    // last N games (N ≥ 5), the EB shrinkage shouldn't be allowed to keep
+    // confidence high just because the prior says so. Hard-cap empirical at
+    // 15% regardless of the book's headline price — if the book says 95%
+    // but the player hasn't hit it in 10 games, *something* is off
+    // (mispriced market, role change, wrong-metric match, prop.odds got the
+    // under-side price) and we shouldn't pretend to be confident.
+    //
+    // Defense-in-depth alongside selectOptimalLegs' 0/10 reject and the
+    // prior-fallback fix above. Bounded by hr10.hits — legitimate hot
+    // streaks (any hit ≥ 1) keep their EB-shrunk confidence untouched.
+    if (
+      empirical != null &&
+      hr10 != null &&
+      hr10.hits === 0 &&
+      hr10.total >= 5
+    ) {
+      empirical = Math.min(empirical, 0.15);
     }
 
     // Apply the fitted isotonic calibration curve if one's loaded. Prefers
