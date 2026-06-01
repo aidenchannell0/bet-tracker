@@ -1253,9 +1253,21 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
 
 // Deterministically pick the strongest legs for the target and risk profile
 function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
-  const candidates = enriched.filter(
-    (p) => p.statsAvailable && p.empirical != null && Number(p.odds) > 1 && p.sampleSize >= 3
-  );
+  // Sanity gate: reject any leg the player has never cleared in their last 10
+  // games. Catches the "Joel Amartey 6+ goals at $31, 0/10 hit, 67% confidence"
+  // class of bug where the model rates an impossible line confidently due to
+  // a broken implied-prior fallback. If a player has literally never hit the
+  // line recently, we don't trust the model to suddenly bless it — period.
+  // (Tracked as Task #106 — the underlying confidence bug still needs fixing.)
+  const candidates = enriched.filter((p) => {
+    if (!p.statsAvailable || p.empirical == null) return false;
+    if (!(Number(p.odds) > 1)) return false;
+    if (p.sampleSize < 3) return false;
+    // Drop legs with 0 hits across the last 10 games — the model is lying
+    // about its confidence on these. Pre-existing bug, hard floor for now.
+    if (p.hr10 && p.hr10.total >= 5 && p.hr10.hits === 0) return false;
+    return true;
+  });
 
   const minHit = riskProfile === "Safer" ? 0.7 : riskProfile === "Aggressive" ? 0.45 : 0.58;
   const scoreOf = (p) => (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5;
