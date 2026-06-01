@@ -1302,6 +1302,17 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
 
 // Deterministically pick the strongest legs for the target and risk profile
 function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
+  // Raw hit-rate floor by risk profile. Distinct from `minHit` below: minHit
+  // gates on *model confidence* (empirical, post-EB-shrinkage), while
+  // minHitRate gates on *raw evidence* — the player's actual recent clears.
+  // A leg can rate 88% confidence on 7/10 clears and pass the old confidence
+  // gate; users picking "Safer" reasonably expect the data to back the leg,
+  // not just the model. Aggressive stays floor-free; Balanced requires 7/10+;
+  // Safer requires 9/10+. Both Safer and Balanced require ≥5 games of sample
+  // so small-sample noise (e.g. 3/3 perfect) can't sneak through.
+  const minHitRate =
+    riskProfile === "Safer" ? 0.9 : riskProfile === "Aggressive" ? 0 : 0.7;
+
   // Sanity gate: reject any leg the player has never cleared in their last 10
   // games. Catches the "Joel Amartey 6+ goals at $31, 0/10 hit, 67% confidence"
   // class of bug where the model rates an impossible line confidently due to
@@ -1315,6 +1326,11 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
     // Drop legs with 0 hits across the last 10 games — the model is lying
     // about its confidence on these. Pre-existing bug, hard floor for now.
     if (p.hr10 && p.hr10.total >= 5 && p.hr10.hits === 0) return false;
+    // Per-tier raw hit-rate floor (see minHitRate comment above)
+    if (minHitRate > 0) {
+      if (!p.hr10 || p.hr10.total < 5) return false;
+      if (p.hr10.hits / p.hr10.total < minHitRate) return false;
+    }
     return true;
   });
 
