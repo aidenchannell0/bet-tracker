@@ -480,17 +480,51 @@ function teamKey(team) {
 function TeamCrest({ team, className = "" }) {
   const clipId = React.useId();
   const key = teamKey(team);
-  if (!key) return null;
+  // First-choice render: the team has a custom guernsey-pattern SVG.
+  if (key) {
+    return (
+      <svg viewBox="0 0 32 32" className={className} role="img" aria-label={team}>
+        <title>{team}</title>
+        <defs>
+          <clipPath id={clipId}>
+            <circle cx="16" cy="16" r="16" />
+          </clipPath>
+        </defs>
+        <g clipPath={`url(#${clipId})`}>{TEAM_CRESTS[key]}</g>
+        <circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2" />
+      </svg>
+    );
+  }
+  // Fallback A: team has a TEAM_TILES entry (NBA teams, alt aliases). Render
+  // the primary/accent palette + 3-letter monogram inside a circle so it
+  // matches the AFL crests visually instead of being a hard-edged square.
+  const tile = tileFor(team);
+  if (tile) {
+    const labelColor = tile.primary.toUpperCase() === "#FFFFFF" ? tile.accent : "#ffffff";
+    return (
+      <svg viewBox="0 0 32 32" className={className} role="img" aria-label={team}>
+        <title>{team}</title>
+        <defs>
+          <clipPath id={clipId}>
+            <circle cx="16" cy="16" r="16" />
+          </clipPath>
+        </defs>
+        <g clipPath={`url(#${clipId})`}>
+          <rect width="32" height="32" fill={tile.primary} />
+          <path d="M0,20 L32,9 L32,32 L0,32 Z" fill={tile.accent} />
+          <text x="16" y="21.5" textAnchor="middle" fill={labelColor} fontSize="8.5" fontWeight="700" fontFamily="Inter, sans-serif" letterSpacing="0.5">{tile.abbr}</text>
+        </g>
+        <circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2" />
+      </svg>
+    );
+  }
+  // Fallback B: completely unknown team. Muted circle with the first 3
+  // letters of whatever was passed in so the layout never has a hole.
+  const fallback = String(team || "?").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase() || "?";
   return (
     <svg viewBox="0 0 32 32" className={className} role="img" aria-label={team}>
-      <title>{team}</title>
-      <defs>
-        <clipPath id={clipId}>
-          <circle cx="16" cy="16" r="16" />
-        </clipPath>
-      </defs>
-      <g clipPath={`url(#${clipId})`}>{TEAM_CRESTS[key]}</g>
-      <circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2" />
+      <circle cx="16" cy="16" r="16" fill="#1f1f24" />
+      <text x="16" y="22" textAnchor="middle" fill="#f5f5f7" fontSize="8.5" fontWeight="700" fontFamily="Inter, sans-serif" letterSpacing="0.5">{fallback}</text>
     </svg>
   );
 }
@@ -1936,7 +1970,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                           return (
                         <div key={`${leg.name}-${index}`} className="hover:bg-[var(--surface-new)]/40 transition-colors py-6 md:px-0 grid grid-cols-[28px_44px_1fr] md:grid-cols-[28px_44px_1fr_120px_140px] gap-x-5 gap-y-3 items-center">
                           <div className="mono-nums text-[12px] text-[var(--text-3-new)] tracking-[0.05em]">{String(index + 1).padStart(2, "0")}</div>
-                          <TeamTile team={leg.team} className="h-10 w-10 shrink-0" />
+                          <TeamCrest team={leg.team} className="h-10 w-10 shrink-0" />
                           <div className="min-w-0">
                             <div className="text-[15px] md:text-[17px] font-medium tracking-[-0.01em] text-[var(--text-new)]">
                               {playerName}{lineText ? <span className="font-normal text-[var(--text-3-new)]"> — <span className="mono-nums">{lineText}</span></span> : null}
