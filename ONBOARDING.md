@@ -242,3 +242,97 @@ Edits don't consume a build credit (refining an existing build is free even for 
 - AI narration must never invent: no injuries, no scores, no head-to-head history, no venue/weather.
   The "What I would check" section is where un-modellable stuff (team news, late mail, line moves)
   gets flagged honestly.
+
+---
+
+## 2026-06-01 session (huge — read this first)
+
+Big chunky session. ~30 commits. Three sweeping themes:
+
+### 1. Brand + payments locked in
+- **Pickd. wordmark** is the canonical brand (`brand-wordmark` CSS class, Inter Tight,
+  lime accent dot). Live everywhere — TopNav, AuthScreen, favicon, landing hero.
+  Reference designs in `logo-concepts.html`.
+- **Stripe live** — Pickd Pro product live, end-to-end test purchase succeeded, webhook
+  verified. Env vars in Vercel + Supabase tables (`profiles`, `grid_build_usage`) ready.
+  `api/create-checkout-session.js`, `api/stripe-webhook.js`, `api/create-portal-session.js`,
+  `api/entitlement.js` all wired.
+- **Promo codes**: `allow_promotion_codes: true` is already on Checkout. Create codes in
+  Stripe dashboard → automatically work.
+
+### 2. UI overhaul (desktop AND mobile)
+- **Landing page** fully rebuilt in editorial dark style (`LandingPage` in App.jsx).
+  Hero / dashboard mock / MultiPick showcase / "What's inside" / pricing / FAQ /
+  final CTA. References in `mobile-concepts.html`, `calibration-simple.html`.
+- **Mobile Dashboard**: hero stat + horizontal carousel + quick add + recent feed
+  (`md:hidden` block at the top of the dashboard, hides desktop stat strip on small).
+- **Mobile Tracker**: tappable cards expanding to full leg detail (achievement pills,
+  WON/LOST placeholders, real game stats fetched from `*_player_games`). Shared
+  `renderBetExpansion(bet, isOpen)` helper inside the tracker IIFE — both mobile
+  cards and desktop table use the same render path.
+- **Mobile Settings**: editorial divided sections with 44px tap targets, danger zone
+  uses brand tokens.
+- **Stat detail modal**: clicking P/L / Win rate / ROI / In flight opens a portal-rendered
+  full-screen modal with the relevant chart. Hover sparklines on each cell.
+- **Leg achievement pills**: lime bars ending in a rounded pill showing actual game
+  stat from `*_player_games`. Falls back to "Won/Lost" placeholder when actuals
+  haven't been scraped yet. Per-game chronological dots with glow on most-recent.
+- **AFL team crests**: refreshed all 18 guernsey patterns. MultiPick now uses
+  `TeamCrest` (circular) not `TeamTile` (square). NBA teams fall through to a
+  tile-palette rendered in a circle.
+- **Form freshness badge**: AFL legs show "Form this round / last round / N rounds
+  ago" instead of days. NBA stays in days.
+
+### 3. Model improvements
+- **Calibration block** simplified to a 3-cell strip (Actual / Predicted / Gap) + lime
+  Well-calibrated pill + "View calibration detail →" link → portal modal with full
+  bucket-by-bucket table. Plain-English explainer for casual users.
+- **Recalibration loop** (#99 ✅): `scripts/recalibrate.mjs` fits per-sport AND
+  per-market isotonic curves (PAV) from `grid_build_predictions` joined with
+  `*_player_games`. Stored in new `model_calibration` table (run
+  `db/model_calibration.sql` in Supabase). `.github/workflows/recalibrate.yml`
+  runs Sundays 18:00 UTC. `api/edge.js` `loadCalibrationCurve(sport)` → bundle of
+  global + markets → `pickCurveForMetric` per leg → applied in `enrichProps`.
+  Falls through to raw empirical when no curve loaded yet (cold start safety).
+- **Per-market calibration** (#100 ✅): each market (disposals, goals, points, etc.)
+  gets its own curve when it has ≥50 resolved samples. Falls back to global per-sport.
+- **Rest-days feature** (#103 ✅): `restDays` computed from `matched.lastGameDate`,
+  multiplier ±4% on empirical (≤4d short rest 0.96, 7-9d fresh 1.02, ≥14d stale 0.96).
+  Exposed on leg payload as `restDays` + `restFactor`.
+
+### 🚨 URGENT BUG (Task #106) — investigate first
+**MultiPick was selecting absurd legs and rating them at 67% confidence with 0/10
+hit rate.** Example: Joel Amartey 6+ goals at $31 with 0/10 hits → 67% confidence.
+Combined odds rendered at $27,869 for a $2.00 target. Value % showed +598,222%.
+
+**Shipped interim safeguard** (commit `1b01204`): `selectOptimalLegs` now filters
+out any leg where `hr10.hits === 0 && hr10.total >= 5`. Hard floor, NOT a real fix.
+
+**Real bug is somewhere in `enrichProps`'s empirical math** — most likely
+`fairProbFromOverUnder` returning weird values when `underOdds` is missing for
+high-odds niche markets, or the EB prior collapsing. To debug:
+1. Pick a specific broken leg (Joel Amartey 6+ goals, $31 PointsBet)
+2. Log `hr5`, `hr10`, `impliedRaw`, `implied`, `empBase`, `empScaled`, `matchupFactor`,
+   final `empirical` for that leg
+3. Trace which step blows it up
+4. The bug is pre-existing — NOT caused by today's recalibration work (those changes
+   are no-ops when no curve is loaded, which is currently the case)
+
+### Setup steps user still needs to do
+- **`db/model_calibration.sql`** — run the SQL in Supabase to create the
+  `model_calibration` table
+- **Manually trigger first recalibrate** at
+  `https://github.com/aidenchannell0/bet-tracker/actions/workflows/recalibrate.yml`
+- **Verify AFL cron caught the every-6h schedule** (was once-daily before
+  the recent web-UI edit; check Actions runs page in 24h)
+
+### Pinned for next sessions
+- **#106** URGENT — broken confidence on 0/10 legs (real fix, not just the safeguard)
+- **#76-#81** Marketing prep — UTM, promo codes, launch posts, public calibration page,
+  shareable multi cards, referral codes, weekly newsletter
+- **#63-#68** Betslip OCR upgrades — gpt-4o, bonus bet detection, review step,
+  mobile camera, settled-slip detection, leg-to-player matching
+- **#102** Drop poorly-calibrated markets (data-dependent — wait until recalibrate
+  has run a few times to see which markets have high error)
+- **#104** Home/away splits (needs venue scraping)
+- **#105** Real ML model (only after ~500 resolved predictions)
