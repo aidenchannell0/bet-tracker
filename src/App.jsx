@@ -4865,6 +4865,25 @@ export default function BettingTrackerWebsite() {
                                                     {Number.isInteger(actualNum) ? actualNum : actualNum.toFixed(1)}
                                                   </div>
                                                 </div>
+                                              ) : (hit === "won" || hit === "lost") ? (
+                                                /* WON / LOST placeholder — we know the leg outcome but the
+                                                   actual game stat isn't scraped yet. Lime full bar + WON
+                                                   pill for hits; muted-red shorter bar + LOST pill for
+                                                   misses. Upgrades automatically to the achievement pill
+                                                   above once the player_games row lands. */
+                                                <div className="relative mt-4 h-[26px]">
+                                                  <div className="absolute inset-x-0 top-[10px] h-[6px] rounded-full bg-[var(--surface-2-new)]" />
+                                                  <div
+                                                    className={"absolute top-[10px] left-0 h-[6px] rounded-full " + (hit === "won" ? "bg-[var(--accent-new)]" : "bg-[var(--danger-new)]")}
+                                                    style={{ width: hit === "won" ? "95%" : "40%", boxShadow: hit === "won" ? "0 0 10px rgba(212,242,58,0.45)" : "0 0 8px rgba(248,113,113,0.30)" }}
+                                                  />
+                                                  <div
+                                                    className={"mono-nums absolute top-0 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase leading-none tracking-[0.06em] " + (hit === "won" ? "bg-[var(--accent-new)] text-[var(--bg-new)]" : "bg-[var(--danger-new)] text-[var(--bg-new)]")}
+                                                    style={{ left: hit === "won" ? "95%" : "40%", boxShadow: hit === "won" ? "0 2px 10px rgba(212,242,58,0.35)" : "0 2px 8px rgba(248,113,113,0.30)" }}
+                                                  >
+                                                    {hit === "won" ? "Won" : "Lost"}
+                                                  </div>
+                                                </div>
                                               ) : actualsLoading ? (
                                                 /* Skeleton loader — actuals still fetching from player_games */
                                                 <div className="relative mt-4 h-[26px]">
@@ -4873,11 +4892,11 @@ export default function BettingTrackerWebsite() {
                                                   </div>
                                                 </div>
                                               ) : !isNaN(lineNum) && lineNum > 0 ? (
-                                                /* No game stat found — show line value only, no pill (honest fallback) */
+                                                /* Pending bet — game hasn't happened yet. Empty track + tiny label. */
                                                 <div className="relative mt-4 h-[26px]">
                                                   <div className="absolute inset-x-0 top-[10px] h-[6px] rounded-full bg-[var(--surface-2-new)]" />
                                                   <div className="absolute top-[3px] left-1/2 -translate-x-1/2 text-[10px] text-[var(--text-3-new)]">
-                                                    Line <span className="mono-nums text-[var(--text-2-new)]">{lineNum}</span>{bet.status === "pending" ? " · awaiting game" : " · stat unavailable"}
+                                                    Line <span className="mono-nums text-[var(--text-2-new)]">{lineNum}</span> · awaiting game
                                                   </div>
                                                 </div>
                                               ) : null}
