@@ -1952,6 +1952,14 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                     {(multiOutput?.legs || exampleLegs).map((leg, index) => {
                       const matchupPct = leg.matchupFactor && leg.matchupFactor !== 1 ? Math.round((leg.matchupFactor - 1) * 100) : null;
                       const ageDays = leg.formAsOf ? Math.floor((Date.now() - new Date(leg.formAsOf + "T00:00:00").getTime()) / 86400000) : null;
+                      // Graduated freshness — green ≤ 3d, amber 4-9d, red ≥ 10d.
+                      // Surfaces honestly when MultiPick's prediction is based on
+                      // stale data (e.g. footywire hasn't published this week's
+                      // games yet so the model is reading last week's form).
+                      const freshness = ageDays == null ? null
+                        : ageDays <= 3 ? { label: `Form ${ageDays}d fresh`, tone: "fresh" }
+                        : ageDays <= 9 ? { label: `Form ${ageDays}d old`, tone: "ageing" }
+                        : { label: `Form ${ageDays}d old`, tone: "stale" };
                       const stale = ageDays !== null && ageDays >= 10;
                       return (
                         (() => {
@@ -2042,8 +2050,19 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                                 <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)] font-medium"><span className="mono-nums">{hitN} / {totalN}</span> cleared</div>
                               </div>
                             ) : null}
-                            {stale ? (
-                              <div className="mt-1.5 text-[10px] uppercase tracking-[0.08em] font-medium text-[var(--warning-new)]">Form {ageDays}d old</div>
+                            {freshness ? (
+                              <div className={"mt-1.5 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] font-medium " + (
+                                freshness.tone === "fresh" ? "text-[var(--positive-new)]"
+                                : freshness.tone === "ageing" ? "text-[var(--warning-new)]"
+                                : "text-[var(--danger-new)]"
+                              )}>
+                                <span className={"h-1.5 w-1.5 rounded-full " + (
+                                  freshness.tone === "fresh" ? "bg-[var(--positive-new)]"
+                                  : freshness.tone === "ageing" ? "bg-[var(--warning-new)]"
+                                  : "bg-[var(--danger-new)]"
+                                )} />
+                                {freshness.label}
+                              </div>
                             ) : null}
                           </div>
                           {/* Confidence column (desktop only) */}
