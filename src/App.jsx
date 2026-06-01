@@ -2048,135 +2048,476 @@ function LandingPage({ setActivePage, setAuthMode }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#E8E2D4] text-[#11203B]">
-      <main className="bg-[#E8E2D4] p-4 md:p-8">
-        <div className="mx-auto max-w-7xl space-y-10">
-          <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 md:grid-cols-[1.4fr_1fr] md:items-end">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">PICKD · AFL + NBA tracker</p>
-              <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[60px]">
-                Track every bet.<br />Read every result.
-              </h1>
-              <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">
-                A bet tracker with serious math under the hood. Form-backed AI multi builder, calibration scoreboard, honest +EV signals.
-              </p>
+    <div className="page-fade-in min-h-screen bg-[var(--bg-new)] text-[var(--text-new)]">
+      <main className="px-5 pb-24 pt-6 sm:px-8 md:px-10 md:pt-8">
+        <div className="mx-auto max-w-[1240px]">
+
+          {/* ───────────────────── TOP NAV ─────────────────────
+              Minimal — Pickd. wordmark left, Log in / Sign up right.
+              No tabs since this is the logged-out marketing surface. */}
+          <nav className="flex items-center justify-between border-b border-[var(--border-new)] pb-5">
+            <button
+              type="button"
+              onClick={() => openAuth("signup")}
+              className="brand-wordmark flex items-baseline leading-none"
+              aria-label="Pickd home"
+            >
+              <span className="text-[22px] font-bold tracking-[-0.045em] text-[var(--text-new)]">Pickd</span>
+              <span className="text-[22px] font-bold tracking-[-0.045em] text-[var(--accent-new)]">.</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={() => openAuth("login")} className="text-[12px] uppercase tracking-[0.08em]">Log in</Button>
+              <Button onClick={() => openAuth("signup")} className="text-[12px] uppercase tracking-[0.08em]">Start free</Button>
             </div>
-            <div className="flex gap-2 md:justify-end md:items-end">
-              <Button variant="outline" onClick={() => openAuth("login")}>Log in</Button>
-              <Button onClick={() => openAuth("signup")}>Sign up</Button>
+          </nav>
+
+          {/* ───────────────────── HERO ─────────────────────
+              Massive editorial wordmark. Mobile drops to 56px,
+              desktop blows up to 128px. Sub-headline + dual CTA. */}
+          <header className="relative border-b border-[var(--border-new)] pb-20 pt-16 sm:pt-20 md:pb-28 md:pt-28">
+            {/* Subtle accent dot bg ornament */}
+            <div className="pointer-events-none absolute right-0 top-12 hidden h-[400px] w-[400px] rounded-full bg-[var(--accent-new)] opacity-[0.04] blur-3xl md:block" />
+
+            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--text-3-new)]">
+              <span className="text-[var(--accent-new)]">●</span> AI multi builder · bet tracker · 2026
+            </p>
+            <h1 className="brand-wordmark mt-5 text-[56px] font-bold leading-[0.92] tracking-[-0.055em] sm:text-[80px] md:text-[112px]">
+              <span className="block">Track every bet.</span>
+              <span className="block">Read every result<span className="text-[var(--accent-new)]">.</span></span>
+            </h1>
+            <p className="mt-7 max-w-[540px] text-[15px] leading-[1.6] text-[var(--text-2-new)] md:text-[17px] md:leading-[1.55]">
+              Form-backed multis from <span className="text-[var(--text-new)] font-medium">MultiPick</span> · Calibrated math, not vibes · A tracker that actually surfaces what's working. Built for people who'd rather understand their bets than chase tips.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Button onClick={() => openAuth("signup")} className="w-full px-5 py-3 text-[14px] sm:w-auto">Start free →</Button>
+              <Button variant="ghost" onClick={() => openAuth("login")} className="w-full px-5 py-3 text-[14px] sm:w-auto">I have an account</Button>
+              <p className="ml-0 mt-1 text-[12px] text-[var(--text-3-new)] sm:ml-3 sm:mt-0">No card required · 18+ · Gamble responsibly</p>
+            </div>
+
+            {/* Quick trust badges */}
+            <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-[var(--border-new)] pt-7 sm:grid-cols-4 md:gap-x-10">
+              {[
+                { eyebrow: "Backed by", value: "Real form data" },
+                { eyebrow: "Sports", value: "AFL · NBA" },
+                { eyebrow: "Not a", value: "Tipping service" },
+                { eyebrow: "Built in", value: "Australia" },
+              ].map((t) => (
+                <div key={t.value}>
+                  <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{t.eyebrow}</div>
+                  <div className="mt-1.5 text-[14px] font-medium text-[var(--text-new)] md:text-[15px]">{t.value}</div>
+                </div>
+              ))}
             </div>
           </header>
 
-          <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-            <div className="space-y-6">
+          {/* ─────────────── DASHBOARD MOCK ───────────────
+              Mirrors the actual app — stat strip + chart + recent form.
+              Shows people exactly what they'll get. */}
+          <section className="border-b border-[var(--border-new)] py-20 md:py-28">
+            <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:gap-16">
               <div>
-                <span className="inline-flex rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">AI multi builder + bet tracker</span>
-                <h2 className="mt-3 text-4xl font-bold tracking-tight md:text-6xl">Build smarter AFL multis, backed by real data.</h2>
-                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">MultiPick (Pickd's AI) turns real AFL form, live market lines and a transparent edge model into structured example multis — then Pickd tracks how every bet actually performs. Data-driven analysis, not a tips service.</p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try MultiPick free</Button>
-                <Button variant="outline" onClick={() => openAuth("login")} className="w-full sm:w-auto">I already have an account</Button>
-              </div>
-              <p className="text-sm text-slate-500">Built for tracking and informational use. Pickd does not accept bets or guarantee outcomes.</p>
-            </div>
-
-            <Card>
-              <div className="p-5 md:p-6">
-                <p className="text-sm font-medium text-slate-500">Dashboard preview</p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-[#E8E2D4] p-4"><p className="text-sm text-slate-500">Total Profit/Loss</p><p className="mt-1 text-2xl font-semibold text-[#2E7D5B]">+$246.50</p></div>
-                  <div className="rounded-2xl bg-[#E8E2D4] p-4"><p className="text-sm text-slate-500">Win Rate</p><p className="mt-1 text-2xl font-semibold">58.3%</p></div>
-                  <div className="rounded-2xl bg-[#E8E2D4] p-4"><p className="text-sm text-slate-500">ROI</p><p className="mt-1 text-2xl font-semibold">12.8%</p></div>
-                  <div className="rounded-2xl bg-[#E8E2D4] p-4"><p className="text-sm text-slate-500">Longest Win Streak</p><p className="mt-1 text-2xl font-semibold">5 bets</p></div>
-                </div>
-                <div className="mt-5 rounded-2xl border border-slate-200 p-4">
-                  <div className="mb-3 flex items-center justify-between text-sm"><span className="font-medium">Weekly profit/loss</span><span className="text-slate-500">Example</span></div>
-                  <div className="flex h-32 items-end gap-3"><div className="h-16 flex-1 rounded-t-xl bg-[#2E7D5B]" /><div className="h-24 flex-1 rounded-t-xl bg-[#2E7D5B]" /><div className="h-10 flex-1 rounded-t-xl bg-[#A94442]" /><div className="h-28 flex-1 rounded-t-xl bg-[#2E7D5B]" /><div className="h-20 flex-1 rounded-t-xl bg-[#A94442]" /></div>
-                </div>
-              </div>
-            </Card>
-          </section>
-
-          <section className="rounded-3xl border border-[#C49A4A]/30 bg-[#FAF7EF] p-6 md:p-10">
-            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-              <div className="space-y-6">
-                <div>
-                  <span className="inline-flex rounded-full bg-[#11203B] px-3 py-1 text-xs font-semibold text-white">AI multi builder</span>
-                  <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Meet MultiPick</h2>
-                  <p className="mt-3 text-base leading-7 text-slate-600">Build structured example multis from real AFL form, live market lines and a transparent edge model — then track how they perform. It’s a data-driven analysis tool, not a betting tips service.</p>
-                </div>
-                <ul className="space-y-3 text-sm leading-6 text-slate-700">
-                <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Real recent form</span> — last-5 / last-10 hit rates from AFL game logs.</span></li>
-                <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Value vs the market</span> — each leg’s form chance compared to the bookmaker’s implied price.</span></li>
-                <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Correlation-aware odds</span> — same-game legs priced honestly, not just multiplied.</span></li>
-                <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Matchup-adjusted</span> — factors in how the opponent concedes on each stat.</span></li>
-                <li className="flex gap-3"><span className="font-bold text-[#2E7D5B]">✓</span><span><span className="font-semibold text-[#11203B]">Refine by chat</span> — “swap leg 2”, “make it safer”, “around $3”.</span></li>
+                <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">01 — Tracker</p>
+                <h2 className="brand-wordmark mt-3 text-[36px] font-bold leading-[0.95] tracking-[-0.045em] md:text-[52px]">
+                  Your bets,<br />by the numbers.
+                </h2>
+                <p className="mt-5 max-w-[440px] text-[15px] leading-[1.6] text-[var(--text-2-new)]">
+                  Profit/loss · win rate · ROI · in-flight exposure — at every cadence (week, month, year). Click any number to expand a full chart and summary. No spreadsheet manipulation, no Excel formulas.
+                </p>
+                <ul className="mt-7 space-y-3.5 text-[14px] leading-[1.55] text-[var(--text-2-new)]">
+                  {[
+                    "Cumulative P/L trajectory with running peak",
+                    "Sport-by-sport breakdown — find your edge",
+                    "Recent form streaks · win/loss heatmap",
+                    "Calibration scoreboard — was your read correct?",
+                  ].map((line) => (
+                    <li key={line} className="flex gap-3">
+                      <span className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--accent-new)]" />
+                      <span>{line}</span>
+                    </li>
+                  ))}
                 </ul>
-                <div className="flex flex-col items-start gap-3 pt-1 sm:flex-row sm:items-center">
-                  <Button onClick={() => openAuth("signup")} className="w-full sm:w-auto">Try MultiPick — 3 free builds a week</Button>
-                  <p className="text-sm text-slate-500">Free to start. 18+ · Gamble responsibly.</p>
-                </div>
               </div>
 
-              <Card>
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">MultiPick output · Example</p>
-                      <h3 className="mt-1 text-xl font-semibold">3-leg AFL multi</h3>
-                      <p className="text-xs text-slate-500">Geelong Cats vs Carlton Blues</p>
+              {/* Live-ish stat strip mock (matches actual app exactly) */}
+              <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5 sm:p-7">
+                <div className="mb-5 flex items-baseline justify-between">
+                  <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Dashboard · April 2026</div>
+                  <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--accent-new)]">Live</div>
+                </div>
+                <div className="grid grid-cols-2 gap-x-5 gap-y-6 border-y border-[var(--border-new)] py-6 md:grid-cols-4">
+                  {[
+                    { label: "Profit / loss", value: "+$246.50", tone: "text-[var(--positive-new)]", sub: "▲ +$48 this week" },
+                    { label: "Win rate", value: "58.3%", tone: "text-[var(--text-new)]", sub: "▲ +2.1pp mo/mo" },
+                    { label: "Return on stake", value: "+12.8%", tone: "text-[var(--positive-new)]", sub: "$1,920 staked" },
+                    { label: "In flight", value: "$84.00", tone: "text-[var(--text-new)]", sub: "3 pending · 2 tonight" },
+                  ].map((s) => (
+                    <div key={s.label}>
+                      <div className="text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{s.label}</div>
+                      <div className={"mono-nums mt-2 text-[26px] font-semibold leading-none tracking-[-0.03em] " + s.tone}>{s.value}</div>
+                      <div className="mt-2.5 text-[10px] text-[var(--text-3-new)]">{s.sub}</div>
                     </div>
-                    <div className="shrink-0 rounded-2xl bg-[#11203B] px-4 py-2 text-right text-white">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-300">Combined</p>
-                      <p className="text-xl font-semibold">$2.12</p>
-                      <p className="text-[10px] text-slate-300">~48% chance</p>
-                      <p className="text-[10px] text-emerald-300">correlation-adjusted</p>
-                    </div>
+                  ))}
+                </div>
+                {/* Mini cumulative chart */}
+                <div className="mt-6">
+                  <div className="mb-3 flex items-baseline justify-between text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)]">
+                    <span>Cumulative P/L · 12 weeks</span>
+                    <span className="text-[var(--positive-new)]">Trajectory ↗</span>
                   </div>
-                  <div className="mt-3 inline-flex rounded-lg bg-[#2E7D5B]/15 px-2.5 py-1 text-xs font-semibold text-[#2E7D5B]">Value vs market +4% · 2 of 3 legs positive-edge</div>
-                  <div className="mt-4 space-y-3">
-                    {[
-                      { team: "Geelong Cats", name: "Midfielder A — 25+ disposals", hit: "9/10", avg: "28.4", matchup: { text: "Carlton concedes +9% disposals", up: true }, last5: [31, 26, 24, 29, 27], conf: "79%", chip: "+7% value", up: true, odds: "$1.38", book: "Sportsbet" },
-                      { team: "Carlton Blues", name: "Forward B — 1+ goals", hit: "8/10", avg: "1.8", matchup: { text: "Geelong concedes −6% goals", up: false }, last5: [2, 1, 0, 2, 1], conf: "84%", chip: "+3% value", up: true, odds: "$1.30", book: "TAB" },
-                      { team: "Geelong Cats", name: "Midfielder C — 20+ disposals", hit: "8/10", avg: "23.1", matchup: null, last5: [22, 25, 19, 24, 21], conf: "76%", chip: "−2% edge", up: false, odds: "$1.18", book: "Ladbrokes" },
-                    ].map((leg, i) => (
-                      <div key={leg.name} className="relative rounded-2xl border border-slate-200 bg-[#FAF7EF] p-4">
-                        <TeamCrest team={leg.team} className="absolute right-3 top-3 h-6 w-6 drop-shadow-sm" />
-                        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Leg {i + 1}</p>
-                        <h4 className="mt-0.5 pr-8 text-sm font-semibold text-[#11203B]">{leg.name}</h4>
-                        <p className="mt-1.5 text-xs text-slate-600">Cleared this line {leg.hit} recent games · avg {leg.avg}</p>
-                        {leg.matchup ? (
-                          <p className={"mt-0.5 text-xs font-medium " + (leg.matchup.up ? "text-[#2E7D5B]" : "text-[#A94442]")}>Matchup: {leg.matchup.text}</p>
-                        ) : null}
-                        <div className="mt-2 flex flex-wrap items-center gap-1">
-                          {leg.last5.map((v, idx, arr) => (
-                            <span key={idx} className={"inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1 text-[11px] font-semibold " + (idx === arr.length - 1 ? "bg-[#11203B] text-white ring-1 ring-[#C49A4A]" : "bg-[#E8E2D4] text-[#11203B]")}>{v}</span>
-                          ))}
-                          <span className="ml-1 text-[10px] text-slate-500">last 5</span>
-                        </div>
-                        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-[#11203B]">
-                          <span>Confidence {leg.conf}</span>
-                          <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (leg.up ? "bg-[#2E7D5B]/15 text-[#2E7D5B]" : "bg-slate-200 text-slate-600")}>{leg.chip}</span>
-                          <span className="text-slate-500">{leg.odds} · {leg.book}</span>
-                        </div>
-                      </div>
+                  <svg viewBox="0 0 320 80" className="h-20 w-full">
+                    <defs>
+                      <linearGradient id="landingChartGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4ade80" stopOpacity="0.30" />
+                        <stop offset="100%" stopColor="#4ade80" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M0,60 L26,55 L52,58 L78,48 L104,52 L130,42 L156,38 L182,30 L208,33 L234,22 L260,18 L286,10 L320,8 L320,80 L0,80 Z" fill="url(#landingChartGrad)" />
+                    <path d="M0,60 L26,55 L52,58 L78,48 L104,52 L130,42 L156,38 L182,30 L208,33 L234,22 L260,18 L286,10 L320,8" fill="none" stroke="#4ade80" strokeWidth="1.5" />
+                  </svg>
+                </div>
+                {/* Recent form */}
+                <div className="mt-6 border-t border-[var(--border-new)] pt-5">
+                  <div className="mb-3 text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)]">Recent form · last 20</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {"WWLWWWWLWWLWWWLWWWWL".split("").map((r, i) => (
+                      <div
+                        key={i}
+                        className={"h-5 w-5 rounded " + (r === "W" ? "bg-[var(--positive-new)]" : "bg-[var(--danger-new)]")}
+                        style={{ opacity: r === "W" ? 0.85 : 0.7 }}
+                      />
                     ))}
                   </div>
-                  <p className="mt-3 text-[11px] leading-4 text-slate-500">Illustrative example with placeholder players. Informational analysis only — not betting advice or a guarantee of results.</p>
+                  <div className="mt-3 flex gap-5 text-[11px] text-[var(--text-3-new)]">
+                    <span>Wins <span className="mono-nums ml-1 text-[var(--positive-new)]">14</span></span>
+                    <span>Losses <span className="mono-nums ml-1 text-[var(--danger-new)]">6</span></span>
+                    <span>Strike rate <span className="mono-nums ml-1 text-[var(--text-2-new)]">70%</span></span>
+                  </div>
                 </div>
-              </Card>
+              </div>
             </div>
           </section>
 
-          <section className="grid gap-4 md:grid-cols-3">
-            <Card><div className="p-5"><h3 className="text-lg font-semibold">Track every bet</h3><p className="mt-2 text-sm leading-6 text-slate-600">Record stakes, odds, returns, sports, results and notes so your betting history is easy to review.</p></div></Card>
-            <Card><div className="p-5"><h3 className="text-lg font-semibold">Understand performance</h3><p className="mt-2 text-sm leading-6 text-slate-600">See profit/loss, ROI, win rate, streaks and weekly, monthly or yearly trends.</p></div></Card>
-            <Card><div className="p-5"><h3 className="text-lg font-semibold">Free to start</h3><p className="mt-2 text-sm leading-6 text-slate-600">Create a free account to track unlimited bets and get 3 MultiPick builds every week. Subscribe for unlimited builds whenever you’re ready.</p><button onClick={() => openAuth("signup")} className="mt-3 text-sm font-medium text-[#11203B] underline">Create free account</button></div></Card>
+          {/* ─────────────── MULTIPICK ───────────────
+              The killer feature. Editorial leg cards + value chip. */}
+          <section className="border-b border-[var(--border-new)] py-20 md:py-28">
+            <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-16">
+              {/* MultiPick output mock */}
+              <div className="order-2 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5 sm:p-7 lg:order-1">
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">MultiPick output · Example</div>
+                    <div className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em]">3-leg AFL multi</div>
+                    <div className="mt-0.5 text-[11px] text-[var(--text-3-new)]">Geelong vs Carlton · 7:50pm</div>
+                  </div>
+                  <div className="shrink-0 rounded-xl border border-[var(--border-strong-new)] bg-[var(--surface-2-new)] px-3.5 py-2 text-right">
+                    <div className="text-[9px] uppercase tracking-[0.10em] text-[var(--text-3-new)]">Combined</div>
+                    <div className="mono-nums mt-0.5 text-[22px] font-semibold leading-none">$2.12</div>
+                    <div className="mt-1 text-[10px] text-[var(--text-3-new)]">~48% chance</div>
+                  </div>
+                </div>
+                <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-[var(--positive-soft-new)] px-3 py-1.5 text-[11px] font-medium text-[var(--positive-new)]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--positive-new)]" />
+                  Value vs market <span className="mono-nums">+4%</span> · 2 of 3 legs positive edge
+                </div>
+                {/* Leg cards */}
+                <div className="space-y-2.5">
+                  {[
+                    { team: "geelong", name: "M. Bontempelli — 25+ disposals", hit: "9/10", odds: "$1.38", conf: "79%", chip: "+7% value", up: true },
+                    { team: "carlton", name: "C. Curnow — 1+ goals", hit: "8/10", odds: "$1.30", conf: "84%", chip: "+3% value", up: true },
+                    { team: "geelong", name: "T. Stengle — 20+ disposals", hit: "8/10", odds: "$1.18", conf: "76%", chip: "−2% edge", up: false },
+                  ].map((leg, i) => (
+                    <div key={i} className="grid grid-cols-[24px_1fr_auto] items-center gap-3 border-t border-[var(--border-new)] py-3 first:border-t-0 first:pt-0">
+                      <div className="mono-nums text-[10px] font-medium text-[var(--text-3-new)]">0{i + 1}</div>
+                      <div className="min-w-0">
+                        <div className="truncate text-[13px] font-medium text-[var(--text-new)]">{leg.name}</div>
+                        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[11px] text-[var(--text-3-new)]">
+                          <span>Hit <span className="mono-nums text-[var(--text-2-new)]">{leg.hit}</span> last 10</span>
+                          <span>·</span>
+                          <span>Conf <span className="mono-nums text-[var(--text-2-new)]">{leg.conf}</span></span>
+                          <span className={"mono-nums ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium " + (leg.up ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>{leg.chip}</span>
+                        </div>
+                      </div>
+                      <div className="mono-nums text-[14px] font-semibold text-[var(--text-new)]">{leg.odds}</div>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-5 border-t border-[var(--border-new)] pt-4 text-[10px] leading-[1.5] text-[var(--text-3-new)]">
+                  Illustrative example with placeholder reads. Informational analysis only — not betting advice.
+                </p>
+              </div>
+
+              <div className="order-1 lg:order-2">
+                <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">02 — MultiPick</p>
+                <h2 className="brand-wordmark mt-3 text-[36px] font-bold leading-[0.95] tracking-[-0.045em] md:text-[52px]">
+                  Multis backed<br />by real form<span className="text-[var(--accent-new)]">.</span>
+                </h2>
+                <p className="mt-5 max-w-[440px] text-[15px] leading-[1.6] text-[var(--text-2-new)]">
+                  MultiPick turns recent form, live market lines and a transparent edge model into example multis with honest +EV signals. Refine by chat — "swap leg 2", "make it safer", "around $3".
+                </p>
+                <ul className="mt-7 space-y-3.5 text-[14px] leading-[1.55] text-[var(--text-2-new)]">
+                  {[
+                    ["Real form", "Last-5 / last-10 hit rates from actual game logs"],
+                    ["Edge math", "Each leg compared to the book's implied price"],
+                    ["Correlation-aware", "Same-game legs priced honestly, not multiplied"],
+                    ["Matchup-adjusted", "How the opponent concedes on each stat"],
+                  ].map(([title, desc]) => (
+                    <li key={title} className="grid grid-cols-[14px_1fr] gap-3">
+                      <span className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--accent-new)]" />
+                      <span><span className="font-medium text-[var(--text-new)]">{title}</span> — {desc}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-8">
+                  <Button onClick={() => openAuth("signup")} className="w-full px-5 py-3 text-[14px] sm:w-auto">Try MultiPick — 3 free builds / week →</Button>
+                </div>
+              </div>
+            </div>
           </section>
+
+          {/* ─────────────── BETSLIP OCR ─────────────── */}
+          <section className="border-b border-[var(--border-new)] py-20 md:py-28">
+            <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:gap-16">
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">03 — Quick add</p>
+                <h2 className="brand-wordmark mt-3 text-[36px] font-bold leading-[0.95] tracking-[-0.045em] md:text-[52px]">
+                  Paste a screenshot.<br />We do the rest<span className="text-[var(--accent-new)]">.</span>
+                </h2>
+                <p className="mt-5 max-w-[440px] text-[15px] leading-[1.6] text-[var(--text-2-new)]">
+                  Paste, drag-drop, or upload a betslip from any Australian bookmaker. AI vision reads the stake, odds and every leg — then pre-fills your Add Bet form. No manual entry.
+                </p>
+                <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-[12px] text-[var(--text-3-new)]">
+                  <span>· Sportsbet</span>
+                  <span>· PointsBet</span>
+                  <span>· TAB</span>
+                  <span>· Ladbrokes</span>
+                  <span>· Bet365</span>
+                  <span>· Neds</span>
+                  <span>· Unibet</span>
+                </div>
+              </div>
+              {/* OCR mock */}
+              <div className="rounded-2xl border border-dashed border-[var(--border-strong-new)] bg-[var(--surface-new)] p-7 sm:p-9">
+                <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Quick add · AI vision</div>
+                <div className="mt-3 text-[15px] text-[var(--text-2-new)]">
+                  <span className="font-medium text-[var(--text-new)]">Drop, paste, or upload a betslip screenshot</span> — we'll read the stake, odds and legs and fill the form for you.
+                </div>
+                <div className="mt-6 flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-3-new)]">
+                  <kbd className="rounded border border-[var(--border-new)] bg-[var(--surface-2-new)] px-2 py-1 font-mono text-[10px]">⌘V</kbd>
+                  <span>to paste</span>
+                  <span className="mx-2">·</span>
+                  <span>or click anywhere to upload</span>
+                </div>
+                {/* Mock parsed output preview */}
+                <div className="mt-7 grid grid-cols-3 gap-3 border-t border-[var(--border-new)] pt-5">
+                  <div>
+                    <div className="text-[9px] uppercase tracking-[0.10em] text-[var(--text-3-new)]">Stake</div>
+                    <div className="mono-nums mt-1 text-[16px] font-semibold">$25.00</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] uppercase tracking-[0.10em] text-[var(--text-3-new)]">Odds</div>
+                    <div className="mono-nums mt-1 text-[16px] font-semibold">$4.20</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] uppercase tracking-[0.10em] text-[var(--text-3-new)]">Legs</div>
+                    <div className="mono-nums mt-1 text-[16px] font-semibold">3</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ─────────────── PICKD vs MULTILAB ───────────────
+              Direct, confident comparison. We undercut on price + offer
+              both tracker and builder, which they don't pair. */}
+          <section className="border-b border-[var(--border-new)] py-20 md:py-28">
+            <div className="max-w-[640px]">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Why Pickd</p>
+              <h2 className="brand-wordmark mt-3 text-[36px] font-bold leading-[0.95] tracking-[-0.045em] md:text-[52px]">
+                MultiLab quality.<br />Fairer price<span className="text-[var(--accent-new)]">.</span>
+              </h2>
+              <p className="mt-5 text-[15px] leading-[1.6] text-[var(--text-2-new)]">
+                You've probably tried other tools. Here's the honest comparison — no marketing fluff, just what you get.
+              </p>
+            </div>
+
+            <div className="mt-12 overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-[var(--border-strong-new)] text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)]">
+                    <th className="py-3.5 pr-6 font-medium">Feature</th>
+                    <th className="py-3.5 pr-6 font-medium text-[var(--accent-new)]">Pickd</th>
+                    <th className="py-3.5 pr-6 font-medium">MultiLab</th>
+                    <th className="py-3.5 font-medium">Spreadsheet</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[var(--text-2-new)]">
+                  {[
+                    ["Monthly price", "$28", "$29.99", "Free"],
+                    ["AI multi builder", "✓ MultiPick", "✓ Edge AI", "—"],
+                    ["Bet tracker", "✓ Built-in", "✓ Slip only", "Manual"],
+                    ["Multi-sport (AFL + NBA)", "✓", "—", "Manual"],
+                    ["Betslip OCR (paste & parse)", "✓", "—", "—"],
+                    ["Calibration scoreboard", "✓", "—", "—"],
+                    ["Correlation-aware odds", "✓", "✓", "—"],
+                    ["Honest +EV signals", "✓", "✓", "—"],
+                    ["Form-backed predictions", "✓", "✓", "—"],
+                  ].map(([feature, pickd, ml, sheet], i) => (
+                    <tr key={i} className="border-b border-[var(--border-new)]">
+                      <td className="py-3.5 pr-6 font-medium text-[var(--text-new)]">{feature}</td>
+                      <td className="py-3.5 pr-6 text-[var(--accent-new)]">{pickd}</td>
+                      <td className="py-3.5 pr-6">{ml}</td>
+                      <td className="py-3.5">{sheet}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* ─────────────── PRICING ─────────────── */}
+          <section className="border-b border-[var(--border-new)] py-20 md:py-28">
+            <div className="max-w-[640px]">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Pricing</p>
+              <h2 className="brand-wordmark mt-3 text-[36px] font-bold leading-[0.95] tracking-[-0.045em] md:text-[52px]">
+                Start free.<br />Upgrade when ready<span className="text-[var(--accent-new)]">.</span>
+              </h2>
+            </div>
+
+            <div className="mt-12 grid gap-5 md:grid-cols-2">
+              {/* Free tier */}
+              <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-7 sm:p-8">
+                <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Free</div>
+                <div className="brand-wordmark mt-3 flex items-baseline gap-2">
+                  <span className="mono-nums text-[48px] font-bold leading-none tracking-[-0.04em]">$0</span>
+                  <span className="text-[12px] text-[var(--text-3-new)]">forever</span>
+                </div>
+                <p className="mt-4 text-[13px] leading-[1.55] text-[var(--text-2-new)]">Everything you need to start tracking, plus a taste of MultiPick.</p>
+                <ul className="mt-6 space-y-3 text-[13px] text-[var(--text-2-new)]">
+                  {["Unlimited bet tracking", "Full analytics dashboard", "Betslip OCR", "3 MultiPick builds / week", "AFL + NBA support"].map((f) => (
+                    <li key={f} className="flex gap-2.5">
+                      <span className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--text-3-new)]" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button variant="outline" onClick={() => openAuth("signup")} className="mt-7 w-full py-3 text-[14px]">Start free →</Button>
+              </div>
+
+              {/* Pro tier */}
+              <div className="relative rounded-2xl border border-[var(--accent-new)] bg-[var(--surface-new)] p-7 sm:p-8">
+                <div className="absolute -top-2.5 right-7 rounded-full bg-[var(--accent-new)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.10em] text-[var(--bg-new)]">Best value</div>
+                <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--accent-new)]">Pickd Pro</div>
+                <div className="brand-wordmark mt-3 flex items-baseline gap-2">
+                  <span className="mono-nums text-[48px] font-bold leading-none tracking-[-0.04em]">$6.99</span>
+                  <span className="text-[12px] text-[var(--text-3-new)]">/ week</span>
+                </div>
+                <p className="mt-4 text-[13px] leading-[1.55] text-[var(--text-2-new)]">Unlimited MultiPick + every feature, with priority access to new sports.</p>
+                <ul className="mt-6 space-y-3 text-[13px] text-[var(--text-2-new)]">
+                  {[
+                    "Everything in Free",
+                    "Unlimited MultiPick builds",
+                    "Priority support",
+                    "Early access to new sports",
+                    "Cancel anytime",
+                  ].map((f) => (
+                    <li key={f} className="flex gap-2.5">
+                      <span className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--accent-new)]" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button onClick={() => openAuth("signup")} className="mt-7 w-full py-3 text-[14px]">Upgrade to Pro →</Button>
+                <p className="mt-3 text-center text-[10px] text-[var(--text-3-new)]">vs MultiLab at $29.99/mo — ~65% cheaper effective</p>
+              </div>
+            </div>
+          </section>
+
+          {/* ─────────────── FAQ ─────────────── */}
+          <section className="border-b border-[var(--border-new)] py-20 md:py-28">
+            <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">FAQ</p>
+                <h2 className="brand-wordmark mt-3 text-[36px] font-bold leading-[0.95] tracking-[-0.045em] md:text-[52px]">
+                  Questions,<br />answered<span className="text-[var(--accent-new)]">.</span>
+                </h2>
+              </div>
+              <div className="divide-y divide-[var(--border-new)]">
+                {[
+                  {
+                    q: "Is this a tipping service?",
+                    a: "No. Pickd is an analytics tool. MultiPick shows you example multis built from real form data with transparent math — you decide what to do with them. We don't promise wins.",
+                  },
+                  {
+                    q: "Do you accept bets?",
+                    a: "No. Pickd doesn't take wagers, hold funds, or operate as a bookmaker. We're a tracker and an AI analysis tool. Place bets with your own licensed bookmaker.",
+                  },
+                  {
+                    q: "What sports?",
+                    a: "AFL and NBA at launch. Player props, line markets, head-to-head. More sports coming based on user demand — NRL, Soccer next.",
+                  },
+                  {
+                    q: "How does the AI work?",
+                    a: "MultiPick reads last-5 / last-10 game logs, dev-vigs the market price into an implied probability, applies Empirical Bayes shrinkage with a book-anchored prior, and adjusts for opponent matchup. Then it scores +EV legs. All the math is visible.",
+                  },
+                  {
+                    q: "Refund policy?",
+                    a: "Cancel anytime from your Settings. You keep access until the end of your billing period. We don't pro-rate refunds for partial weeks, but cancellations stop the next charge immediately.",
+                  },
+                  {
+                    q: "Is my data private?",
+                    a: "Yes. Your bets are stored under your account only. We don't sell data and don't share it with bookmakers. Read the Privacy page in the footer for the full breakdown.",
+                  },
+                ].map((item) => (
+                  <details key={item.q} className="group py-5">
+                    <summary className="flex cursor-pointer items-baseline justify-between gap-4 text-[15px] font-medium text-[var(--text-new)]">
+                      <span>{item.q}</span>
+                      <span className="text-[var(--text-3-new)] transition-transform group-open:rotate-45">+</span>
+                    </summary>
+                    <p className="mt-3 max-w-[540px] text-[13.5px] leading-[1.65] text-[var(--text-2-new)]">{item.a}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* ─────────────── FINAL CTA ─────────────── */}
+          <section className="border-b border-[var(--border-new)] py-24 text-center md:py-32">
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--text-3-new)]">
+              <span className="text-[var(--accent-new)]">●</span> Last word
+            </p>
+            <h2 className="brand-wordmark mx-auto mt-5 max-w-[840px] text-[44px] font-bold leading-[0.92] tracking-[-0.05em] sm:text-[64px] md:text-[88px]">
+              Bet smart.<br />Track smarter<span className="text-[var(--accent-new)]">.</span>
+            </h2>
+            <p className="mx-auto mt-7 max-w-[420px] text-[15px] leading-[1.6] text-[var(--text-2-new)]">
+              Free to start. Three MultiPick builds a week. Unlimited bet tracking. No card required.
+            </p>
+            <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Button onClick={() => openAuth("signup")} className="w-full px-6 py-3.5 text-[14px] sm:w-auto">Start free →</Button>
+              <Button variant="ghost" onClick={() => openAuth("login")} className="w-full px-6 py-3.5 text-[14px] sm:w-auto">I have an account</Button>
+            </div>
+            <p className="mt-6 text-[11px] text-[var(--text-3-new)]">18+ · Gamble responsibly · Pickd does not accept bets</p>
+          </section>
+
+          {/* ─────────────── FOOTER ─────────────── */}
+          <footer className="grid gap-6 pt-10 md:grid-cols-[1fr_auto]">
+            <div>
+              <div className="brand-wordmark flex items-baseline leading-none">
+                <span className="text-[20px] font-bold tracking-[-0.045em] text-[var(--text-new)]">Pickd</span>
+                <span className="text-[20px] font-bold tracking-[-0.045em] text-[var(--accent-new)]">.</span>
+              </div>
+              <p className="mt-3 max-w-[400px] text-[11px] leading-[1.5] text-[var(--text-3-new)]">
+                Pickd is an analytics tool for tracking sports betting activity. Informational only — not betting advice, not a tipping service, does not accept wagers. © 2026 Pickd.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] text-[var(--text-3-new)] md:justify-end md:gap-x-8">
+              <button onClick={() => setActivePage("disclaimer")} className="hover:text-[var(--text-new)]">Disclaimer</button>
+              <button onClick={() => setActivePage("responsible")} className="hover:text-[var(--text-new)]">Responsible Gambling</button>
+              <button onClick={() => setActivePage("privacy")} className="hover:text-[var(--text-new)]">Privacy</button>
+              <button onClick={() => setActivePage("terms")} className="hover:text-[var(--text-new)]">Terms</button>
+            </div>
+          </footer>
         </div>
       </main>
-      <Footer setActivePage={setActivePage} />
       <Analytics />
     </div>
   );
