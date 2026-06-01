@@ -1,0 +1,19 @@
+name: Recalibrate model
+on:
+  schedule:
+    - cron: "0 18 * * 0"   # Sunday 6pm UTC = Monday 4am AEST
+  workflow_dispatch: {}
+jobs:
+  recalibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: node scripts/recalibrate.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
