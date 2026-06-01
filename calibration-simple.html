@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pickd — calibration simplified · A vs B</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+    <style>
+      :root {
+        --bg: #0a0a0b;
+        --surface: #111114;
+        --surface-2: #16161a;
+        --border: rgba(255,255,255,0.06);
+        --border-strong: rgba(255,255,255,0.12);
+        --text: #f5f5f7;
+        --text-2: #9d9da3;
+        --text-3: #5d5d63;
+        --accent: #d4f23a;
+        --accent-soft: rgba(212,242,58,0.12);
+        --positive: #4ade80;
+        --positive-soft: rgba(74,222,128,0.12);
+        --warning: #fbbf24;
+        --danger: #f87171;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        font-family: 'Inter', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums slashed-zero; letter-spacing: -0.01em; }
+      .brand { font-family: 'Inter Tight', sans-serif; }
+      .page { max-width: 1100px; margin: 0 auto; padding: 64px 32px 96px; }
+      header.intro { border-bottom: 1px solid var(--border); padding-bottom: 36px; margin-bottom: 56px; }
+      .eyebrow { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); }
+      h1 { font-family: 'Inter Tight', sans-serif; font-size: 44px; font-weight: 700; letter-spacing: -0.045em; margin: 14px 0 12px; line-height: 0.92; }
+      .intro p { color: var(--text-2); font-size: 14px; line-height: 1.6; max-width: 720px; margin: 0; }
+
+      .concept { margin-bottom: 56px; }
+      .concept-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
+      .concept-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); letter-spacing: 0.08em; font-weight: 500; }
+      .concept-name { font-family: 'Inter Tight', sans-serif; font-size: 20px; font-weight: 600; letter-spacing: -0.025em; color: var(--text); margin-left: 10px; }
+      .concept-desc { font-size: 12.5px; color: var(--text-3); max-width: 560px; text-align: right; line-height: 1.5; }
+      .stage {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        overflow: hidden;
+        background: linear-gradient(180deg, #0e0e10 0%, #08080a 100%);
+        padding: 32px 36px;
+      }
+
+      .lbl-eyebrow { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); }
+      .lbl-title { font-family: 'Inter Tight', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; margin-top: 6px; }
+
+      /* ─── Option A — minimal track record ─── */
+      .a-strip {
+        margin-top: 28px;
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr;
+        gap: 0;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        padding: 28px 0;
+      }
+      .a-strip > div {
+        padding: 0 28px;
+        border-left: 1px solid var(--border);
+      }
+      .a-strip > div:first-child {
+        border-left: none;
+        padding-left: 0;
+      }
+      .a-strip .small-lbl { font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); }
+      .a-strip .headline {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 64px;
+        font-weight: 600;
+        letter-spacing: -0.05em;
+        line-height: 0.9;
+        color: var(--positive);
+        margin-top: 14px;
+      }
+      .a-strip .secondary {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 0.95;
+        color: var(--text);
+        margin-top: 14px;
+      }
+      .a-strip .secondary.gap { color: var(--text-2); }
+      .a-strip .secondary.gap.ok::before { content: "±"; color: var(--text-3); margin-right: 1px; }
+      .a-strip .caption { font-size: 11px; color: var(--text-3); margin-top: 12px; line-height: 1.4; }
+      .a-foot {
+        margin-top: 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: var(--text-3);
+      }
+      .a-foot .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 4px 10px;
+        border-radius: 100px;
+        background: var(--positive-soft);
+        color: var(--positive);
+      }
+      .a-foot .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--positive); }
+
+      /* ─── Option B — same headline + detail link ─── */
+      .b-detail-link {
+        margin-top: 22px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-family: 'Inter', sans-serif;
+        color: var(--text-2);
+        text-decoration: none;
+        padding: 8px 14px;
+        border: 1px solid var(--border);
+        border-radius: 100px;
+        background: var(--surface);
+        cursor: pointer;
+        transition: all 200ms ease;
+      }
+      .b-detail-link:hover {
+        border-color: var(--border-strong);
+        color: var(--text);
+      }
+      .b-detail-link .arrow { color: var(--text-3); }
+
+      /* ─── Modal mockup for B ─── */
+      .modal-mockup {
+        margin-top: 28px;
+        border: 1px solid var(--border-strong);
+        border-radius: 16px;
+        background: var(--surface);
+        padding: 28px 32px;
+        max-width: 760px;
+        box-shadow: 0 30px 90px rgba(0,0,0,0.6);
+        position: relative;
+      }
+      .modal-mockup::before {
+        content: "MODAL PREVIEW · opens when 'View calibration detail' is clicked";
+        position: absolute;
+        top: -22px;
+        left: 0;
+        font-size: 9px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.10em;
+        color: var(--text-3);
+        font-family: 'JetBrains Mono', monospace;
+      }
+      .modal-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 24px;
+      }
+      .modal-head .lhs { }
+      .modal-head .eyebrow { font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); }
+      .modal-head .title { font-family: 'Inter Tight', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.035em; margin-top: 6px; }
+      .modal-head .subtitle { font-size: 13px; color: var(--text-2); margin-top: 8px; max-width: 480px; line-height: 1.5; }
+      .modal-head .close {
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-3);
+        padding: 6px 12px;
+        border: 1px solid var(--border);
+        border-radius: 100px;
+        background: var(--surface-2);
+      }
+      .modal-explain {
+        font-size: 12px;
+        color: var(--text-2);
+        line-height: 1.6;
+        margin: 0 0 24px;
+        padding: 16px;
+        border-radius: 12px;
+        background: rgba(212,242,58,0.06);
+        border: 1px solid rgba(212,242,58,0.12);
+      }
+      .modal-explain .mono { font-family: 'JetBrains Mono', monospace; color: var(--text); font-weight: 600; }
+      /* Reuse the editorial table from concept 01 */
+      .modal-row {
+        display: grid;
+        grid-template-columns: 120px 1fr 100px 60px;
+        gap: 16px;
+        align-items: center;
+        padding: 14px 0;
+        border-top: 1px solid var(--border);
+      }
+      .modal-row.head { padding: 8px 0; border-top: none; }
+      .modal-row.head .l { font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); }
+      .modal-row .bucket { font-size: 13px; color: var(--text-2); }
+      .bar-wrap { position: relative; height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
+      .bar-fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--positive); border-radius: 2px; }
+      .pred-mark { position: absolute; top: -3px; bottom: -3px; width: 1.5px; background: var(--text-2); }
+      .modal-row .actual { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; text-align: right; color: var(--positive); }
+      .modal-row .n { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-3); text-align: right; }
+
+      footer { margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-3); }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="intro">
+        <p class="eyebrow">Pickd — Track record · simplified</p>
+        <h1>Option A vs B.</h1>
+        <p>Both replace the existing 4-bar calibration block with a single big headline that any user understands. The difference: B keeps a "view detail" link for the quant-curious. Same data underneath either way (120 legs · predicted 87% · actual 83%).</p>
+      </header>
+
+      <!-- ───────────────────── Option A ───────────────────── -->
+      <section class="concept">
+        <div class="concept-header">
+          <div><span class="concept-num">A</span><span class="concept-name">Just simplify</span></div>
+          <div class="concept-desc">One headline number anyone gets. Three editorial cells: actual hit rate (big lime), predicted (smaller), typical gap. Done. No expand, no detail — the casual user reads "83% hit" and moves on.</div>
+        </div>
+        <div class="stage">
+          <div class="lbl-eyebrow">Model track record</div>
+          <div class="lbl-title">MultiPick's last 120 picks<span style="color: var(--accent);">.</span></div>
+
+          <div class="a-strip">
+            <div>
+              <div class="small-lbl">Actual hit rate</div>
+              <div class="headline">83%</div>
+              <div class="caption">100 of the last 120 settled legs hit their line</div>
+            </div>
+            <div>
+              <div class="small-lbl">What we predicted</div>
+              <div class="secondary">87%</div>
+              <div class="caption">Average confidence rating</div>
+            </div>
+            <div>
+              <div class="small-lbl">Typical gap</div>
+              <div class="secondary gap ok">4%</div>
+              <div class="caption">Distance between prediction and reality</div>
+            </div>
+          </div>
+
+          <div class="a-foot">
+            <div class="pill"><span class="dot"></span> Well calibrated</div>
+            <span>Last 30 days · weekly refresh</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────── Option B ───────────────────── -->
+      <section class="concept">
+        <div class="concept-header">
+          <div><span class="concept-num">B</span><span class="concept-name">Simplify + "view detail" link</span></div>
+          <div class="concept-desc">Same headline as A. Adds a small "View calibration detail →" chip that opens a modal with the bucket-by-bucket breakdown for the quant-curious. Best of both — clean for casual users, deep for nerds.</div>
+        </div>
+        <div class="stage">
+          <div class="lbl-eyebrow">Model track record</div>
+          <div class="lbl-title">MultiPick's last 120 picks<span style="color: var(--accent);">.</span></div>
+
+          <div class="a-strip">
+            <div>
+              <div class="small-lbl">Actual hit rate</div>
+              <div class="headline">83%</div>
+              <div class="caption">100 of the last 120 settled legs hit their line</div>
+            </div>
+            <div>
+              <div class="small-lbl">What we predicted</div>
+              <div class="secondary">87%</div>
+              <div class="caption">Average confidence rating</div>
+            </div>
+            <div>
+              <div class="small-lbl">Typical gap</div>
+              <div class="secondary gap ok">4%</div>
+              <div class="caption">Distance between prediction and reality</div>
+            </div>
+          </div>
+
+          <div class="a-foot" style="margin-top: 22px;">
+            <div class="pill"><span class="dot"></span> Well calibrated</div>
+            <span>Last 30 days · weekly refresh</span>
+          </div>
+
+          <a class="b-detail-link" onclick="document.getElementById('modal-mockup').scrollIntoView({behavior:'smooth'})">
+            View calibration detail <span class="arrow">→</span>
+          </a>
+        </div>
+
+        <!-- Modal mockup — shows what opens when you click the link -->
+        <div class="modal-mockup" id="modal-mockup">
+          <div class="modal-head">
+            <div class="lhs">
+              <div class="eyebrow">Model track record · detail</div>
+              <div class="title">How our ratings have held up</div>
+              <div class="subtitle">When MultiPick says a leg has X% chance of hitting, how often does it actually hit? Closer numbers = more trustworthy ratings.</div>
+            </div>
+            <div class="close">Close ✕</div>
+          </div>
+
+          <div class="modal-explain">
+            <strong style="color: var(--text);">Quick read:</strong> Each row groups legs by what MultiPick predicted. The bar shows the actual hit rate; the thin marker shows what we said. When they line up, the model's confidence numbers can be trusted at face value.
+          </div>
+
+          <div class="modal-row head">
+            <div class="l">Confidence band</div>
+            <div class="l">Actual hit rate · | = our prediction</div>
+            <div class="l" style="text-align: right;">Hit</div>
+            <div class="l" style="text-align: right;">N</div>
+          </div>
+          <div class="modal-row">
+            <div class="bucket">Rated 60 – 70%</div>
+            <div class="bar-wrap"><div class="bar-fill" style="width: 67%;"></div><div class="pred-mark" style="left: 65%;"></div></div>
+            <div class="actual">67%</div>
+            <div class="n">3</div>
+          </div>
+          <div class="modal-row">
+            <div class="bucket">Rated 70 – 80%</div>
+            <div class="bar-wrap"><div class="bar-fill" style="width: 78%;"></div><div class="pred-mark" style="left: 75%;"></div></div>
+            <div class="actual">78%</div>
+            <div class="n">27</div>
+          </div>
+          <div class="modal-row">
+            <div class="bucket">Rated 80 – 90%</div>
+            <div class="bar-wrap"><div class="bar-fill" style="width: 85%;"></div><div class="pred-mark" style="left: 85%;"></div></div>
+            <div class="actual">85%</div>
+            <div class="n">60</div>
+          </div>
+          <div class="modal-row">
+            <div class="bucket">Rated 90 – 100%</div>
+            <div class="bar-wrap"><div class="bar-fill" style="width: 87%; background: var(--warning);"></div><div class="pred-mark" style="left: 95%;"></div></div>
+            <div class="actual" style="color: var(--warning);">87%</div>
+            <div class="n">30</div>
+          </div>
+          <p style="margin: 22px 0 0; font-size: 11px; color: var(--text-3); line-height: 1.5;">
+            <strong style="color: var(--text-2);">How to read this:</strong>
+            Bars closer to the marker = better calibrated. The 90-100% band is slightly amber because we said 95% but only 87% hit — we're a touch over-confident on top-rated legs. Working as intended for the rest.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        Both use the same data source as the existing block. Pick A if you want the simplest possible UI; pick B if you want a credibility detail available for the math-minded users (and to use as a marketing artefact you can link to from /calibration). Either swap takes ~15 min to wire in.
+      </footer>
+    </main>
+  </body>
+</html>

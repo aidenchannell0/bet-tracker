@@ -1343,6 +1343,10 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
   const [upgrading, setUpgrading] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
   const [calibration, setCalibration] = useState(null);
+  // Modal open/closed for the "View calibration detail →" link on the
+  // simplified track-record block. Renders the bucket breakdown only
+  // when users opt in — keeps the main page clean for casual users.
+  const [calibrationDetailOpen, setCalibrationDetailOpen] = useState(false);
   const [propsStatus, setPropsStatus] = useState(null);
   const [propsDismissedRound, setPropsDismissedRound] = useState(() => {
     try { return localStorage.getItem("propsDismissedRound") || ""; } catch { return ""; }
@@ -1723,32 +1727,143 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
             </div>
           </header>
 
-          {calibration && calibration.resolved >= 10 ? (
-            <Card className="mb-6">
-              <div className="p-5 md:p-6">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Model track record</p>
-                    <h2 className="mt-1 text-xl font-semibold">How our ratings have held up</h2>
-                  </div>
-                  {calibration.overall ? (
-                    <p className="text-sm text-slate-600">Across <span className="font-semibold text-[#11203B]">{calibration.overall.n}</span> resolved legs we predicted <span className="font-semibold text-[#11203B]">{calibration.overall.predicted}%</span> and they hit <span className="font-semibold text-[#2E7D5B]">{calibration.overall.actual}%</span>.</p>
-                  ) : null}
-                </div>
-                <div className="mt-4 space-y-2">
-                  {calibration.buckets.map((bucket) => (
-                    <div key={bucket.label} className="flex items-center gap-3 text-sm">
-                      <span className="w-24 shrink-0 font-medium text-[#11203B]">Rated {bucket.label}</span>
-                      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-                        <div className="absolute inset-y-0 left-0 rounded-full bg-[#2E7D5B]" style={{ width: `${Math.min(100, bucket.actual)}%` }} />
-                      </div>
-                      <span className="w-28 shrink-0 text-right text-slate-600">hit {bucket.actual}% <span className="text-slate-400">({bucket.n})</span></span>
+          {/* Model track record — Option B: simplified 3-cell strip (actual /
+              predicted / typical gap), well-calibrated pill, "view detail"
+              link. The link opens a modal with the bucket-by-bucket breakdown
+              for users who want the math. Keeps the casual-user view clean. */}
+          {calibration && calibration.resolved >= 10 && calibration.overall ? (() => {
+            const overall = calibration.overall;
+            const gap = Math.abs(Number(overall.predicted || 0) - Number(overall.actual || 0));
+            const wellCalibrated = gap <= 5;
+            return (
+              <section className="mb-8 border-b border-[var(--border-new)] pb-8">
+                <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Model track record</p>
+                <h2 className="brand-wordmark mt-2 text-[22px] font-semibold tracking-[-0.025em] text-[var(--text-new)] md:text-[26px]">
+                  MultiPick's last <span className="mono-nums">{overall.n}</span> picks<span className="text-[var(--accent-new)]">.</span>
+                </h2>
+                <div className="mt-6 grid grid-cols-3 border-y border-[var(--border-new)] py-6">
+                  <div className="pr-4 md:pr-7">
+                    <div className="text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Actual hit rate</div>
+                    <div className="mono-nums mt-3 text-[40px] font-semibold leading-none tracking-[-0.04em] text-[var(--positive-new)] md:text-[56px]">{overall.actual}%</div>
+                    <div className="mt-3 text-[10px] text-[var(--text-3-new)] md:text-[11px]">
+                      <span className="mono-nums">{Math.round((overall.n * overall.actual) / 100)}</span> of <span className="mono-nums">{overall.n}</span> legs hit their line
                     </div>
-                  ))}
+                  </div>
+                  <div className="border-l border-[var(--border-new)] px-4 md:px-7">
+                    <div className="text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">What we predicted</div>
+                    <div className="mono-nums mt-3 text-[24px] font-semibold leading-none tracking-[-0.03em] text-[var(--text-new)] md:text-[30px]">{overall.predicted}%</div>
+                    <div className="mt-3 text-[10px] text-[var(--text-3-new)] md:text-[11px]">Average confidence rating</div>
+                  </div>
+                  <div className="border-l border-[var(--border-new)] pl-4 md:pl-7">
+                    <div className="text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Typical gap</div>
+                    <div className="mono-nums mt-3 text-[24px] font-semibold leading-none tracking-[-0.03em] text-[var(--text-2-new)] md:text-[30px]">±{gap}%</div>
+                    <div className="mt-3 text-[10px] text-[var(--text-3-new)] md:text-[11px]">Distance between prediction and reality</div>
+                  </div>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">We log every leg MultiPick rates and check it against the actual result. Well-calibrated means predicted ≈ actual.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  {wellCalibrated ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--positive-soft-new)] px-3 py-1.5 text-[11px] font-medium text-[var(--positive-new)]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--positive-new)]" /> Well calibrated
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--warning-soft-new)] px-3 py-1.5 text-[11px] font-medium text-[var(--warning-new)]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning-new)]" /> Calibrating
+                    </span>
+                  )}
+                  <span className="text-[11px] text-[var(--text-3-new)]">Last 30 days · weekly refresh</span>
+                  <button
+                    type="button"
+                    onClick={() => setCalibrationDetailOpen(true)}
+                    className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[var(--border-new)] bg-[var(--surface-new)] px-3.5 py-1.5 text-[11px] font-medium text-[var(--text-2-new)] transition-colors hover:border-[var(--border-strong-new)] hover:text-[var(--text-new)]"
+                  >
+                    View calibration detail <span className="text-[var(--text-3-new)]">→</span>
+                  </button>
+                </div>
+              </section>
+            );
+          })() : null}
+
+          {/* Calibration detail modal — opens when user clicks the link above.
+              Plain-English explanation + bucket-by-bucket table with hairline
+              rows. Renders via portal at document.body so it overlays
+              everything cleanly. */}
+          {calibration && calibrationDetailOpen ? createPortal(
+            (
+              <div
+                className="stat-modal-backdrop fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md sm:p-6 md:p-10"
+                onClick={() => setCalibrationDetailOpen(false)}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Calibration detail"
+              >
+                <div
+                  className="stat-modal-card relative flex max-h-[92vh] w-full max-w-[760px] flex-col overflow-hidden rounded-3xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] shadow-[0_30px_90px_rgba(0,0,0,0.7)]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-6 border-b border-[var(--border-new)] px-7 pt-7 pb-5 md:px-9 md:pt-9 md:pb-6">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Model track record · detail</div>
+                      <div className="brand-wordmark mt-2 text-[22px] font-semibold tracking-[-0.025em] text-[var(--text-new)] md:text-[26px]">How our ratings have held up</div>
+                      <div className="mt-2 max-w-[480px] text-[12.5px] leading-relaxed text-[var(--text-2-new)]">
+                        When MultiPick says a leg has X% chance of hitting, how often does it actually hit? Closer numbers = more trustworthy ratings.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCalibrationDetailOpen(false)}
+                      aria-label="Close"
+                      className="shrink-0 rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3.5 py-1.5 text-[11px] uppercase tracking-[0.08em] text-[var(--text-2-new)] transition-colors hover:border-[var(--border-strong-new)] hover:text-[var(--text-new)]"
+                    >
+                      Close ✕
+                    </button>
+                  </div>
+
+                  {/* Scrollable body */}
+                  <div className="flex-1 overflow-y-auto px-7 py-6 md:px-9 md:py-7">
+                    <div className="mb-6 rounded-xl border border-[var(--accent-new)]/20 bg-[var(--accent-soft-new)] p-4 text-[12.5px] leading-relaxed text-[var(--text-2-new)]">
+                      <span className="font-semibold text-[var(--text-new)]">Quick read:</span> each row groups legs by what MultiPick predicted. The bar shows the actual hit rate; the small marker shows what we said. When they line up, the model's confidence numbers can be trusted at face value.
+                    </div>
+
+                    {/* Bucket table — hairline rows */}
+                    <div className="grid grid-cols-[110px_1fr_70px_50px] items-center gap-4 pb-3 text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">
+                      <div>Confidence band</div>
+                      <div>Actual hit rate · | = our prediction</div>
+                      <div className="text-right">Hit</div>
+                      <div className="text-right">N</div>
+                    </div>
+                    {calibration.buckets.map((bucket) => {
+                      const predictedPct = bucket.predicted != null ? bucket.predicted : (() => {
+                        // Fall back to the bucket midpoint if predicted isn't on the row
+                        const m = String(bucket.label || "").match(/(\d+)\s*-\s*(\d+)/);
+                        return m ? (Number(m[1]) + Number(m[2])) / 2 : 50;
+                      })();
+                      const gapPP = Math.abs(predictedPct - bucket.actual);
+                      const tone = gapPP <= 5 ? "ok" : "off";
+                      return (
+                        <div key={bucket.label} className="grid grid-cols-[110px_1fr_70px_50px] items-center gap-4 border-t border-[var(--border-new)] py-3.5">
+                          <div className="text-[13px] text-[var(--text-2-new)]">Rated {bucket.label}</div>
+                          <div className="relative h-1.5 rounded-full bg-[var(--surface-2-new)]">
+                            <div
+                              className={"absolute inset-y-0 left-0 rounded-full " + (tone === "ok" ? "bg-[var(--positive-new)]" : "bg-[var(--warning-new)]")}
+                              style={{ width: `${Math.min(100, Math.max(2, bucket.actual))}%` }}
+                            />
+                            <div className="absolute -top-1 -bottom-1 w-[1.5px] bg-[var(--text-2-new)]" style={{ left: `${Math.min(100, predictedPct)}%` }} />
+                          </div>
+                          <div className={"mono-nums text-right text-[13px] font-semibold " + (tone === "ok" ? "text-[var(--positive-new)]" : "text-[var(--warning-new)]")}>{bucket.actual}%</div>
+                          <div className="mono-nums text-right text-[11px] text-[var(--text-3-new)]">{bucket.n}</div>
+                        </div>
+                      );
+                    })}
+
+                    <p className="mt-6 text-[11.5px] leading-relaxed text-[var(--text-3-new)]">
+                      <span className="font-semibold text-[var(--text-2-new)]">How to read this:</span> bars close to the marker = well-calibrated. Bands sit amber when the model's confidence is more than 5 percentage points off the actual hit rate — we surface it honestly so the calibration block stays trustworthy.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </Card>
+            ),
+            document.body
           ) : null}
 
           <section className="grid items-start gap-12 lg:grid-cols-[280px_1fr]">

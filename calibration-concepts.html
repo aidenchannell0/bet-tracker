@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pickd — calibration block concepts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+    <style>
+      :root {
+        --bg: #0a0a0b;
+        --surface: #111114;
+        --surface-2: #16161a;
+        --border: rgba(255,255,255,0.06);
+        --border-strong: rgba(255,255,255,0.12);
+        --text: #f5f5f7;
+        --text-2: #9d9da3;
+        --text-3: #5d5d63;
+        --accent: #d4f23a;
+        --accent-soft: rgba(212,242,58,0.12);
+        --positive: #4ade80;
+        --positive-soft: rgba(74,222,128,0.12);
+        --warning: #fbbf24;
+        --warning-soft: rgba(251,191,36,0.10);
+        --danger: #f87171;
+        --danger-soft: rgba(248,113,113,0.10);
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        font-family: 'Inter', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums slashed-zero; letter-spacing: -0.01em; }
+      .brand { font-family: 'Inter Tight', sans-serif; }
+      .page { max-width: 1200px; margin: 0 auto; padding: 64px 32px 96px; }
+      header.intro { border-bottom: 1px solid var(--border); padding-bottom: 36px; margin-bottom: 56px; }
+      .eyebrow { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); }
+      h1 { font-family: 'Inter Tight', sans-serif; font-size: 44px; font-weight: 700; letter-spacing: -0.045em; margin: 14px 0 12px; line-height: 0.92; }
+      .intro p { color: var(--text-2); font-size: 14px; line-height: 1.6; max-width: 720px; margin: 0; }
+      .concept { margin-bottom: 56px; }
+      .concept-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
+      .concept-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); letter-spacing: 0.08em; font-weight: 500; }
+      .concept-name { font-family: 'Inter Tight', sans-serif; font-size: 20px; font-weight: 600; letter-spacing: -0.025em; color: var(--text); margin-left: 10px; }
+      .concept-desc { font-size: 12.5px; color: var(--text-3); max-width: 520px; text-align: right; line-height: 1.5; }
+      .stage {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        overflow: hidden;
+        background: linear-gradient(180deg, #0e0e10 0%, #08080a 100%);
+        padding: 32px 36px;
+      }
+      .stage-eyebrow { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); }
+      .stage-title { font-family: 'Inter Tight', sans-serif; font-size: 28px; font-weight: 700; letter-spacing: -0.035em; line-height: 1.05; margin-top: 8px; }
+      .stage-sub { font-size: 13px; color: var(--text-2); margin-top: 10px; line-height: 1.55; max-width: 540px; }
+      .stage-sub .mono { font-family: 'JetBrains Mono', monospace; color: var(--text); font-weight: 600; }
+      .stage-sub .ok { color: var(--positive); }
+
+      /* ─── Concept 1: Editorial table (hairline rows) ─── */
+      .c1 .row {
+        display: grid;
+        grid-template-columns: 120px 1fr 100px 60px;
+        gap: 16px;
+        align-items: center;
+        padding: 14px 0;
+        border-top: 1px solid var(--border);
+      }
+      .c1 .row.head { padding: 8px 0; border-top: none; }
+      .c1 .row.head .l { font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); }
+      .c1 .bucket { font-size: 13px; color: var(--text-2); }
+      .c1 .bar-wrap { position: relative; height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
+      .c1 .bar { position: absolute; top: 0; bottom: 0; left: 0; background: var(--positive); border-radius: 2px; }
+      .c1 .pred-marker { position: absolute; top: -3px; bottom: -3px; width: 1.5px; background: var(--text-2); }
+      .c1 .pred-marker .lbl { position: absolute; top: -10px; right: -8px; font-size: 8px; font-family: 'JetBrains Mono', monospace; color: var(--text-3); }
+      .c1 .actual { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; text-align: right; color: var(--positive); }
+      .c1 .n { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-3); text-align: right; }
+
+      /* ─── Concept 2: Calibration scatter plot ─── */
+      .c2 .chart {
+        margin-top: 28px;
+        position: relative;
+        height: 280px;
+        border-left: 1px solid var(--border-strong);
+        border-bottom: 1px solid var(--border-strong);
+        padding: 20px 20px 20px 60px;
+      }
+      .c2 .chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+      .c2 .ax-label { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text-3); }
+      .c2 .legend { display: flex; gap: 20px; margin-top: 18px; font-size: 11px; color: var(--text-3); }
+      .c2 .legend .swatch { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 6px; background: var(--text-3); }
+      .c2 .legend .dot { display: inline-block; width: 8px; height: 8px; vertical-align: middle; margin-right: 6px; background: var(--accent); border-radius: 50%; }
+
+      /* ─── Concept 3: Vertical columns ─── */
+      .c3 .chart {
+        margin-top: 28px;
+        display: flex;
+        align-items: flex-end;
+        gap: 24px;
+        height: 220px;
+        padding-bottom: 28px;
+        border-bottom: 1px solid var(--border);
+      }
+      .c3 .col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+      }
+      .c3 .col .bars {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column-reverse;
+      }
+      .c3 .col .bar-actual {
+        width: 100%;
+        background: var(--accent);
+        border-radius: 4px 4px 0 0;
+        position: relative;
+      }
+      .c3 .col .pred-tick {
+        position: absolute;
+        left: 0; right: 0;
+        height: 2px;
+        background: var(--text-2);
+      }
+      .c3 .col .pred-tick::after {
+        content: attr(data-value) "%";
+        position: absolute;
+        top: -16px;
+        right: 0;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--text-3);
+      }
+      .c3 .col .actual-val {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--bg);
+        background: var(--accent);
+        padding: 2px 8px;
+        border-radius: 100px;
+        position: absolute;
+        top: -16px;
+        z-index: 2;
+        box-shadow: 0 2px 8px rgba(212,242,58,0.4);
+      }
+      .c3 .col-label { font-size: 10px; color: var(--text-3); margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+      .c3 .col-sample { font-size: 9px; color: var(--text-3); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+      .c3 .x-labels { display: flex; gap: 24px; margin-top: 12px; }
+      .c3 .x-labels > div { flex: 1; text-align: center; }
+
+      /* ─── Concept 4: Side-by-side twin bars ─── */
+      .c4 .group { padding: 18px 0; border-top: 1px solid var(--border); }
+      .c4 .group:first-child { border-top: none; }
+      .c4 .group-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+      .c4 .group-name { font-size: 13px; color: var(--text-2); font-weight: 500; }
+      .c4 .group-meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); }
+      .c4 .twin { display: grid; grid-template-columns: 60px 1fr 60px; gap: 12px; align-items: center; padding: 4px 0; }
+      .c4 .twin .lbl { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); }
+      .c4 .twin .bar-out { position: relative; height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+      .c4 .twin .bar-in { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 4px; }
+      .c4 .twin.pred .bar-in { background: rgba(255,255,255,0.30); }
+      .c4 .twin.actual .bar-in { background: var(--positive); }
+      .c4 .twin .val { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); text-align: right; }
+
+      /* ─── Concept 5: Donut rings per bucket ─── */
+      .c5 .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 28px; }
+      .c5 .cell { display: flex; flex-direction: column; align-items: center; padding: 18px 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+      .c5 .ring-wrap { position: relative; width: 96px; height: 96px; }
+      .c5 .ring-wrap svg { display: block; transform: rotate(-90deg); }
+      .c5 .ring-bg { fill: none; stroke: var(--surface-2); stroke-width: 9; }
+      .c5 .ring-pred { fill: none; stroke: var(--text-3); stroke-width: 2; stroke-dasharray: 2 3; }
+      .c5 .ring-actual { fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: round; transition: stroke-dashoffset 600ms; }
+      .c5 .ring-center { position: absolute; inset: 0; display: grid; place-items: center; }
+      .c5 .ring-center .actual { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+      .c5 .ring-center .pred { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-3); margin-top: -1px; }
+      .c5 .lbl { font-size: 11px; color: var(--text-2); margin-top: 14px; text-align: center; }
+      .c5 .lbl .n { font-family: 'JetBrains Mono', monospace; color: var(--text-3); margin-left: 6px; }
+
+      /* ─── Concept 6: Tornado / signed gap ─── */
+      .c6 .table { display: grid; grid-template-columns: 130px 1fr 130px; gap: 8px; margin-top: 22px; align-items: center; }
+      .c6 .header { font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.10em; color: var(--text-3); padding-bottom: 14px; border-bottom: 1px solid var(--border-strong); }
+      .c6 .header.center { text-align: center; }
+      .c6 .row { display: contents; }
+      .c6 .row > * { padding: 12px 0; border-top: 1px solid var(--border); }
+      .c6 .row .bucket { font-size: 13px; color: var(--text-2); }
+      .c6 .row .meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); text-align: right; }
+      .c6 .gap-cell { position: relative; height: 32px; padding: 0 !important; }
+      .c6 .axis {
+        position: absolute;
+        top: 50%;
+        left: 0; right: 0;
+        height: 1px;
+        background: var(--border);
+      }
+      .c6 .center-line {
+        position: absolute;
+        top: 14%;
+        bottom: 14%;
+        left: 50%;
+        width: 1.5px;
+        background: var(--text-2);
+        transform: translateX(-50%);
+        z-index: 2;
+      }
+      .c6 .bar-tornado {
+        position: absolute;
+        top: 25%;
+        bottom: 25%;
+        height: 50%;
+        border-radius: 2px;
+      }
+      .c6 .bar-tornado.under { right: 50%; background: var(--warning); }
+      .c6 .bar-tornado.over { left: 50%; background: var(--positive); }
+      .c6 .bar-label {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .c6 .bar-label.under { right: 51%; padding-right: 6px; color: var(--warning); }
+      .c6 .bar-label.over { left: 51%; padding-left: 6px; color: var(--positive); }
+
+      footer { margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-3); }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="intro">
+        <p class="eyebrow">Pickd — Calibration block · concepts</p>
+        <h1>Six directions for the model track record.</h1>
+        <p>All concepts show the same data: 120 resolved legs, predicted 87% on average, hit 83%. Bucketed 60-70 / 70-80 / 80-90 / 90-100. The "Hit Xn / 30" lines reflect actual sample sizes (3 / 27 / 60 / 30). Whichever you pick replaces the existing horizontal-bar block above the MultiPick controls.</p>
+      </header>
+
+      <!-- ───────────────────── 1. Editorial table ───────────────────── -->
+      <section class="concept">
+        <div class="concept-header">
+          <div><span class="concept-num">01</span><span class="concept-name">Editorial table</span></div>
+          <div class="concept-desc">Minimal hairline rows, dotted predicted marker, lime fill for actual. Reads like a Bloomberg terminal. Tightest vertical footprint.</div>
+        </div>
+        <div class="stage c1">
+          <div class="stage-eyebrow">Model track record</div>
+          <div class="stage-title">How our ratings have held up<span style="color: var(--accent);">.</span></div>
+          <div class="stage-sub">Across <span class="mono">120</span> resolved legs we predicted <span class="mono">87%</span> and they hit <span class="mono ok">83%</span> — well-calibrated overall.</div>
+          <div class="row head">
+            <div class="l">Confidence band</div>
+            <div class="l">Hit rate (dashed = predicted)</div>
+            <div class="l" style="text-align: right;">Actual</div>
+            <div class="l" style="text-align: right;">N</div>
+          </div>
+          <div class="row"><div class="bucket">60 – 70%</div><div class="bar-wrap"><div class="bar" style="width: 67%;"></div><div class="pred-marker" style="left: 65%;"></div></div><div class="actual">67%</div><div class="n">3</div></div>
+          <div class="row"><div class="bucket">70 – 80%</div><div class="bar-wrap"><div class="bar" style="width: 78%;"></div><div class="pred-marker" style="left: 75%;"></div></div><div class="actual">78%</div><div class="n">27</div></div>
+          <div class="row"><div class="bucket">80 – 90%</div><div class="bar-wrap"><div class="bar" style="width: 85%;"></div><div class="pred-marker" style="left: 85%;"></div></div><div class="actual">85%</div><div class="n">60</div></div>
+          <div class="row"><div class="bucket">90 – 100%</div><div class="bar-wrap"><div class="bar" style="width: 87%;"></div><div class="pred-marker" style="left: 95%;"></div></div><div class="actual">87%</div><div class="n">30</div></div>
+        </div>
+      </section>
+
+      <!-- ───────────────────── 2. Calibration scatter ───────────────────── -->
+      <section class="concept">
+        <div class="concept-header">
+          <div><span class="concept-num">02</span><span class="concept-name">Calibration plot</span></div>
+          <div class="concept-desc">Textbook quant viz. Diagonal line = perfect calibration. Each bucket plotted as predicted% (x) vs actual% (y). Most "this team knows what they're doing" of the options.</div>
+        </div>
+        <div class="stage c2">
+          <div class="stage-eyebrow">Model track record</div>
+          <div class="stage-title">How our ratings have held up<span style="color: var(--accent);">.</span></div>
+          <div class="stage-sub">Predicted vs actual hit rate. Closer to the diagonal = better calibrated. <span class="mono">120</span> legs, average predicted <span class="mono">87%</span>, actual <span class="mono ok">83%</span>.</div>
+          <div class="chart">
+            <svg viewBox="0 0 400 240">
+              <!-- Grid lines -->
+              <g stroke="rgba(255,255,255,0.04)" stroke-width="1">
+                <line x1="0" y1="60" x2="400" y2="60" />
+                <line x1="0" y1="120" x2="400" y2="120" />
+                <line x1="0" y1="180" x2="400" y2="180" />
+                <line x1="100" y1="0" x2="100" y2="240" />
+                <line x1="200" y1="0" x2="200" y2="240" />
+                <line x1="300" y1="0" x2="300" y2="240" />
+              </g>
+              <!-- Perfect calibration diagonal -->
+              <line x1="0" y1="240" x2="400" y2="0" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-dasharray="4 4" />
+              <text x="350" y="40" fill="rgba(255,255,255,0.30)" font-size="9" font-family="JetBrains Mono" text-anchor="end">Perfect</text>
+              <!-- Bucket dots — predicted% on x, actual% on y -->
+              <!-- 60-70 (pred 65, act 67) -->
+              <circle cx="260" cy="132" r="6" fill="#d4f23a" opacity="0.6" />
+              <circle cx="260" cy="132" r="3" fill="#d4f23a" />
+              <text x="270" y="135" fill="#9d9da3" font-size="9" font-family="JetBrains Mono">60-70</text>
+              <!-- 70-80 (pred 75, act 78) -->
+              <circle cx="300" cy="88" r="10" fill="#d4f23a" opacity="0.6" />
+              <circle cx="300" cy="88" r="3" fill="#d4f23a" />
+              <text x="310" y="91" fill="#9d9da3" font-size="9" font-family="JetBrains Mono">70-80</text>
+              <!-- 80-90 (pred 85, act 85) -->
+              <circle cx="340" cy="60" r="15" fill="#d4f23a" opacity="0.7" />
+              <circle cx="340" cy="60" r="3" fill="#d4f23a" />
+              <text x="358" y="55" fill="#9d9da3" font-size="9" font-family="JetBrains Mono">80-90</text>
+              <!-- 90-100 (pred 95, act 87) -->
+              <circle cx="380" cy="52" r="11" fill="#fbbf24" opacity="0.6" />
+              <circle cx="380" cy="52" r="3" fill="#fbbf24" />
+              <text x="362" y="42" fill="#9d9da3" font-size="9" font-family="JetBrains Mono">90-100</text>
+              <!-- y-axis labels -->
+              <text x="-8" y="6" fill="#5d5d63" font-size="9" font-family="JetBrains Mono" text-anchor="end">100%</text>
+              <text x="-8" y="124" fill="#5d5d63" font-size="9" font-family="JetBrains Mono" text-anchor="end">50%</text>
+              <text x="-8" y="244" fill="#5d5d63" font-size="9" font-family="JetBrains Mono" text-anchor="end">0%</text>
+              <!-- x-axis labels -->
+              <text x="0" y="258" fill="#5d5d63" font-size="9" font-family="JetBrains Mono">0%</text>
+              <text x="200" y="258" fill="#5d5d63" font-size="9" font-family="JetBrains Mono" text-anchor="middle">Predicted →</text>
+              <text x="400" y="258" fill="#5d5d63" font-size="9" font-family="JetBrains Mono" text-anchor="end">100%</text>
+            </svg>
+          </div>
+          <div class="legend">
+            <span><span class="swatch" style="background: rgba(255,255,255,0.18); border-top: 1px dashed rgba(255,255,255,0.3);"></span>Perfect calibration</span>
+            <span><span class="dot"></span>Bucket (dot size = sample N)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────── 3. Vertical columns ───────────────────── -->
+      <section class="concept">
+        <div class="concept-header">
+          <div><span class="concept-num">03</span><span class="concept-name">Vertical columns + tick</span></div>
+          <div class="concept-desc">Each bucket = a column. Bar height is the actual hit rate, with a thin horizontal tick showing the predicted target. Achievement-pill style at the top. Reads instantly like a bar chart.</div>
+        </div>
+        <div class="stage c3">
+          <div class="stage-eyebrow">Model track record</div>
+          <div class="stage-title">How our ratings have held up<span style="color: var(--accent);">.</span></div>
+          <div class="stage-sub">Bar = actual hit rate. Tick = predicted. <span class="mono">120</span> legs, average predicted <span class="mono">87%</span>, actual <span class="mono ok">83%</span>.</div>
+          <div class="chart">
+            <div class="col">
+              <div class="bars">
+                <div class="bar-actual" style="height: 67%;">
+                  <span class="actual-val">67%</span>
+                </div>
+                <div class="pred-tick" style="bottom: 65%;" data-value="65"></div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="bars">
+                <div class="bar-actual" style="height: 78%;">
+                  <span class="actual-val">78%</span>
+                </div>
+                <div class="pred-tick" style="bottom: 75%;" data-value="75"></div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="bars">
+                <div class="bar-actual" style="height: 85%;">
+                  <span class="actual-val">85%</span>
+                </div>
+                <div class="pred-tick" style="bottom: 85%;" data-value="85"></div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="bars">
+                <div class="bar-actual" style="height: 87%; background: var(--warning);">
+                  <span class="actual-val" style="background: var(--warning); box-shadow: 0 2px 8px rgba(251,191,36,0.4);">87%</span>
+                </div>
+                <div class="pred-tick" style="bottom: 95%;" data-value="95"></div>
+              </div>
+            </div>
+          </div>
+          <div class="x-labels">
+            <div class="col-label">60–70</div>
+            <div class="col-label">70–80</div>
+            <div class="col-label">80–90</div>
+            <div class="col-label">90–100</div>
+          </div>
+          <div class="x-labels">
+            <div class="col-sample">n=3</div>
+            <div class="col-sample">n=27</div>
+            <div class="col-sample">n=60</div>
+            <div class="col-sample">n=30</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────── 4. Twin bars ───────────────────── -->
+      <section class="concept">
+        <div class="concept-header">
+          <div><span class="concept-num">04</span><span class="concept-name">Twin bars per bucket</span></div>
+          <div class="concept-desc">Each bucket gets two bars side by side: predicted (muted white) and actual (lime). Direct comparison, no tick interpretation needed.</div>
+        </div>
+        <div class="stage c4">
+          <div class="stage-eyebrow">Model track record</div>
+          <div class="stage-title">How our ratings have held up<span style="color: var(--accent);">.</span></div>
+          <div class="stage-sub">Predicted vs actual per confidence band. <span class="mono">120</span> total, calibrated to ~<span class="mono ok">4%</span> off on average.</div>
+          <div style="margin-top: 24px;">
+            <div class="group">
+              <div class="group-head"><div class="group-name">Rated 60 – 70%</div><div class="group-meta">3 legs</div></div>
+              <div class="twin pred"><div class="lbl">Predicted</div><div class="bar-out"><div class="bar-in" style="width: 65%;"></div></div><div class="val">65%</div></div>
+              <div class="twin actual"><div class="lbl">Hit</div><div class="bar-out"><div class="bar-in" style="width: 67%;"></div></div><div class="val">67%</div></div>
+            </div>
+            <div class="group">
+              <div class="group-head"><div class="group-name">Rated 70 – 80%</div><div class="group-meta">27 legs</div></div>
+              <div class="twin pred"><div class="lbl">Predicted</div><div class="bar-out"><div class="bar-in" style="width: 75%;"></div></div><div class="val">75%</div></div>
+              <div class="twin actual"><div class="lbl">Hit</div><div class="bar-out"><div class="bar-in" style="width: 78%;"></div></div><div class="val">78%</div></div>
+            </div>
+            <div class="group">
+              <div class="group-head"><div class="group-name">Rated 80 – 90%</div><div class="group-meta">60 legs</div></div>
+              <div class="twin pred"><div class="lbl">Predicted</div><div class="bar-out"><div class="bar-in" style="width: 85%;"></div></div><div class="val">85%</div></div>
+              <div class="twin actual"><div class="lbl">Hit</div><div class="bar-out"><div class="bar-in" style="width: 85%;"></div></div><div class="val">85%</div></div>
+            </div>
+            <div class="group">
+              <div class="group-head"><div class="group-name">Rated 90 – 100%</div><div class="group-meta">30 legs</div></div>
+              <div class="twin pred"><div class="lbl">Predicted</div><div class="bar-out"><div class="bar-in" style="width: 95%;"></div></div><div class="val">95%</div></div>
+              <div class="twin actual"><div class="lbl">Hit</div><div class="bar-out"><div class="bar-in" style="width: 87%; background: var(--warning);"></div></div><div class="val">87%</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────── 5. Donut rings ───────────────────── -->
+      <section class="concept">
+        <div class="concept-header">
+          <div><span class="concept-num">05</span><span class="concept-name">Donut rings per bucket</span></div>
+          <div class="concept-desc">Each bucket gets its own ring chart with the actual hit rate as a lime arc. Center shows the % big, with the predicted target beneath it small. Most "Apple Watch" of the options.</div>
+        </div>
+        <div class="stage c5">
+          <div class="stage-eyebrow">Model track record</div>
+          <div class="stage-title">How our ratings have held up<span style="color: var(--accent);">.</span></div>
+          <div class="stage-sub">Big number = actual hit rate. Small = predicted target. <span class="mono">120</span> legs · avg predicted <span class="mono">87%</span> · avg hit <span class="mono ok">83%</span>.</div>
+          <div class="grid">
+            <div class="cell">
+              <div class="ring-wrap">
+                <svg width="96" height="96" viewBox="0 0 96 96">
+                  <circle class="ring-bg" cx="48" cy="48" r="40" />
+                  <circle class="ring-actual" cx="48" cy="48" r="40" stroke-dasharray="251.3" stroke-dashoffset="82.9" />
+                  <!-- Predicted as outer dotted ring -->
+                  <circle class="ring-pred" cx="48" cy="48" r="46" stroke-dasharray="289.0" stroke-dashoffset="101.1" />
+                </svg>
+                <div class="ring-center">
+                  <div>
+                    <div class="actual">67%</div>
+                    <div class="pred">pred 65%</div>
+                  </div>
+                </div>
+              </div>
+              <div class="lbl">Rated 60-70% <span class="n">n=3</span></div>
+            </div>
+            <div class="cell">
+              <div class="ring-wrap">
+                <svg width="96" height="96" viewBox="0 0 96 96">
+                  <circle class="ring-bg" cx="48" cy="48" r="40" />
+                  <circle class="ring-actual" cx="48" cy="48" r="40" stroke-dasharray="251.3" stroke-dashoffset="55.3" />
+                  <circle class="ring-pred" cx="48" cy="48" r="46" stroke-dasharray="289.0" stroke-dashoffset="72.3" />
+                </svg>
+                <div class="ring-center">
+                  <div>
+                    <div class="actual">78%</div>
+                    <div class="pred">pred 75%</div>
+                  </div>
+                </div>
+              </div>
+              <div class="lbl">Rated 70-80% <span class="n">n=27</span></div>
+            </div>
+            <div class="cell">
+              <div class="ring-wrap">
+                <svg width="96" height="96" viewBox="0 0 96 96">
+                  <circle class="ring-bg" cx="48" cy="48" r="40" />
+                  <circle class="ring-actual" cx="48" cy="48" r="40" stroke-dasharray="251.3" stroke-dashoffset="37.7" />
+                  <circle class="ring-pred" cx="48" cy="48" r="46" stroke-dasharray="289.0" stroke-dashoffset="43.4" />
+                </svg>
+                <div class="ring-center">
+                  <div>
+                    <div class="actual">85%</div>
+                    <div class="pred">pred 85%</div>
+                  </div>
+                </div>
+              </div>
+              <div class="lbl">Rated 80-90% <span class="n">n=60</span></div>
+            </div>
+            <div class="cell">
+              <div class="ring-wrap">
+                <svg width="96" height="96" viewBox="0 0 96 96">
+                  <circle class="ring-bg" cx="48" cy="48" r="40" />
+                  <circle class="ring-actual" cx="48" cy="48" r="40" stroke="#fbbf24" stroke-dasharray="251.3" stroke-dashoffset="32.7" />
+                  <circle class="ring-pred" cx="48" cy="48" r="46" stroke-dasharray="289.0" stroke-dashoffset="14.5" />
+                </svg>
+                <div class="ring-center">
+                  <div>
+                    <div class="actual" style="color: var(--warning);">87%</div>
+                    <div class="pred">pred 95%</div>
+                  </div>
+                </div>
+              </div>
+              <div class="lbl">Rated 90-100% <span class="n">n=30</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────── 6. Tornado / signed gap ───────────────────── -->
+      <section class="concept">
+        <div class="concept-header">
+          <div><span class="concept-num">06</span><span class="concept-name">Signed-gap (tornado)</span></div>
+          <div class="concept-desc">Bars go LEFT from center for buckets we under-predicted (better than expected), RIGHT for over-predicted (we were too confident). Center line = perfect. Most quant-trader of the bunch.</div>
+        </div>
+        <div class="stage c6">
+          <div class="stage-eyebrow">Model track record</div>
+          <div class="stage-title">Where we over- and under-shoot<span style="color: var(--accent);">.</span></div>
+          <div class="stage-sub">Center line = predicted hit. Right of centre = we under-predicted (hit better than expected). Left of centre = we over-predicted.</div>
+          <div class="table">
+            <div class="header">Confidence band</div>
+            <div class="header center">← Over-predicted · Under-predicted →</div>
+            <div class="header" style="text-align: right;">Hit / Pred · N</div>
+
+            <div class="row">
+              <div class="bucket">Rated 60 – 70%</div>
+              <div class="gap-cell">
+                <div class="axis"></div>
+                <div class="center-line"></div>
+                <div class="bar-tornado over" style="width: 6%;"></div>
+                <span class="bar-label over">+2%</span>
+              </div>
+              <div class="meta">67% / 65% · 3</div>
+            </div>
+
+            <div class="row">
+              <div class="bucket">Rated 70 – 80%</div>
+              <div class="gap-cell">
+                <div class="axis"></div>
+                <div class="center-line"></div>
+                <div class="bar-tornado over" style="width: 9%;"></div>
+                <span class="bar-label over">+3%</span>
+              </div>
+              <div class="meta">78% / 75% · 27</div>
+            </div>
+
+            <div class="row">
+              <div class="bucket">Rated 80 – 90%</div>
+              <div class="gap-cell">
+                <div class="axis"></div>
+                <div class="center-line"></div>
+                <div class="bar-tornado over" style="width: 0.5%;"></div>
+                <span class="bar-label over" style="left: 51.5%;">±0%</span>
+              </div>
+              <div class="meta">85% / 85% · 60</div>
+            </div>
+
+            <div class="row">
+              <div class="bucket">Rated 90 – 100%</div>
+              <div class="gap-cell">
+                <div class="axis"></div>
+                <div class="center-line"></div>
+                <div class="bar-tornado under" style="width: 24%;"></div>
+                <span class="bar-label under">−8%</span>
+              </div>
+              <div class="meta">87% / 95% · 30</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        All concepts use only Pickd brand tokens — lime accent (#d4f23a), warning amber for over-shoots, JetBrains Mono numerals, Inter Tight headlines, hairline dividers, dark canvas. Pick one (or hybrid) and I'll wire it into the MultiPick page replacing the existing horizontal-bar block.
+      </footer>
+    </main>
+  </body>
+</html>
