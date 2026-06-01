@@ -2004,14 +2004,29 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                             </div>
                             {totalN > 0 ? (
                               <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <div className="flex gap-1" title="Last 10 games · rightmost = most recent">
+                                <div className="flex items-center gap-1" title="Last 10 games · rightmost = most recent">
                                   {Array.from({ length: totalN }).map((_, dIdx) => {
                                     // If we have a real per-game pattern, dIdx maps directly
                                     // (already reversed so leftmost = oldest, rightmost = most
                                     // recent). Without it, fall back to first-N-filled.
                                     const filled = hitPattern ? hitPattern[dIdx] === true : dIdx < hitN;
+                                    const isLatest = dIdx === totalN - 1;
+                                    // Subtle accent ring + soft glow on the most recent dot so
+                                    // users instantly grok the orientation: "the bright one is
+                                    // tonight". Slightly larger too. Filled dots glow lime-green
+                                    // (positive), empty dots glow accent yellow.
                                     return (
-                                      <div key={dIdx} className={"h-1.5 w-1.5 rounded-full " + (filled ? "bg-[var(--positive-new)]" : "bg-transparent border border-[var(--text-3-new)]/40")} />
+                                      <div
+                                        key={dIdx}
+                                        title={isLatest ? "Most recent game" : `${totalN - dIdx} games ago`}
+                                        className={
+                                          (isLatest ? "h-2 w-2 ring-1 ring-offset-1 ring-offset-[var(--bg-new)] " : "h-1.5 w-1.5 ") +
+                                          "rounded-full " +
+                                          (filled ? "bg-[var(--positive-new)]" : "bg-transparent border border-[var(--text-3-new)]/40") +
+                                          (isLatest ? (filled ? " ring-[var(--accent-new)]" : " ring-[var(--accent-new)]/70") : "")
+                                        }
+                                        style={isLatest ? { boxShadow: filled ? "0 0 6px rgba(74, 222, 128, 0.55)" : "0 0 6px rgba(212, 242, 58, 0.45)" } : undefined}
+                                      />
                                     );
                                   })}
                                 </div>
