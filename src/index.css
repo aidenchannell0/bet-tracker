@@ -369,9 +369,31 @@ html, body, #root {
   pointer-events: none;
 }
 
-/* Smooth hand-off: finished multi fades + lifts in as the sphere clears */
-@keyframes multiReveal {
-  0%   { opacity: 0; transform: translateY(12px); }
+/* Smooth hand-off (Mode B — stagger cascade): the container fades in fast,
+   then the stat strip and each leg row slide up one after another so the
+   multi visibly "assembles" piece by piece as the sphere clears. */
+@keyframes multiReveal { 0% { opacity: 0; } 100% { opacity: 1; } }
+.multi-reveal { animation: multiReveal 0.3s ease both; }
+
+@keyframes multiPartIn {
+  0%   { opacity: 0; transform: translateY(18px); }
   100% { opacity: 1; transform: translateY(0); }
 }
-.multi-reveal { animation: multiReveal 0.55s cubic-bezier(0.16, 1, 0.3, 1); }
+/* reveal-part elements start hidden (fill: both) and slide in at their own
+   inline animation-delay, set per-leg in JS for the cascade. */
+.multi-reveal .reveal-part { animation: multiPartIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Leg detail panel expand (tap-to-open) */
+@keyframes legExpand { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: translateY(0); } }
+.leg-expand { animation: legExpand 0.25s ease; }
+
+/* Accessibility: no motion → everything just shows, never stuck hidden */
+@media (prefers-reduced-motion: reduce) {
+  .multi-reveal,
+  .multi-reveal .reveal-part,
+  .leg-expand {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

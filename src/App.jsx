@@ -1065,56 +1065,188 @@ function EdgeSelectField({ label, value, options, onChange }) {
   );
 }
 
-function EdgeDetailToggle({ leg }) {
-  const [open, setOpen] = useState(false);
+// One leg in the MultiPick output. Compact by default (number, crest, player,
+// avg + cleared, confidence, odds); tap the row to expand the full form — the
+// per-game dot pattern, freshness, matchup, details grid, recent trend and the
+// "why included" note. Replaces the always-expanded row + EdgeDetailToggle.
+function EdgeLegRow({ leg, index, sportContext }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const matchupPct = leg.matchupFactor && leg.matchupFactor !== 1 ? Math.round((leg.matchupFactor - 1) * 100) : null;
+  const ageDays = leg.formAsOf ? Math.floor((Date.now() - new Date(leg.formAsOf + "T00:00:00").getTime()) / 86400000) : null;
+  const isAFLContext = !sportContext || /afl/i.test(String(sportContext));
+  const freshness = (() => {
+    if (ageDays == null) return null;
+    const tone = ageDays <= 3 ? "fresh" : ageDays <= 14 ? "ageing" : "stale";
+    if (isAFLContext) {
+      const roundsAgo = Math.floor(ageDays / 7);
+      const label = roundsAgo === 0 ? "Form this round" : roundsAgo === 1 ? "Form last round" : `Form ${roundsAgo} rounds ago`;
+      return { label, tone };
+    }
+    return { label: ageDays <= 3 ? `Form ${ageDays}d fresh` : `Form ${ageDays}d old`, tone };
+  })();
+
+  // hit count / total — from per-game values when present, else parsed from reason
+  let hitN = 0, totalN = 10;
+  if (typeof leg.reason === "string") {
+    const m = leg.reason.match(/(\d+)\s*[/]\s*(\d+)/);
+    if (m) { hitN = parseInt(m[1], 10); totalN = parseInt(m[2], 10); }
+  }
+  let avgN = null;
+  if (typeof leg.reason === "string") {
+    const am = leg.reason.match(/averaging\s+([0-9.]+)/i);
+    if (am) avgN = parseFloat(am[1]);
+  }
+  let playerName = leg.name || "";
+  let lineText = "";
+  const dashIdx = playerName.indexOf("—");
+  if (dashIdx >= 0) { lineText = playerName.slice(dashIdx + 1).trim(); playerName = playerName.slice(0, dashIdx).trim(); }
+  const lineNum = (() => {
+    if (typeof leg.line === "number") return leg.line;
+    const n = parseFloat(String(leg.line || lineText || "").replace(/[^0-9.]/g, ""));
+    return Number.isFinite(n) ? n : null;
+  })();
+  let hitPattern = null;
+  if (Array.isArray(leg.last10Values) && leg.last10Values.length > 0 && lineNum != null) {
+    hitPattern = [...leg.last10Values].reverse().map((v) => Number(v) >= lineNum);
+    totalN = hitPattern.length;
+    hitN = hitPattern.filter(Boolean).length;
+  }
+
+  const toneColor = (t) => t === "fresh" ? "var(--positive-new)" : t === "ageing" ? "var(--warning-new)" : "var(--danger-new)";
 
   return (
-    <div className="mt-4">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-[#E8E2D4]">
-        <span>{open ? "Hide detailed form" : "Show detailed form"}</span>
-        <span className="text-slate-500">{open ? "−" : "+"}</span>
+    <div className="reveal-part" style={{ animationDelay: `${0.12 + index * 0.08}s` }}>
+      {/* COMPACT ROW — whole row taps to expand */}
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        className="grid w-full grid-cols-[22px_36px_1fr_auto] items-center gap-x-4 py-4 text-left transition-colors hover:bg-[var(--surface-new)]/40 md:grid-cols-[22px_40px_1fr_84px_auto]"
+      >
+        <div className="mono-nums text-[12px] text-[var(--text-3-new)] tracking-[0.05em]">{String(index + 1).padStart(2, "0")}</div>
+        <TeamCrest team={leg.team} className="h-9 w-9 shrink-0" />
+        <div className="min-w-0">
+          <div className="truncate text-[14px] md:text-[15px] font-medium tracking-[-0.01em] text-[var(--text-new)]">
+            {playerName}
+            {leg.position ? (
+              <span className="ml-2 inline-flex items-center rounded bg-[var(--surface-new)] px-1.5 py-0.5 align-middle text-[9px] font-semibold tracking-[0.08em] text-[var(--text-3-new)]">{leg.position}</span>
+            ) : null}
+            {lineText ? <span className="font-normal text-[var(--text-3-new)]"> — <span className="mono-nums">{lineText}</span></span> : null}
+          </div>
+          <div className="mt-0.5 truncate text-[12px] text-[var(--text-3-new)]">
+            {avgN != null ? <>Avg <span className="mono-nums text-[var(--text-2-new)]">{avgN}</span></> : null}
+            {totalN > 0 ? <>{avgN != null ? " · " : ""}<span className="mono-nums text-[var(--text-2-new)]">{hitN}/{totalN}</span> cleared</> : null}
+          </div>
+        </div>
+        {/* confidence — desktop column */}
+        <div className="hidden text-center md:block">
+          <div className="mono-nums text-[20px] font-semibold leading-none text-[var(--text-new)]">{leg.confidence}</div>
+          <div className="mt-1 text-[9px] uppercase tracking-[0.08em] text-[var(--text-3-new)]">conf</div>
+        </div>
+        {/* odds + chevron */}
+        <div className="flex items-center justify-end gap-3 text-right">
+          <div>
+            <div className="mono-nums text-[18px] md:text-[20px] font-semibold leading-none text-[var(--text-new)]">${leg.odds ? formatOdds(leg.odds) : "—"}</div>
+            <div className="mt-1 flex items-center justify-end gap-2">
+              <span className="md:hidden mono-nums text-[11px] font-medium text-[var(--text-2-new)]">{leg.confidence}</span>
+              {typeof leg.edgePct === "number" && leg.edgePct > 0 ? (
+                <span className="mono-nums rounded bg-[var(--positive-soft-new)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--positive-new)]">+{leg.edgePct}%</span>
+              ) : null}
+            </div>
+          </div>
+          <svg
+            viewBox="0 0 12 12" className="h-3 w-3 shrink-0 text-[var(--text-3-new)] transition-transform"
+            style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }} fill="none" stroke="currentColor" strokeWidth="1.6"
+          >
+            <path d="M2.5 4.5 L6 8 L9.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
       </button>
-      {open ? (
-        <div className="mt-3 space-y-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
-          <div className="grid grid-cols-2 gap-2">
-            {leg.details.map((item) => (
-              <div key={item.label} className="rounded-lg bg-[#FAF7EF] p-3">
-                <p className="text-xs text-slate-500">{item.label}</p>
-                <p className="mt-1 font-semibold text-[#11203B]">{item.value}</p>
+
+      {/* EXPANDED FORM — everything else */}
+      {expanded ? (
+        <div className="leg-expand pb-6 md:pl-[62px]">
+          {/* per-game dot pattern + cleared */}
+          {totalN > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1" title="Last 10 games · rightmost = most recent">
+                {Array.from({ length: totalN }).map((_, dIdx) => {
+                  const filled = hitPattern ? hitPattern[dIdx] === true : dIdx < hitN;
+                  const isLatest = dIdx === totalN - 1;
+                  return (
+                    <div
+                      key={dIdx}
+                      title={isLatest ? "Most recent game" : `${totalN - dIdx} games ago`}
+                      className={
+                        (isLatest ? "h-2 w-2 ring-1 ring-offset-1 ring-offset-[var(--bg-new)] " : "h-1.5 w-1.5 ") +
+                        "rounded-full " +
+                        (filled ? "bg-[var(--positive-new)]" : "border border-[var(--text-3-new)]/40 bg-transparent") +
+                        (isLatest ? " ring-[var(--accent-new)]" : "")
+                      }
+                      style={isLatest ? { boxShadow: filled ? "0 0 6px rgba(74, 222, 128, 0.55)" : "0 0 6px rgba(212, 242, 58, 0.45)" } : undefined}
+                    />
+                  );
+                })}
               </div>
-            ))}
+              <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]"><span className="mono-nums">{hitN} / {totalN}</span> cleared</div>
+            </div>
+          ) : null}
+
+          {/* freshness + matchup line */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            {freshness ? (
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.08em]" style={{ color: toneColor(freshness.tone) }}>
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: toneColor(freshness.tone) }} />
+                {freshness.label}
+              </span>
+            ) : null}
+            {matchupPct !== null && leg.opponent ? (
+              <span className="text-[12px] text-[var(--text-2-new)]">
+                Matchup <span className={matchupPct >= 0 ? "font-medium text-[var(--positive-new)]" : "font-medium text-[var(--danger-new)]"}><span className="mono-nums">{matchupPct >= 0 ? "+" : ""}{matchupPct}%</span></span> vs {leg.opponent}
+              </span>
+            ) : null}
           </div>
-          <div>
-            <p className="font-medium text-slate-900">Recent trend</p>
-            {Array.isArray(leg.last5Values) && leg.last5Values.length ? (
-              <>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  {[...leg.last5Values].reverse().map((value, index, arr) => {
-                    const isLatest = index === arr.length - 1;
-                    return (
-                      <span
-                        key={index}
-                        title={isLatest ? "Latest game" : undefined}
-                        className={
-                          "inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-sm font-semibold " +
-                          (isLatest ? "bg-[#11203B] text-white ring-2 ring-[#C49A4A]" : "bg-[#FAF7EF] text-[#11203B]")
-                        }
-                      >
-                        {value}
-                      </span>
-                    );
-                  })}
+
+          {/* details grid */}
+          {Array.isArray(leg.details) && leg.details.length ? (
+            <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3">
+              {leg.details.map((item) => (
+                <div key={item.label} className="rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] p-3">
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)]">{item.label}</p>
+                  <p className="mt-1 text-[13px] font-semibold text-[var(--text-new)]">{item.value}</p>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">Oldest → latest (boxed){typeof leg.line === "number" ? ` · line: Over ${leg.line}` : ""}</p>
-              </>
-            ) : (
-              <p className="mt-1 leading-6">{leg.trend}</p>
-            )}
-          </div>
-          <div>
-            <p className="font-medium text-slate-900">Why MultiPick included it</p>
-            <p className="mt-1 leading-6">{leg.extraReason}</p>
-          </div>
+              ))}
+            </div>
+          ) : null}
+
+          {/* recent trend — last 5 boxed values */}
+          {Array.isArray(leg.last5Values) && leg.last5Values.length ? (
+            <div className="mt-4">
+              <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)]">Recent scores · oldest → latest</p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {[...leg.last5Values].reverse().map((value, i, arr) => {
+                  const isLatest = i === arr.length - 1;
+                  return (
+                    <span
+                      key={i}
+                      className={"mono-nums inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-[13px] font-semibold " + (isLatest ? "bg-[var(--accent-new)] text-[var(--bg-new)]" : "bg-[var(--surface-new)] text-[var(--text-new)]")}
+                    >
+                      {value}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {/* why included */}
+          {leg.extraReason ? (
+            <div className="mt-4">
+              <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)]">Why MultiPick included it</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-2-new)]">{leg.extraReason}</p>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -2190,7 +2322,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
 
                   {/* Editorial stat strip — Layout B. Hairline borders only,
                       massive 44px mono numerals on Combined, 28px on others. */}
-                  <div className="mt-7 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-0 border-b border-[var(--border-new)] py-7 md:py-9">
+                  <div className="reveal-part mt-7 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-0 border-b border-[var(--border-new)] py-7 md:py-9" style={{ animationDelay: "0.05s" }}>
                     <div className="md:pr-7 md:border-r md:border-[var(--border-new)]">
                       <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined</div>
                       <div className="mt-3.5 mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">${multiOutput ? formatOdds(multiOutput.combinedOdds) : displayedTargetOdds.replace("$", "")}</div>
@@ -2264,170 +2396,14 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                   {/* Legs list — Layout B preview style: NO card backgrounds.
                       Each row is just hairline-divided. Cleaner editorial feel. */}
                   <div className="divide-y divide-[var(--border-new)]">
-                    {(multiOutput?.legs || exampleLegs).map((leg, index) => {
-                      const matchupPct = leg.matchupFactor && leg.matchupFactor !== 1 ? Math.round((leg.matchupFactor - 1) * 100) : null;
-                      const ageDays = leg.formAsOf ? Math.floor((Date.now() - new Date(leg.formAsOf + "T00:00:00").getTime()) / 86400000) : null;
-                      // Sport-aware freshness label. AFL plays once a week so
-                      // "rounds ago" reads more naturally than "Xd old". NBA
-                      // plays 3-4 times per week so days stays.
-                      const sportContext = multiOutput?.sport || sport;
-                      const isAFLContext = !sportContext || /afl/i.test(String(sportContext));
-                      const freshness = (() => {
-                        if (ageDays == null) return null;
-                        // Tone bands: fresh ≤3d, ageing 4-14d (~2 rounds), stale 15d+
-                        const tone = ageDays <= 3 ? "fresh"
-                          : ageDays <= 14 ? "ageing"
-                          : "stale";
-                        if (isAFLContext) {
-                          const roundsAgo = Math.floor(ageDays / 7);
-                          const label = roundsAgo === 0 ? "Form this round"
-                            : roundsAgo === 1 ? "Form last round"
-                            : `Form ${roundsAgo} rounds ago`;
-                          return { label, tone };
-                        }
-                        return { label: ageDays <= 3 ? `Form ${ageDays}d fresh` : `Form ${ageDays}d old`, tone };
-                      })();
-                      const stale = freshness?.tone === "stale";
-                      return (
-                        (() => {
-                          // Parse 'X / Y' (cleared / total) out of the reason
-                          // text — kept as a fallback when the backend hasn't
-                          // sent per-game values (older multis, NBA missing data).
-                          let hitN = 0, totalN = 10;
-                          if (typeof leg.reason === "string") {
-                            const m = leg.reason.match(/(\d+)\s*[\/]\s*(\d+)/);
-                            if (m) { hitN = parseInt(m[1], 10); totalN = parseInt(m[2], 10); }
-                          }
-                          // Parse the averaging value from the reason
-                          let avgN = null;
-                          if (typeof leg.reason === "string") {
-                            const am = leg.reason.match(/averaging\s+([0-9.]+)/i);
-                            if (am) avgN = parseFloat(am[1]);
-                          }
-                          // Split leg.name into player + line if it contains an em-dash
-                          let playerName = leg.name || "";
-                          let lineText = "";
-                          const dashIdx = playerName.indexOf("—");
-                          if (dashIdx >= 0) {
-                            lineText = playerName.slice(dashIdx + 1).trim();
-                            playerName = playerName.slice(0, dashIdx).trim();
-                          }
-                          // Per-game hit pattern, chronological. last10Values
-                          // arrives most-recent-first from the backend; we
-                          // reverse so the rightmost dot is the most recent
-                          // game and the leftmost dot is 10 games ago. Each
-                          // dot is filled iff that specific game cleared the
-                          // line (so a miss 4 games ago shows as an empty
-                          // dot at position 4-from-right, not bunched at the
-                          // start). Falls back to "first N filled" when no
-                          // per-game values are present.
-                          const lineNum = (() => {
-                            if (typeof leg.line === "number") return leg.line;
-                            const n = parseFloat(String(leg.line || lineText || "").replace(/[^0-9.]/g, ""));
-                            return Number.isFinite(n) ? n : null;
-                          })();
-                          let hitPattern = null;
-                          if (Array.isArray(leg.last10Values) && leg.last10Values.length > 0 && lineNum != null) {
-                            hitPattern = [...leg.last10Values].reverse().map((v) => Number(v) >= lineNum);
-                            totalN = hitPattern.length;
-                            hitN = hitPattern.filter(Boolean).length;
-                          }
-                          return (
-                        <div key={`${leg.name}-${index}`} className="hover:bg-[var(--surface-new)]/40 transition-colors py-6 md:px-0 grid grid-cols-[28px_44px_1fr] md:grid-cols-[28px_44px_1fr_120px_140px] gap-x-5 gap-y-3 items-center">
-                          <div className="mono-nums text-[12px] text-[var(--text-3-new)] tracking-[0.05em]">{String(index + 1).padStart(2, "0")}</div>
-                          <TeamCrest team={leg.team} className="h-10 w-10 shrink-0" />
-                          <div className="min-w-0">
-                            <div className="text-[15px] md:text-[17px] font-medium tracking-[-0.01em] text-[var(--text-new)]">
-                              {playerName}
-                              {leg.position ? (
-                                <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-[var(--text-3-new)] bg-[var(--surface-new)] align-middle">
-                                  {leg.position}
-                                </span>
-                              ) : null}
-                              {lineText ? <span className="font-normal text-[var(--text-3-new)]"> — <span className="mono-nums">{lineText}</span></span> : null}
-                            </div>
-                            <div className="mt-1 text-[13px] text-[var(--text-2-new)]">
-                              {avgN != null ? <>Averaging <span className="mono-nums text-[var(--text-new)] font-medium">{avgN}</span></> : leg.reason}
-                              {matchupPct !== null && leg.opponent ? (
-                                <> · matchup nudge <span className={matchupPct >= 0 ? "text-[var(--positive-new)] font-medium" : "text-[var(--danger-new)] font-medium"}><span className="mono-nums">{matchupPct >= 0 ? "+" : ""}{matchupPct}%</span></span> vs {leg.opponent}</>
-                              ) : null}
-                            </div>
-                            {totalN > 0 ? (
-                              <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <div className="flex items-center gap-1" title="Last 10 games · rightmost = most recent">
-                                  {Array.from({ length: totalN }).map((_, dIdx) => {
-                                    // If we have a real per-game pattern, dIdx maps directly
-                                    // (already reversed so leftmost = oldest, rightmost = most
-                                    // recent). Without it, fall back to first-N-filled.
-                                    const filled = hitPattern ? hitPattern[dIdx] === true : dIdx < hitN;
-                                    const isLatest = dIdx === totalN - 1;
-                                    // Subtle accent ring + soft glow on the most recent dot so
-                                    // users instantly grok the orientation: "the bright one is
-                                    // tonight". Slightly larger too. Filled dots glow lime-green
-                                    // (positive), empty dots glow accent yellow.
-                                    return (
-                                      <div
-                                        key={dIdx}
-                                        title={isLatest ? "Most recent game" : `${totalN - dIdx} games ago`}
-                                        className={
-                                          (isLatest ? "h-2 w-2 ring-1 ring-offset-1 ring-offset-[var(--bg-new)] " : "h-1.5 w-1.5 ") +
-                                          "rounded-full " +
-                                          (filled ? "bg-[var(--positive-new)]" : "bg-transparent border border-[var(--text-3-new)]/40") +
-                                          (isLatest ? (filled ? " ring-[var(--accent-new)]" : " ring-[var(--accent-new)]/70") : "")
-                                        }
-                                        style={isLatest ? { boxShadow: filled ? "0 0 6px rgba(74, 222, 128, 0.55)" : "0 0 6px rgba(212, 242, 58, 0.45)" } : undefined}
-                                      />
-                                    );
-                                  })}
-                                </div>
-                                <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)] font-medium"><span className="mono-nums">{hitN} / {totalN}</span> cleared</div>
-                              </div>
-                            ) : null}
-                            {freshness ? (
-                              <div className={"mt-1.5 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] font-medium " + (
-                                freshness.tone === "fresh" ? "text-[var(--positive-new)]"
-                                : freshness.tone === "ageing" ? "text-[var(--warning-new)]"
-                                : "text-[var(--danger-new)]"
-                              )}>
-                                <span className={"h-1.5 w-1.5 rounded-full " + (
-                                  freshness.tone === "fresh" ? "bg-[var(--positive-new)]"
-                                  : freshness.tone === "ageing" ? "bg-[var(--warning-new)]"
-                                  : "bg-[var(--danger-new)]"
-                                )} />
-                                {freshness.label}
-                              </div>
-                            ) : null}
-                          </div>
-                          {/* Confidence column (desktop only) */}
-                          <div className="hidden md:block text-center">
-                            <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)] font-medium">Confidence</div>
-                            <div className="mt-1.5 mono-nums text-[26px] md:text-[28px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{leg.confidence}</div>
-                          </div>
-                          {/* Odds / value column */}
-                          <div className="text-right col-span-3 md:col-span-1 flex md:block items-start justify-between gap-3 pt-3 md:pt-0 border-t md:border-0 border-[var(--border-new)] mt-1 md:mt-0">
-                            <div className="md:hidden text-left">
-                              <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)] font-medium">Confidence</div>
-                              <div className="mt-0.5 mono-nums text-lg font-semibold text-[var(--text-new)]">{leg.confidence}</div>
-                            </div>
-                            <div>
-                              <div className="mono-nums text-[22px] md:text-[26px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">${leg.odds ? formatOdds(leg.odds) : "—"}</div>
-                              <div className="mt-1 text-[11px] text-[var(--text-3-new)]">{leg.bookmaker || ""}</div>
-                              {typeof leg.edgePct === "number" ? (
-                                <div className={"inline-block mt-2 mono-nums text-[11px] font-medium px-2 py-0.5 rounded-md " + (leg.edgePct > 0 ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>
-                                  {leg.edgePct > 0 ? `+${leg.edgePct}% value` : `${leg.edgePct}% edge`}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                          {/* Detail toggle spans full width */}
-                          <div className="col-span-3 md:col-span-5">
-                            <EdgeDetailToggle leg={leg} />
-                          </div>
-                        </div>
-                          );
-                        })()
-                      );
-                    })}
+                    {(multiOutput?.legs || exampleLegs).map((leg, index) => (
+                      <EdgeLegRow
+                        key={`${leg.name}-${index}`}
+                        leg={leg}
+                        index={index}
+                        sportContext={multiOutput?.sport || sport}
+                      />
+                    ))}
                   </div>
 
                   {/* Risk meter slab */}
