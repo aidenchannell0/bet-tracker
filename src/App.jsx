@@ -1495,7 +1495,10 @@ function Paywall({ usage = 3, limit = 3, foundingSpotsLeft = null, onUpgrade, up
               <div className="mt-1.5 flex items-baseline gap-2">
                 <span className="mono-nums text-[30px] font-bold tracking-[-0.03em] text-[var(--text-new)]">A$4.99</span>
                 <span className="mono-nums text-[15px] font-medium text-[var(--text-3-new)] line-through">A$6.99</span>
-                <span className="text-[13px] text-[var(--text-3-new)]">/ week, forever</span>
+                <span className="text-[13px] text-[var(--text-3-new)]">/ week</span>
+              </div>
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-new)] px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.10em] text-[var(--bg-new)]">
+                🔒 Locked in forever
               </div>
             </div>
           ) : (
@@ -3266,8 +3269,13 @@ function LandingPage({ setActivePage, setAuthMode }) {
                   <span className="text-[12px] text-[var(--text-3-new)]">/ week</span>
                 </div>
                 {founding ? (
-                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-soft-new)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.10em] text-[var(--accent-new)]">
-                    First 20 members · <span className="mono-nums">{foundingSpotsLeft}</span> spots left
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-soft-new)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.10em] text-[var(--accent-new)]">
+                      First 20 · <span className="mono-nums">{foundingSpotsLeft}</span> spots left
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-new)] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.10em] text-[var(--bg-new)]">
+                      🔒 Locked in forever
+                    </span>
                   </div>
                 ) : null}
                 <p className="mt-4 text-[13px] leading-[1.55] text-[var(--text-2-new)]">{founding ? "Founding members lock in $4.99/wk forever — the price never rises to $6.99 for you. Unlimited MultiPick + every feature." : "Unlimited MultiPick + every feature, with priority access to new sports."}</p>
