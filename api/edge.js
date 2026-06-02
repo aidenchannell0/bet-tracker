@@ -1378,8 +1378,8 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
 
 // Deterministically pick the strongest legs for the target and risk profile.
 // Wraps selectLegsForProfile with progressive floor relaxation: if the user's
-// requested profile can't get within ±20% of the target odds (eligible pool
-// too thin under the strict raw-hit-rate floor), drop one tier and retry.
+// requested profile can't get within ±20% of the target odds AND hit the
+// profile's minimum combined-confidence floor, drop one tier and retry.
 // User explicitly picked Safer/Balanced for a reason, so we tag the result
 // with `profileUsed` vs `profileRequested` and the response layer surfaces a
 // "couldn't hit target at Safer — relaxed to Balanced" note in the UI.
@@ -1390,6 +1390,17 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
     Aggressive: ["Aggressive"],
   };
   const RELAX_TOLERANCE = 0.20; // ±20% of target counts as "hit"
+  // Per-profile combined-confidence floor. User feedback on Safer:
+  // "i need that confidence to be at least 80 for safer bets at 2.00."
+  // 80% combined prob means each leg averages ~95% for a 4-leg multi,
+  // which is genuinely hard for NBA — so when it's infeasible, the relax
+  // chain drops to Balanced (50% floor) and shows the "couldn't hit
+  // Safer at target" note, same UX as the existing hit-rate-floor relax.
+  const MIN_COMBINED_PROB = {
+    Safer: 0.80,
+    Balanced: 0.50,
+    Aggressive: 0,
+  };
   const chain = RELAX_CHAIN[riskProfile] || [riskProfile];
 
   let best = [];
@@ -1403,11 +1414,16 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
       usedProfile = profile;
     }
     if (!targetOddsValue) break;
-    const combined = candidate.reduce((a, p) => a * Number(p.odds), 1);
-    // Stop relaxing once we land at or above the lower-bound tolerance. The
-    // existing combo search already prefers closeness-to-target, so combined
-    // ≥ target * 0.8 means we hit a build the user would consider "near $10".
-    if (combined >= targetOddsValue * (1 - RELAX_TOLERANCE)) {
+    const combinedOdds = candidate.reduce((a, p) => a * Number(p.odds), 1);
+    const combinedProb = candidate.reduce((a, p) => a * (p.empirical ?? 0), 1);
+    const minProb = MIN_COMBINED_PROB[profile] ?? 0;
+    // Stop relaxing once we land at or above BOTH the target tolerance AND
+    // the profile's combined-confidence floor. The combo search already
+    // prefers closeness-to-target; the prob check is what catches the
+    // "Safer multi at 62% combined confidence" pathology the user flagged.
+    const targetMet = combinedOdds >= targetOddsValue * (1 - RELAX_TOLERANCE);
+    const probMet = combinedProb >= minProb;
+    if (targetMet && probMet) {
       best = candidate;
       usedProfile = profile;
       break;
@@ -2072,7 +2088,7 @@ function buildStructuredMulti(computed, sport, targetOdds) {
   // a reason, so don't silently downgrade without telling them.
   const profileNote =
     profileUsed && profileRequested && profileUsed !== profileRequested
-      ? `Couldn't reach ${targetOdds || "the target"} at **${profileRequested}** (eligible pool too thin under the 9/10 floor). Relaxed to **${profileUsed}** — legs still pass that tier's hit-rate floor.`
+      ? `Couldn't build a **${profileRequested}** multi at ${targetOdds || "the target"} — the pool was too thin to clear ${profileRequested}'s hit-rate floor AND combined-confidence floor at this target. Relaxed to **${profileUsed}**, which uses a wider pool and lower per-leg requirement.`
       : null;
 
   const sg = sameGameAdjust(legs, metrics.combinedOdds, metrics.combinedProb);
