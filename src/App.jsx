@@ -4178,11 +4178,16 @@ export default function BettingTrackerWebsite() {
       // hidden until the user refreshes. Functional setState so we only
       // change it when actually leaving the auth page.
       setActivePage((current) => (current === "auth" ? "app" : current));
-      // First-login tour: show once when the user hasn't seen it (flag is
-      // per-user so a shared device doesn't suppress it for everyone).
+      // First-time tour: only for genuinely new accounts. Gated on BOTH the
+      // per-user "seen" flag AND account age — without the age check, every
+      // pre-existing user (who never had the flag) would see it once when the
+      // feature shipped. New signups log in within minutes of creating their
+      // account, so a 24h window cleanly separates them from existing users.
       try {
         const seen = localStorage.getItem(`pickd-tour-seen-${session.user.id}`);
-        if (!seen) setShowTour(true);
+        const createdAt = session.user.created_at ? new Date(session.user.created_at).getTime() : 0;
+        const isNewAccount = createdAt > 0 && (Date.now() - createdAt) < 24 * 60 * 60 * 1000;
+        if (!seen && isNewAccount) setShowTour(true);
       } catch (e) { /* ignore storage errors */ }
     } else {
       setBets([]);
