@@ -1883,7 +1883,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                     {legs === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom number of legs<Input type="number" min="1" step="1" value={customLegs} onChange={(event) => setCustomLegs(event.target.value)} placeholder="e.g. 6" /></label> : null}
                     <EdgeSelectField label="Target odds" value={targetOdds} onChange={setTargetOdds} options={["$1.50", "$2.00", "$3.00", "$5.00", "Custom"]} />
                     {targetOdds === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom target odds<Input type="number" min="1" step="0.01" value={customTargetOdds} onChange={(event) => setCustomTargetOdds(event.target.value)} placeholder="e.g. 2.20" /></label> : null}
-                    <EdgeSelectField label="Risk profile" value={riskProfile} onChange={setRiskProfile} options={["Safer", "Balanced", "Aggressive"]} />
+                    <EdgeSelectField label="Risk profile" value={riskProfile} onChange={setRiskProfile} options={["Safer", "Balanced", "Aggressive", "Best Chance"]} />
                     <EdgeSelectField
                       label="Bookmaker"
                       value={bookmaker}

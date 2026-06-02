@@ -1388,6 +1388,10 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
     Safer: ["Safer", "Balanced", "Aggressive"],
     Balanced: ["Balanced", "Aggressive"],
     Aggressive: ["Aggressive"],
+    // Best Chance has no fallback — it has no constraints to relax from. If
+    // the search returns empty, the global fallback at the end of
+    // selectLegsForProfile picks the closest combo anyway.
+    "Best Chance": ["Best Chance"],
   };
   const RELAX_TOLERANCE = 0.20; // ±20% of target counts as "hit"
   // Per-profile combined-confidence floor. User feedback on Safer:
@@ -1396,10 +1400,13 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   // which is genuinely hard for NBA — so when it's infeasible, the relax
   // chain drops to Balanced (50% floor) and shows the "couldn't hit
   // Safer at target" note, same UX as the existing hit-rate-floor relax.
+  // Best Chance has no floor — it's pure "let the math pick", no safety
+  // overrides.
   const MIN_COMBINED_PROB = {
     Safer: 0.80,
     Balanced: 0.50,
     Aggressive: 0,
+    "Best Chance": 0,
   };
   const chain = RELAX_CHAIN[riskProfile] || [riskProfile];
 
@@ -1448,7 +1455,9 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // Safer requires 9/10+. Both Safer and Balanced require ≥5 games of sample
   // so small-sample noise (e.g. 3/3 perfect) can't sneak through.
   const minHitRate =
-    riskProfile === "Safer" ? 0.9 : riskProfile === "Aggressive" ? 0 : 0.7;
+    riskProfile === "Safer" ? 0.9
+    : riskProfile === "Balanced" ? 0.7
+    : 0; // Aggressive AND Best Chance — no floor
 
   // Sanity gate: reject any leg the player has never cleared in their last 10
   // games. Catches the "Joel Amartey 6+ goals at $31, 0/10 hit, 67% confidence"
@@ -1471,7 +1480,11 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     return true;
   });
 
-  const minHit = riskProfile === "Safer" ? 0.7 : riskProfile === "Aggressive" ? 0.45 : 0.58;
+  const minHit =
+    riskProfile === "Safer" ? 0.7
+    : riskProfile === "Balanced" ? 0.58
+    : riskProfile === "Aggressive" ? 0.45
+    : 0.45; // Best Chance — same low confidence floor as Aggressive (the 0/10 hard reject still applies as a sanity gate)
   const scoreOf = (p) => (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5;
 
   // Keep up to a few candidate LINES per player (not just the single highest-score
@@ -1708,7 +1721,12 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // Aggressive also prefers balance (chase-edge combos don't want one long
   // leg carrying the whole multi). Balanced keeps the original prob-first
   // sort — its name implies the math optimises for raw hit chance.
-  const preferProbOverBalance = riskProfile === "Balanced";
+  // Profiles preferring PROB-first sort: Balanced (math optimises raw chance)
+  // and Best Chance (user wants the absolute max combined hit rate, no balance
+  // override). Safer + Aggressive prefer BALANCE — even leg sizes spread the
+  // failure modes across all legs instead of riding on the one outlier.
+  const preferProbOverBalance =
+    riskProfile === "Balanced" || riskProfile === "Best Chance";
   pool.sort((a, b) => {
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
     if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
@@ -1716,8 +1734,12 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     // Team spread: prefer combos that don't stack 3+ legs from one team
     // (concentration risk if that team gets blown out). Soft tiebreaker —
     // single-team stacks still win when no diverse alternative is in the
-    // same diff-bucket / metric-diversity tier.
-    if (a.teamPenalty !== b.teamPenalty) return a.teamPenalty - b.teamPenalty;
+    // same diff-bucket / metric-diversity tier. Best Chance skips this:
+    // pure max-prob means we don't dock the highest-chance combo just
+    // because it happens to be same-team.
+    if (riskProfile !== "Best Chance" && a.teamPenalty !== b.teamPenalty) {
+      return a.teamPenalty - b.teamPenalty;
+    }
     if (preferProbOverBalance) {
       if (b.prob !== a.prob) return b.prob - a.prob;
       if (a.balance !== b.balance) return a.balance - b.balance;
