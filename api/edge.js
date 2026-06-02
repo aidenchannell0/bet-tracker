@@ -1495,6 +1495,27 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   }
   if (!shortlist.length) return ordered.slice(0, wantCount || 3);
 
+  // Per-team quota: ensure every team that has candidates is represented in
+  // the shortlist with at least PER_TEAM_MIN legs. Without this, a
+  // single-game build where one team's mids dominate every odds band leaves
+  // the other team with zero shortlist slots — the team-diversity penalty
+  // downstream then has no diverse combos to prefer. Pulls extras straight
+  // from the ranked list (top-by-score for the underrepresented team).
+  const PER_TEAM_MIN = 4;
+  const allTeams = [...new Set(ranked.map((p) => p.team).filter(Boolean))];
+  for (const team of allTeams) {
+    let inShortlist = shortlist.filter((p) => p.team === team).length;
+    if (inShortlist >= PER_TEAM_MIN) continue;
+    for (const p of ranked) {
+      if (inShortlist >= PER_TEAM_MIN) break;
+      if (p.team !== team) continue;
+      if (seen.has(p)) continue;
+      shortlist.push(p);
+      seen.add(p);
+      inShortlist += 1;
+    }
+  }
+
   const minLegs = 2;
   const maxLegs = Math.min(7, new Set(shortlist.map((p) => p.playerName)).size);
 
