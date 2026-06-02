@@ -3687,8 +3687,18 @@ export default function BettingTrackerWebsite() {
   }, []);
 
   useEffect(() => {
-    if (session?.user?.id) loadBets();
-    else setBets([]);
+    if (session?.user?.id) {
+      loadBets();
+      // After login, redirect from the auth screen back to the dashboard.
+      // Without this, activePage stays at "auth" (set by LandingPage's
+      // openAuth) even after a successful login, which leaves every
+      // `activePage === "app"` section (chart / quick-add / pending bets)
+      // hidden until the user refreshes. Functional setState so we only
+      // change it when actually leaving the auth page.
+      setActivePage((current) => (current === "auth" ? "app" : current));
+    } else {
+      setBets([]);
+    }
   }, [session?.user?.id]);
 
   // When a settled multi expands, fetch the actual game stats for every leg
