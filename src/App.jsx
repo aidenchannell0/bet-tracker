@@ -1495,7 +1495,7 @@ function Paywall({ usage = 3, limit = 3, foundingSpotsLeft = null, onUpgrade, up
               <div className="mt-1.5 flex items-baseline gap-2">
                 <span className="mono-nums text-[30px] font-bold tracking-[-0.03em] text-[var(--text-new)]">A$4.99</span>
                 <span className="mono-nums text-[15px] font-medium text-[var(--text-3-new)] line-through">A$6.99</span>
-                <span className="text-[13px] text-[var(--text-3-new)]">/ week, locked in</span>
+                <span className="text-[13px] text-[var(--text-3-new)]">/ week, forever</span>
               </div>
             </div>
           ) : (
@@ -1508,7 +1508,7 @@ function Paywall({ usage = 3, limit = 3, foundingSpotsLeft = null, onUpgrade, up
             {upgrading ? "Starting checkout…" : founding ? "Claim founding rate" : "Upgrade to Pro"}
           </button>
           <button type="button" onClick={onClose} className="mt-2 w-full py-2.5 text-[13px] font-semibold text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Maybe later</button>
-          <p className="mt-3 text-center text-[11px] text-[var(--text-3-new)]">{founding ? "Locked-in rate for as long as you stay subscribed · " : "Free builds reset Monday · "}18+ · Gamble responsibly</p>
+          <p className="mt-3 text-center text-[11px] text-[var(--text-3-new)]">{founding ? "$4.99 locked in forever while you stay subscribed · " : "Free builds reset Monday · "}18+ · Gamble responsibly</p>
         </div>
       </div>
     </div>,
@@ -3268,7 +3268,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
                     First 20 members · <span className="mono-nums">{foundingSpotsLeft}</span> spots left
                   </div>
                 ) : null}
-                <p className="mt-4 text-[13px] leading-[1.55] text-[var(--text-2-new)]">{founding ? "Lock in $4.99/wk for life as a founding member — then it's $6.99. Unlimited MultiPick + every feature." : "Unlimited MultiPick + every feature, with priority access to new sports."}</p>
+                <p className="mt-4 text-[13px] leading-[1.55] text-[var(--text-2-new)]">{founding ? "Founding members lock in $4.99/wk forever — the price never rises to $6.99 for you. Unlimited MultiPick + every feature." : "Unlimited MultiPick + every feature, with priority access to new sports."}</p>
                 <ul className="mt-6 space-y-3 text-[13px] text-[var(--text-2-new)]">
                   {[
                     "Everything in Free",
