@@ -1339,8 +1339,53 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
   });
 }
 
-// Deterministically pick the strongest legs for the target and risk profile
+// Deterministically pick the strongest legs for the target and risk profile.
+// Wraps selectLegsForProfile with progressive floor relaxation: if the user's
+// requested profile can't get within ±20% of the target odds (eligible pool
+// too thin under the strict raw-hit-rate floor), drop one tier and retry.
+// User explicitly picked Safer/Balanced for a reason, so we tag the result
+// with `profileUsed` vs `profileRequested` and the response layer surfaces a
+// "couldn't hit target at Safer — relaxed to Balanced" note in the UI.
 function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
+  const RELAX_CHAIN = {
+    Safer: ["Safer", "Balanced", "Aggressive"],
+    Balanced: ["Balanced", "Aggressive"],
+    Aggressive: ["Aggressive"],
+  };
+  const RELAX_TOLERANCE = 0.20; // ±20% of target counts as "hit"
+  const chain = RELAX_CHAIN[riskProfile] || [riskProfile];
+
+  let best = [];
+  let usedProfile = riskProfile;
+  for (const profile of chain) {
+    const candidate = selectLegsForProfile(enriched, targetLegs, targetOddsValue, profile);
+    if (!candidate.length) continue;
+    // First non-empty result becomes the fallback so we always return something.
+    if (!best.length) {
+      best = candidate;
+      usedProfile = profile;
+    }
+    if (!targetOddsValue) break;
+    const combined = candidate.reduce((a, p) => a * Number(p.odds), 1);
+    // Stop relaxing once we land at or above the lower-bound tolerance. The
+    // existing combo search already prefers closeness-to-target, so combined
+    // ≥ target * 0.8 means we hit a build the user would consider "near $10".
+    if (combined >= targetOddsValue * (1 - RELAX_TOLERANCE)) {
+      best = candidate;
+      usedProfile = profile;
+      break;
+    }
+  }
+
+  // Attach metadata so the response layer can surface a "relaxed from Safer
+  // to Balanced" note. Arrays are objects in JS so the extra properties don't
+  // affect normal iteration/length semantics.
+  best.profileUsed = usedProfile;
+  best.profileRequested = riskProfile;
+  return best;
+}
+
+function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile) {
   // Raw hit-rate floor by risk profile. Distinct from `minHit` below: minHit
   // gates on *model confidence* (empirical, post-EB-shrinkage), while
   // minHitRate gates on *raw evidence* — the player's actual recent clears.
@@ -1797,7 +1842,15 @@ function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile, f
 
   const metrics = computeCombinedMetrics(selected);
   const risk = computeRiskScore(metrics.combinedProb, selected.length);
-  return { selected, enriched, dataSource, metrics, risk };
+  return {
+    selected,
+    enriched,
+    dataSource,
+    metrics,
+    risk,
+    profileUsed: selected.profileUsed || riskProfile,
+    profileRequested: selected.profileRequested || riskProfile,
+  };
 }
 
 // Build one structured leg from an enriched prop (shared by fresh builds + edits)
@@ -1878,7 +1931,7 @@ function sameGameAdjust(legs, combinedOdds, combinedProb) {
 // Structured multi for the output panel (separate from the GPT narration)
 function buildStructuredMulti(computed, sport, targetOdds) {
   if (!computed.selected.length) return null;
-  const { selected, metrics, risk } = computed;
+  const { selected, metrics, risk, profileUsed, profileRequested } = computed;
 
   const legs = selected.map(structureLegFromEnriched);
 
@@ -1887,8 +1940,20 @@ function buildStructuredMulti(computed, sport, targetOdds) {
   if (targetVal && metrics.combinedOdds > targetVal * 1.25) {
     oddsNote = `${selected.length} legs naturally pays more than your ${targetOdds} target — for odds nearer ${targetOdds}, try fewer legs.`;
   } else if (targetVal && metrics.combinedOdds < targetVal * 0.8) {
-    oddsNote = `These legs combine below your ${targetOdds} target — for higher odds, add more legs.`;
+    // Eligible pool exhausted under the current floor. The old message said
+    // "add more legs" but that's misleading — there ARE no more legs that
+    // pass the floor + filters. Tell the user what to actually widen.
+    oddsNote = `Only ${selected.length} eligible legs in this pool combine to $${metrics.combinedOdds.toFixed(2)}. Widen the pool to reach ${targetOdds} — switch GAMES to "All upcoming games", drop to Balanced/Aggressive, or change BOOKMAKER to "Best available".`;
   }
+
+  // Profile-relaxation note: surfaced when the requested risk floor was too
+  // tight to hit the target and we dropped a tier to find a buildable combo.
+  // Honest with the user about what actually shipped — they picked Safer for
+  // a reason, so don't silently downgrade without telling them.
+  const profileNote =
+    profileUsed && profileRequested && profileUsed !== profileRequested
+      ? `Couldn't reach ${targetOdds || "the target"} at **${profileRequested}** (eligible pool too thin under the 9/10 floor). Relaxed to **${profileUsed}** — legs still pass that tier's hit-rate floor.`
+      : null;
 
   const sg = sameGameAdjust(legs, metrics.combinedOdds, metrics.combinedProb);
 
@@ -1906,6 +1971,9 @@ function buildStructuredMulti(computed, sport, targetOdds) {
     valueLegs: legs.filter((l) => typeof l.edgePct === "number" && l.edgePct > 0).length,
     targetOdds,
     oddsNote,
+    profileNote,
+    profileUsed,
+    profileRequested,
     risk,
     riskExplanation: `A ${risk}/10 score reflects ${selected.length} legs with a combined recent-form chance of about ${metrics.combinedProbPct}%. More legs and lower individual hit rates raise the risk. This is based on historical stats only and does not guarantee the outcome.`,
   };

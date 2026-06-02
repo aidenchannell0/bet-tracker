@@ -2041,6 +2041,10 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                       {multiOutput.oddsNote}
                     </div>
                   ) : null}
+                  {multiOutput?.profileNote ? (
+                    <div className="mt-3 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}
+                         dangerouslySetInnerHTML={{ __html: multiOutput.profileNote.replace(/\*\*(.+?)\*\*/g, '<span class="text-[var(--text-new)] font-medium">$1</span>') }} />
+                  ) : null}
                   {multiOutput?.bookmakerNote ? (
                     <div className="mt-3 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
                       {multiOutput.bookmakerNote}
