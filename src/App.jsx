@@ -1414,6 +1414,45 @@ function OnboardingTour({ initialName = "", onFinish, onSkip }) {
   );
 }
 
+// "I used MultiPick" tag for the add-bet form. Tapping it marks the bet's
+// source as grid_build so a manually-logged bet still counts toward the
+// MultiPick performance scoreboard. Styled as a tappable card that lights
+// lime when active.
+function MultipickCheckbox({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      aria-pressed={checked}
+      className={
+        "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all " +
+        (checked
+          ? "border-[var(--accent-new)] bg-[var(--accent-soft-new)]"
+          : "border-[var(--border-new)] bg-[var(--surface-new)] hover:border-[var(--border-strong-new)]")
+      }
+    >
+      <span
+        className={
+          "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all " +
+          (checked ? "border-[var(--accent-new)] bg-[var(--accent-new)]" : "border-[var(--text-3-new)]")
+        }
+      >
+        {checked ? (
+          <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none" stroke="#0a0a0b" strokeWidth="2.2">
+            <path d="M2.5 6.2 L5 8.5 L9.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : null}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[13px] font-medium text-[var(--text-new)]">
+          I used <span className="brand-wordmark font-semibold">Pickd<span className="text-[var(--accent-new)]">.</span></span> for this bet
+        </span>
+        <span className="block text-[11px] text-[var(--text-3-new)]">Counts it toward your MultiPick performance stats</span>
+      </span>
+    </button>
+  );
+}
+
 function renderEdgeText(text) {
   const parts = String(text || "").split(/(\*\*[^*]+\*\*)/g);
 
@@ -3891,7 +3930,7 @@ export default function BettingTrackerWebsite() {
   const mobileFormRef = useRef(null);
   const [chartView, setChartView] = useState("weekly");
   const [chartType, setChartType] = useState("bar");
-  const [form, setForm] = useState({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "", bookmaker: "", betType: "" });
+  const [form, setForm] = useState({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "", bookmaker: "", betType: "", usedMultipick: false });
   // Betslip OCR: paste/upload a screenshot, OpenAI vision extracts the
   // structured details, frontend pre-fills the Add Bet form.
   const [betslipImage, setBetslipImage] = useState(null);
@@ -4405,7 +4444,7 @@ export default function BettingTrackerWebsite() {
   const resetBetForm = () => {
     setEditingBetId(null);
     setMobileAddBetOpen(false);
-    setForm({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "", bookmaker: "", betType: "" });
+    setForm({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "", bookmaker: "", betType: "", usedMultipick: false });
   };
 
   const startEditingBet = (bet) => {
@@ -4421,6 +4460,7 @@ export default function BettingTrackerWebsite() {
       notes: bet.notes || "",
       bookmaker: bet.bookmaker || "",
       betType: bet.betType || "",
+      usedMultipick: bet.source === "grid_build",
     });
     setMessage("Editing bet from " + bet.date + ". Make changes and click Update Bet.");
     window.setTimeout(() => {
@@ -4451,14 +4491,18 @@ export default function BettingTrackerWebsite() {
       bookmaker: (form.bookmaker || "").trim(),
       betType: form.betType || "",
       status: isPending ? "pending" : "settled",
+      // "I used MultiPick" checkbox → tag the bet so it counts toward the
+      // MultiPick performance stats even when logged manually.
+      source: form.usedMultipick ? "grid_build" : "manual",
     });
 
     if (editingBetId) {
-      // Preserve multi-only fields the form doesn't expose (legs, source) so editing
-      // a MultiPick multi keeps its legs and "from MultiPick" tag.
+      // Preserve legs (the form doesn't expose them) so editing a real
+      // MultiPick multi keeps its leg breakdown. Source now comes from the
+      // checkbox (initialised from the bet's current source on edit).
       const original = bets.find((bet) => bet.id === editingBetId);
       const rowPayload = betToDatabaseRow(
-        { ...betPayload, legs: original?.legs || null, source: original?.source || "manual" },
+        { ...betPayload, legs: original?.legs || null },
         session.user.id
       );
       const { data, error } = await supabase.from("bets").update(rowPayload).eq("id", editingBetId).eq("user_id", session.user.id).select().single();
@@ -4820,6 +4864,7 @@ export default function BettingTrackerWebsite() {
                       <label className="space-y-1 text-sm font-medium">Bet type<select value={form.betType} onChange={(event) => setForm({ ...form, betType: event.target.value })} className="w-full rounded-xl border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"><option value="">—</option><option value="Single">Single</option><option value="Multi">Multi</option><option value="Player prop">Player prop</option><option value="Head-to-head">Head-to-head</option><option value="Line">Line</option><option value="Total">Total</option><option value="Other">Other</option></select></label>
                       <label className="space-y-1 text-sm font-medium">Bookmaker<Input placeholder="e.g. Sportsbet" value={form.bookmaker} onChange={(event) => setForm({ ...form, bookmaker: event.target.value })} /></label>
                     </div>
+                    <MultipickCheckbox checked={form.usedMultipick} onChange={(v) => setForm({ ...form, usedMultipick: v })} />
                     <div className="rounded-xl bg-[#E8E2D4] p-3 text-sm text-slate-700">Estimated profit/loss: {form.result === "pending" ? "Pending — settle it after the game" : formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</div>
                     <Button type="submit" className="w-full py-3 text-base font-semibold">{editingBetId ? "Update Bet" : "Save Bet"}</Button>
                   </form>
@@ -5251,6 +5296,7 @@ export default function BettingTrackerWebsite() {
                     <input placeholder="e.g. Sportsbet" value={form.bookmaker} onChange={(event) => setForm({ ...form, bookmaker: event.target.value })} className="mt-1.5 w-full border-0 border-b border-[var(--border-new)] bg-transparent py-2 text-sm text-[var(--text-new)] placeholder:text-[var(--text-3-new)] outline-none focus:border-[var(--text-new)]" />
                   </label>
                 </div>
+                <MultipickCheckbox checked={form.usedMultipick} onChange={(v) => setForm({ ...form, usedMultipick: v })} />
                 <div className="flex items-center justify-between border-t border-[var(--border-new)] pt-4">
                   <div className="text-xs text-[var(--text-3-new)]">Est. P/L: <span className="mono-nums font-medium text-[var(--text-new)]">{form.result === "pending" ? "—" : formatCurrency(calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount))}</span></div>
                   <Button type="submit">{editingBetId ? "Update bet" : "Save bet"}</Button>
