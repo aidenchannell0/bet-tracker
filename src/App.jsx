@@ -830,7 +830,7 @@ function ColoredStatCard({ title, value, helper, tone = "neutral" }) {
   );
 }
 
-function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassword, loading, message, onSubmit, onResetPassword }) {
+function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassword, firstName, setFirstName, loading, message, onSubmit, onResetPassword }) {
   return (
     <div className="min-h-screen bg-[#E8E2D4] p-4 text-[#11203B] md:p-8">
       <div className="mx-auto flex min-h-[80vh] max-w-xl items-center justify-center">
@@ -842,6 +842,13 @@ function AuthScreen({ authMode, setAuthMode, email, setEmail, password, setPassw
             {authMode === "reset" ? <p className="mt-2 text-sm text-slate-600">Enter your email and we will send you a password reset link.</p> : null}
 
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
+              {authMode === "signup" ? (
+                <label className="space-y-1 text-sm font-medium">
+                  First name
+                  <Input type="text" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="What should we call you?" autoComplete="given-name" />
+                </label>
+              ) : null}
+
               <label className="space-y-1 text-sm font-medium">
                 Email
                 <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required />
@@ -950,7 +957,7 @@ function Footer({ setActivePage }) {
   );
 }
 
-function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode }) {
+function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode, onReplayTour }) {
   return (
     <div className="page-fade-in min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
@@ -1014,9 +1021,21 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
               </div>
             </section>
 
+            {/* Help & tour */}
+            {onReplayTour ? (
+              <section className="border-b border-[var(--border-new)] py-7 md:py-9">
+                <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">04 — Help</p>
+                <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Replay the tour</h2>
+                <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">Walk through the main features again — MultiPick, the tracker, and how the model track record works.</p>
+                <div className="mt-5">
+                  <Button onClick={onReplayTour} variant="outline" className="w-full py-3 sm:w-auto">Replay tutorial</Button>
+                </div>
+              </section>
+            ) : null}
+
             {/* Danger zone */}
             <section className="py-7 md:py-9">
-              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--danger-new)]">04 — Danger zone</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--danger-new)]">05 — Danger zone</p>
               <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Delete all bets</h2>
               <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">Removes every bet entry from this account. Your account itself stays — but the bet history is gone for good. Export a backup first if you want a copy.</p>
               <div className="mt-5">
@@ -1250,6 +1269,148 @@ function EdgeLegRow({ leg, index, sportContext }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+// ── New-user onboarding tour ──────────────────────────────────────────────
+// 5-step modal shown once to new users (gated on localStorage). Each step
+// previews a real feature with a mini brand-styled mockup; the first step
+// captures a first name so the app can greet the user. onFinish persists the
+// name + flag and drops the user on MultiPick. onSkip just flags it seen.
+function TourMock({ kind }) {
+  if (kind === "welcome") {
+    return (
+      <div className="text-center">
+        <div className="brand-wordmark text-[54px]">Pickd<span className="text-[var(--accent-new)]">.</span></div>
+        <div className="mt-2.5 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--text-3-new)]">AI multi builder · bet tracker</div>
+      </div>
+    );
+  }
+  if (kind === "multipick") {
+    const legs = [
+      { c: "linear-gradient(135deg,#f58426,#1d428a)", n: "J. Brunson 15+ pts", cf: "98%", o: "$1.04" },
+      { c: "linear-gradient(135deg,#f58426,#1d428a)", n: "Josh Hart 5+ pts", cf: "97%", o: "$1.05" },
+      { c: "linear-gradient(135deg,#c8102e,#101010)", n: "M. Bridges 3+ reb", cf: "96%", o: "$1.38" },
+    ];
+    return (
+      <div className="w-full max-w-[400px] rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4">
+        <div className="flex items-baseline justify-between">
+          <span className="text-[13px] font-semibold text-[var(--text-new)]">3-leg NBA multi</span>
+          <span className="mono-nums text-[18px] font-bold text-[var(--text-new)]">$1.90</span>
+        </div>
+        <div className="mt-2.5">
+          {legs.map((l, k) => (
+            <div key={k} className={"flex items-center gap-2.5 py-2 " + (k > 0 ? "border-t border-[var(--border-new)]" : "")}>
+              <span className="h-5 w-5 shrink-0 rounded-full" style={{ background: l.c }} />
+              <span className="flex-1 text-[12px] font-medium text-[var(--text-2-new)]">{l.n}</span>
+              <span className="mono-nums text-[12px] font-semibold text-[var(--positive-new)]">{l.cf}</span>
+              <span className="mono-nums w-10 text-right text-[12px] font-semibold text-[var(--text-new)]">{l.o}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (kind === "tracker") {
+    const cells = [["P / L", "$536", "var(--positive-new)"], ["Win rate", "53.7%", "var(--text-new)"], ["ROI", "+38.6%", "var(--positive-new)"]];
+    const bars = [14, 20, 10, 26, 18, 30, 22, 34];
+    return (
+      <div className="w-full max-w-[400px] rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4">
+        <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--text-3-new)]">Dashboard</div>
+        <div className="mt-2.5 grid grid-cols-3">
+          {cells.map(([k, v, col], idx) => (
+            <div key={k} className={"px-3.5 " + (idx > 0 ? "border-l border-[var(--border-new)]" : "")}>
+              <div className="text-[8px] font-bold uppercase tracking-[0.10em] text-[var(--text-3-new)]">{k}</div>
+              <div className="mono-nums mt-1.5 text-[22px] font-semibold tracking-[-0.02em]" style={{ color: col }}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3.5 flex h-[42px] items-end gap-1.5 px-0.5">
+          {bars.map((h, k) => (
+            <span key={k} className="flex-1 rounded-t" style={{ height: h * 1.2, background: k % 4 === 2 ? "var(--danger-new)" : "var(--positive-new)", opacity: 0.5 + k * 0.06 }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (kind === "receipts") {
+    const cells = [["Actual", "83%", "var(--positive-new)", "30px"], ["Predicted", "87%", "var(--text-new)", "18px"], ["Gap", "±4%", "var(--text-2-new)", "18px"]];
+    return (
+      <div className="w-full max-w-[400px] rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4">
+        <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--text-3-new)]">Model track record</div>
+        <div className="mt-2 grid grid-cols-3 border-y border-[var(--border-new)] py-3.5">
+          {cells.map(([k, v, col, sz], idx) => (
+            <div key={k} className={"px-3.5 " + (idx > 0 ? "border-l border-[var(--border-new)]" : "")}>
+              <div className="text-[8px] font-bold uppercase tracking-[0.10em] text-[var(--text-3-new)]">{k}</div>
+              <div className="mono-nums mt-2 font-semibold leading-none" style={{ color: col, fontSize: sz }}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--positive-soft-new)] px-2.5 py-1 text-[10px] font-semibold text-[var(--positive-new)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--positive-new)]" /> Well calibrated
+        </div>
+      </div>
+    );
+  }
+  // ready
+  return (
+    <svg viewBox="0 0 96 96" fill="none" className="h-[88px] w-[88px]">
+      <circle cx="48" cy="48" r="40" stroke="var(--border-strong-new)" strokeWidth="5" />
+      <circle cx="48" cy="48" r="40" stroke="var(--accent-new)" strokeWidth="5" strokeDasharray="251" transform="rotate(-90 48 48)" strokeLinecap="round" />
+      <path d="M32 49 L43 60 L65 36" stroke="var(--accent-new)" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function OnboardingTour({ initialName = "", onFinish, onSkip }) {
+  const STEPS = [
+    { kind: "welcome", label: "Welcome", title: "Welcome to Pickd.", copy: "Your AI multi builder + bet tracker for AFL and NBA. Take 20 seconds — here's what you can do.", name: true, cta: "Get started" },
+    { kind: "multipick", label: "MultiPick", title: "Build form-backed multis.", copy: "Pick a sport, target odds and risk — MultiPick reads real player form and live market lines to assemble the strongest legs. Tap any leg for the full form breakdown." },
+    { kind: "tracker", label: "Tracker", title: "Track every bet.", copy: "Log bets manually or snap a betslip screenshot — we read the stake, odds and legs for you. Profit/loss, win rate and ROI update automatically." },
+    { kind: "receipts", label: "Receipts", title: "We show our misses.", copy: "Every prediction is logged and checked against the real result. The Model Track Record shows our actual hit rate vs what we predicted — no cherry-picking." },
+    { kind: "ready", label: "Ready", title: "You're all set.", copy: "Your free plan includes 3 builds a week. Build your first multi whenever you're ready — and gamble responsibly.", cta: "Build my first multi" },
+  ];
+  const [i, setI] = useState(0);
+  const [name, setName] = useState(initialName);
+  const s = STEPS[i];
+  const last = i === STEPS.length - 1;
+  const title = last && name.trim() ? `You're all set, ${name.trim()}.` : s.title;
+  const copy = i === 1 && name.trim() ? `${name.trim()}, ${s.copy.charAt(0).toLowerCase()}${s.copy.slice(1)}` : s.copy;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Welcome tour">
+      <div className="w-full max-w-[540px] overflow-hidden rounded-3xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] shadow-[0_40px_120px_rgba(0,0,0,0.6)]">
+        <div className="flex h-[236px] items-center justify-center border-b border-[var(--border-new)] p-6" style={{ background: "radial-gradient(circle at 50% 35%, #14160c 0%, #0d0d10 75%)" }}>
+          <TourMock kind={s.kind} />
+        </div>
+        <div className="px-8 pt-7 pb-5">
+          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent-new)]">{s.label} · {i + 1} of {STEPS.length}</div>
+          <h2 className="mt-2.5 text-[26px] font-bold leading-[1.05] tracking-[-0.03em] text-[var(--text-new)]">{title}</h2>
+          <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-2-new)]">{copy}</p>
+          {s.name ? (
+            <div className="mt-4">
+              <label className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">What should we call you?</label>
+              <input
+                type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="First name" autoComplete="given-name"
+                className="mt-2 w-full rounded-xl border border-[var(--border-strong-new)] bg-[var(--bg-new)] px-4 py-3 text-[16px] text-[var(--text-new)] outline-none focus:border-[var(--accent-new)]"
+              />
+            </div>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-3 px-8 pb-7">
+          <div className="flex gap-1.5">
+            {STEPS.map((_, k) => (
+              <span key={k} className={"h-1.5 rounded-full transition-all " + (k === i ? "w-5 bg-[var(--accent-new)]" : "w-1.5 bg-[var(--border-strong-new)]")} />
+            ))}
+          </div>
+          <div className="flex-1" />
+          {!last ? <button type="button" onClick={() => onSkip(name.trim())} className="px-1.5 py-2.5 text-[13px] font-semibold text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Skip</button> : null}
+          {i > 0 ? <button type="button" onClick={() => setI(i - 1)} className="rounded-full border border-[var(--border-strong-new)] px-[18px] py-[11px] text-[13px] font-semibold text-[var(--text-2-new)] hover:text-[var(--text-new)]">Back</button> : null}
+          <button type="button" onClick={() => (last ? onFinish(name.trim()) : setI(i + 1))} className="rounded-full bg-[var(--accent-new)] px-[22px] py-3 text-[13px] font-bold text-[var(--bg-new)] hover:opacity-90">{s.cta || "Next"}</button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -3698,6 +3859,10 @@ export default function BettingTrackerWebsite() {
   const [authMode, setAuthMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  // New-user onboarding tour visibility. Shown once when the localStorage flag
+  // is absent; dismissed by finishing or skipping. Replayable from Settings.
+  const [showTour, setShowTour] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [recoveryMode, setRecoveryMode] = useState(false);
@@ -3882,6 +4047,12 @@ export default function BettingTrackerWebsite() {
       // hidden until the user refreshes. Functional setState so we only
       // change it when actually leaving the auth page.
       setActivePage((current) => (current === "auth" ? "app" : current));
+      // First-login tour: show once when the user hasn't seen it (flag is
+      // per-user so a shared device doesn't suppress it for everyone).
+      try {
+        const seen = localStorage.getItem(`pickd-tour-seen-${session.user.id}`);
+        if (!seen) setShowTour(true);
+      } catch (e) { /* ignore storage errors */ }
     } else {
       setBets([]);
     }
@@ -3959,7 +4130,9 @@ export default function BettingTrackerWebsite() {
         else setMessage("Password reset email sent. Check your inbox and follow the link.");
         return;
       }
-      const response = authMode === "login" ? await supabase.auth.signInWithPassword({ email, password }) : await supabase.auth.signUp({ email, password });
+      const response = authMode === "login"
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password, options: { data: firstName.trim() ? { first_name: firstName.trim() } : {} } });
       if (response.error) {
         setMessage(response.error.message);
         return;
@@ -4010,6 +4183,27 @@ export default function BettingTrackerWebsite() {
     await supabase.auth.signOut();
     setBets([]);
   };
+
+  // Name the app greets the user with — prefers the saved metadata, falls back
+  // to whatever's typed in the signup form this session.
+  const userFirstName = (session?.user?.user_metadata?.first_name || firstName || "").trim();
+
+  // Dismiss the tour: persist the captured name (if new) to user_metadata so
+  // greetings work next session, and flag the tour seen for this user.
+  const dismissTour = (nameFromTour) => {
+    const trimmed = (nameFromTour || "").trim();
+    if (trimmed && supabase && trimmed !== session?.user?.user_metadata?.first_name) {
+      supabase.auth.updateUser({ data: { first_name: trimmed } }).catch(() => {});
+      setSession((cur) => cur ? { ...cur, user: { ...cur.user, user_metadata: { ...(cur.user.user_metadata || {}), first_name: trimmed } } } : cur);
+      setFirstName(trimmed);
+    }
+    try { if (session?.user?.id) localStorage.setItem(`pickd-tour-seen-${session.user.id}`, "1"); } catch (e) { /* ignore */ }
+    setShowTour(false);
+  };
+  const finishTour = (nameFromTour) => { dismissTour(nameFromTour); setActivePage("edge"); };
+  // Replay routes to the dashboard first so the portal-mounted tour is reached
+  // even when triggered from Settings (which early-returns its own view).
+  const replayTour = () => { setActivePage("app"); setShowTour(true); };
 
   const settledBets = useMemo(() => bets.filter((bet) => bet.status !== "pending"), [bets]);
   const pendingBets = useMemo(() => bets.filter((bet) => bet.status === "pending"), [bets]);
@@ -4430,10 +4624,10 @@ export default function BettingTrackerWebsite() {
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
   if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} gridBuildStats={gridBuildStats} />;
-  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} />;
+  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} onReplayTour={replayTour} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
-  if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
+  if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} firstName={firstName} setFirstName={setFirstName} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
 
   return (
     <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
@@ -4441,6 +4635,8 @@ export default function BettingTrackerWebsite() {
         <div className="mx-auto max-w-7xl">
 
           <TopNav activePage={activePage} setActivePage={setActivePage} handleLogout={handleLogout} />
+
+          {showTour ? <OnboardingTour initialName={userFirstName} onFinish={finishTour} onSkip={dismissTour} /> : null}
 
           {/* Mobile-specific block hidden — mobile now uses the same Layout B
               content as desktop via responsive Tailwind classes (md:text-[52px]
@@ -4822,7 +5018,11 @@ export default function BettingTrackerWebsite() {
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{activePage === "tracker" ? `${new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })} — ${bets.length} bets logged` : `${new Date().toLocaleDateString("en-AU", { month: "long", year: "numeric" })} · ${session.user.email}`}</p>
               <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[52px]">
-                {activePage === "tracker" ? <>My bets,<br />by the numbers.</> : <>Track every bet.<br />Read every result.</>}
+                {activePage === "tracker"
+                  ? <>My bets,<br />by the numbers.</>
+                  : userFirstName
+                  ? <>Welcome back,<br />{userFirstName}<span className="text-[var(--accent-new)]">.</span></>
+                  : <>Track every bet.<br />Read every result.</>}
               </h1>
               <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">
                 {activePage === "tracker"
