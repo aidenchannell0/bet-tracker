@@ -342,3 +342,12 @@ html, body, #root {
   stroke: rgb(148 163 184 / 0.22) !important;
 }
 .dark .recharts-cartesian-grid line { stroke: #232b38; }
+
+/* ── MultiPick build animation ──────────────────────────────────── */
+@keyframes buildBlink { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes buildingProgress {
+  0%   { width: 0;   opacity: 0.8; }
+  80%  { width: 88%; opacity: 1;   }
+  100% { width: 96%; opacity: 0.6; }
+}
+.building-progress { animation: buildingProgress 6s ease-in-out infinite; }

@@ -1318,6 +1318,189 @@ function GameAnalysisOutput({ analysis, loading }) {
   );
 }
 
+// ── MultiPick build animation ────────────────────────────────────────────
+// Canvas-rendered hybrid sphere shown in the output column while a build is
+// running: a glowing core with orbital rings (the "engine") inside a rotating
+// synapse shell (~220 nodes) whose connections fire as the core sends signals
+// outward. Reads as deep statistical reasoning rather than a generic spinner.
+// Self-contained: geometry + rAF live entirely in the effect, cleaned up on
+// unmount; respects prefers-reduced-motion (renders one static frame).
+const BUILD_PHASES = [
+  "Pulling live odds",
+  "De-vigging market lines",
+  "Weighting recent form",
+  "Computing matchup factors",
+  "Searching combinations",
+  "Optimising combined edge",
+];
+const _lerp = (a, b, t) => a + (b - a) * t;
+const _mix = (c1, c2, t) => [_lerp(c1[0], c2[0], t), _lerp(c1[1], c2[1], t), _lerp(c1[2], c2[2], t)];
+function _fibSphere(n) {
+  const p = [], phi = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (i / (n - 1)) * 2, rad = Math.sqrt(1 - y * y), th = phi * i;
+    p.push({ x: Math.cos(th) * rad, y, z: Math.sin(th) * rad });
+  }
+  return p;
+}
+function _rot(p, ay, ax) {
+  const cy = Math.cos(ay), sy = Math.sin(ay);
+  let x = p.x * cy - p.z * sy, z = p.x * sy + p.z * cy, y = p.y;
+  const cx = Math.cos(ax), sx = Math.sin(ax);
+  return { x, y: y * cx - z * sx, z: y * sx + z * cx };
+}
+const _FOV = 3.2;
+function _proj(p, R, cx, cy) {
+  const s = _FOV / (_FOV - p.z);
+  return { sx: cx + p.x * R * s, sy: cy + p.y * R * s, depth: (p.z + 1) / 2, s };
+}
+
+function BuildingAnimation() {
+  const canvasRef = useRef(null);
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setPhase((p) => (p + 1) % BUILD_PHASES.length), 1700);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const ACC = [205, 251, 80];
+    const N = 220;
+    const pts = _fibSphere(N);
+    const neigh = [];
+    const act = new Array(N).fill(0);
+    let flares = [];
+    const TH = 0.9;
+    for (let i = 0; i < N; i++) {
+      const a = pts[i], list = [];
+      for (let j = 0; j < N; j++) {
+        if (i === j) continue;
+        const d = a.x * pts[j].x + a.y * pts[j].y + a.z * pts[j].z;
+        if (d > TH) list.push(j);
+      }
+      list.sort((m, n) => (a.x * pts[n].x + a.y * pts[n].y + a.z * pts[n].z) - (a.x * pts[m].x + a.y * pts[m].y + a.z * pts[m].z));
+      neigh.push(list.slice(0, 4));
+    }
+    const rings = [
+      { tilt: 0.3, yaw: 0, n: 24, sp: 0.0009, r: 0.50 },
+      { tilt: 1.2, yaw: 0.8, n: 20, sp: -0.0012, r: 0.58 },
+      { tilt: -0.7, yaw: 1.7, n: 16, sp: 0.0014, r: 0.44 },
+    ].map((d) => {
+      const parts = [];
+      for (let i = 0; i < d.n; i++) parts.push((i / d.n) * Math.PI * 2);
+      return { ...d, parts, hot: (Math.random() * d.n) | 0 };
+    });
+
+    let W = 0, H = 0, raf = 0;
+    const resize = () => {
+      const r = canvas.getBoundingClientRect();
+      W = r.width; H = r.height;
+      canvas.width = W * DPR; canvas.height = H * DPR;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+
+    const draw = (t) => {
+      if (!W || !H) return;
+      const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.36;
+      const ay = t * 0.00022, ax = Math.sin(t * 0.0004) * 0.32, gy = t * 0.00018;
+      let g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.9);
+      g.addColorStop(0, "rgba(205,251,80,0.06)"); g.addColorStop(0.5, "rgba(205,251,80,0.02)"); g.addColorStop(1, "rgba(205,251,80,0)");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      if (!reduce && Math.random() < 0.022 && flares.length < 3) {
+        const seed = (Math.random() * N) | 0; act[seed] = 1;
+        for (const j of neigh[seed]) act[j] = Math.max(act[j], 0.4);
+        flares.push({ node: seed, life: 1 });
+      }
+      const proj = pts.map((p) => { const r = _rot(p, ay, ax); return { r, pr: _proj(r, R, cx, cy) }; });
+      const order = [...Array(N).keys()].sort((a, b) => proj[a].r.z - proj[b].r.z);
+      ctx.lineWidth = 1;
+      for (const i of order) for (const j of neigh[i]) {
+        if (j < i) continue;
+        const A = proj[i].pr, B = proj[j].pr, dep = (A.depth + B.depth) / 2, a = Math.max(act[i], act[j]);
+        const alpha = 0.045 * dep + a * 0.38;
+        if (alpha < 0.02) continue;
+        const c = _mix([90, 90, 100], ACC, Math.min(1, a * 1.2));
+        ctx.strokeStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${alpha})`;
+        ctx.beginPath(); ctx.moveTo(A.sx, A.sy); ctx.lineTo(B.sx, B.sy); ctx.stroke();
+      }
+      for (const f of flares) {
+        const pr = proj[f.node].pr;
+        const grad = ctx.createLinearGradient(cx, cy, pr.sx, pr.sy);
+        grad.addColorStop(0, `rgba(205,251,80,${0.05 * f.life})`); grad.addColorStop(1, `rgba(205,251,80,${0.55 * f.life})`);
+        ctx.strokeStyle = grad; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(pr.sx, pr.sy); ctx.stroke();
+        f.life *= 0.945;
+      }
+      flares = flares.filter((f) => f.life > 0.06); ctx.lineWidth = 1;
+      const items = [];
+      for (const ring of rings) {
+        const ang = t * ring.sp;
+        for (let i = 0; i < ring.parts.length; i++) {
+          const a = ring.parts[i] + ang;
+          let p = { x: Math.cos(a) * ring.r, y: Math.sin(a) * ring.r * 0.30, z: Math.sin(a) * ring.r };
+          p = _rot(p, ring.yaw + gy, ring.tilt);
+          items.push({ z: p.z, kind: "ring", pr: _proj(p, R, cx, cy), hot: i === ring.hot });
+        }
+      }
+      for (let i = 0; i < N; i++) items.push({ z: proj[i].r.z, kind: "shell", pr: proj[i].pr, a: act[i] });
+      items.push({ z: 0, kind: "core" });
+      items.sort((u, v) => u.z - v.z);
+      const pulse = 0.5 + 0.5 * Math.sin(t * 0.0022);
+      for (const it of items) {
+        if (it.kind === "core") {
+          ctx.shadowBlur = 22 + pulse * 10; ctx.shadowColor = "rgba(205,251,80,0.9)";
+          ctx.fillStyle = "rgba(205,251,80,0.88)"; ctx.beginPath(); ctx.arc(cx, cy, 5.5 + pulse * 1.6, 0, 7); ctx.fill();
+          ctx.shadowBlur = 0;
+        } else if (it.kind === "ring") {
+          const pr = it.pr, c = it.hot ? ACC : _mix([120, 120, 134], ACC, 0.3);
+          const rad = (0.8 + 1.8 * pr.depth) * pr.s * (it.hot ? 1.4 : 1);
+          if (it.hot) { ctx.shadowBlur = 9; ctx.shadowColor = "rgba(205,251,80,0.9)"; } else ctx.shadowBlur = 0;
+          ctx.fillStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${0.25 + 0.7 * pr.depth})`;
+          ctx.beginPath(); ctx.arc(pr.sx, pr.sy, rad, 0, 7); ctx.fill();
+        } else {
+          const pr = it.pr, a = it.a, base = 0.16 + 0.7 * pr.depth;
+          const c = _mix([150, 150, 162], ACC, Math.min(1, a * 1.3));
+          const rad = (0.65 + 1.7 * pr.depth) * (1 + a * 1.0) * pr.s;
+          if (a > 0.2) { ctx.shadowBlur = 7 * a; ctx.shadowColor = "rgba(205,251,80,0.85)"; } else ctx.shadowBlur = 0;
+          ctx.fillStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${base})`;
+          ctx.beginPath(); ctx.arc(pr.sx, pr.sy, rad, 0, 7); ctx.fill();
+        }
+      }
+      ctx.shadowBlur = 0;
+      for (let i = 0; i < N; i++) act[i] *= 0.972;
+    };
+
+    const startT = performance.now();
+    const loop = (now) => { ctx.clearRect(0, 0, W, H); draw(now - startT); raf = requestAnimationFrame(loop); };
+    if (reduce) draw(0);
+    else raf = requestAnimationFrame(loop);
+
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, []);
+
+  return (
+    <div
+      className="mt-6 relative overflow-hidden rounded-2xl border border-[var(--border-new)]"
+      style={{ height: 380, background: "radial-gradient(circle at 50% 45%, #101013 0%, var(--bg-new) 72%)" }}
+    >
+      <div className="building-progress absolute left-0 top-0 h-[2px] bg-gradient-to-r from-transparent to-[var(--accent-new)]" />
+      <canvas ref={canvasRef} className="block h-full w-full" />
+      <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2.5 whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-2-new)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" style={{ animation: "buildBlink 1.4s ease-in-out infinite" }} />
+        <span style={{ transition: "opacity .4s" }}>{BUILD_PHASES[phase]}</span>
+      </div>
+    </div>
+  );
+}
+
 function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
   const [mode, setMode] = useState("multi");
   const [sport, setSport] = useState("AFL");
@@ -1974,7 +2157,9 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.10em] font-medium text-[var(--text-3-new)]">MultiPick output</p>
                       <h2 className="mt-2 text-[22px] md:text-[26px] font-medium tracking-[-0.02em] text-[var(--text-new)]">
-                        {multiOutput
+                        {edgeLoading && !multiOutput
+                          ? <>Building your {sport} multi<span className="text-[var(--accent-new)]">.</span></>
+                          : multiOutput
                           ? <>{multiOutput.legCount}-leg {multiOutput.sport} multi {multiOutput.game ? <span className="text-[var(--text-2-new)]"> · {multiOutput.game}</span> : null}</>
                           : <>Example {displayedLegs}-leg {sport} multi</>}
                       </h2>
@@ -1986,6 +2171,10 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                       </p>
                     ) : null}
                   </div>
+                  {edgeLoading && !multiOutput ? (
+                    <BuildingAnimation />
+                  ) : (
+                  <>
                   <p className="mt-4 text-sm text-[var(--text-2-new)]" style={{ display: "none" }}>
                     {multiOutput
                       ? <>Real form × current odds. Refine in chat below.</>
@@ -2297,6 +2486,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                       {saveBetMsg ? <div className="mt-2 text-xs font-medium text-[var(--text-new)]">{saveBetMsg}</div> : null}
                     </div>
                   ) : null}
+                  </>
+                  )}
                 </div>
               </div>
               )}
