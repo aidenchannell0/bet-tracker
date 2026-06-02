@@ -1877,7 +1877,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
 
                 {mode === "multi" ? (
                   <div className="space-y-5">
-                    <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
+                    <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NBA"]} />
                     <EdgeSelectField label="Games" value={selectedGameId} onChange={setSelectedGameId} options={[{ label: games.length ? "All upcoming games" : "Loading games…", value: "" }, ...games.map((game) => ({ label: game.label, value: game.id }))]} />
                     <EdgeSelectField label="Number of legs" value={legs} onChange={setLegs} options={["Any", "2", "3", "4", "5", "Custom"]} />
                     {legs === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom number of legs<Input type="number" min="1" step="1" value={customLegs} onChange={(event) => setCustomLegs(event.target.value)} placeholder="e.g. 6" /></label> : null}
@@ -1911,7 +1911,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                   </div>
                 ) : (
                   <div className="mt-6 space-y-5">
-                    <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NRL", "Soccer", "Basketball", "Cricket"]} />
+                    <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NBA"]} />
                     <EdgeSelectField label="Game" value={selectedGameId} onChange={setSelectedGameId} options={[{ label: games.length ? "Select upcoming game" : "Loading games…", value: "" }, ...games.map((game) => ({ label: game.label, value: game.id }))]} />
                     <label className="space-y-1 text-sm font-medium">Focus area<Input value="Form, market read, key players & value" readOnly /></label>
                     <div className="pt-2"><Button onClick={previewAnalysis} disabled={edgeLoading || !selectedGameId} className="w-full rounded-2xl py-3 text-base">{edgeLoading ? "Analysing..." : "Preview game analysis"}</Button></div>
