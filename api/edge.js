@@ -1635,9 +1635,25 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   };
   choose(0, [], new Set(), 1);
 
-  // Tightest tolerance band (within a filter) that contains at least one combo
+  // Tightest tolerance band (within a filter) that contains at least one combo.
+  // Bands are PERCENTAGES of the target — absolute dollar bands (the old shape:
+  // 0.20, 0.35, 0.50, 0.75, 1.0, Infinity) broke down for any target > $2.50
+  // because "0.20" is 4% of a $5 target but 10% of a $2 target — same band
+  // meant very different tolerances. Percentage bands scale naturally: a 5%
+  // band of $2 is $0.10, of $5 is $0.25, of $10 is $0.50. User feedback:
+  // "would be good if it was at +-20% of the target odds" — start tight (5%)
+  // and relax only when needed.
+  const PCT_BANDS = [0.05, 0.10, 0.15, 0.20, 0.30, 0.50];
   const tightestPool = (filterFn) => {
-    for (const tol of [0.2, 0.35, 0.5, 0.75, 1.0, Infinity]) {
+    if (!targetOddsValue) {
+      // No target → just return all combos passing the filter, the sort below
+      // decides the winner. (Old absolute-band behaviour collapses to the same
+      // outcome when targetOddsValue is null.)
+      const p = combos.filter(filterFn);
+      return p.length ? p : [];
+    }
+    for (const pct of PCT_BANDS) {
+      const tol = targetOddsValue * pct;
       const p = combos.filter((c) => filterFn(c) && c.diff <= tol);
       if (p.length) return p;
     }
@@ -1653,16 +1669,20 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   if (!pool.length) pool = closest ? [closest] : [];
   if (!pool.length) return ordered.slice(0, wantCount || 3);
 
-  // Prefer requested leg count, then closeness-to-target (bucketed coarsely so form
-  // still matters between near-equivalent overshoots), then evenly-priced legs (no
-  // one-long-leg + filler), market variety, highest chance, then fine-grained diff.
+  // Prefer requested leg count, then closeness-to-target (bucketed so form
+  // still matters between near-equivalent overshoots), then evenly-priced legs
+  // (no one-long-leg + filler), market variety, highest chance, then
+  // fine-grained diff.
   //
-  // The bucketed diff matters most when the tolerance band fell through to Infinity
-  // (target unreachable with available lines). Without it, the cheapest achievable
-  // combo loses to a middle-priced combo on `prob` even though it's much closer to
-  // the user's target — e.g. NBA $2.00 target with no sub-$1.59 lines gets a $5.86
-  // build instead of the $4.12 floor. $0.50 buckets keep tight builds unaffected.
-  const diffBucket = (c) => Math.floor(c.diff / 0.5);
+  // Bucket width is now a percentage of target (5% by default, min $0.10 floor
+  // to avoid hyper-narrow buckets at tiny targets). Old fixed $0.50 buckets
+  // lumped $1.71 and $2.00 builds for a $2.00 target into the same "bucket 0"
+  // — so the search treated them as tied on closeness, then picked the
+  // higher-prob one even when the other was meaningfully closer to target.
+  // 5% buckets keep $1.71 (diff $0.29 → bucket 2) and $2.05 (diff $0.05 →
+  // bucket 0) properly ordered for the user.
+  const bucketSize = targetOddsValue ? Math.max(0.10, targetOddsValue * 0.05) : 0.5;
+  const diffBucket = (c) => Math.floor(c.diff / bucketSize);
   // Safer / Balanced prefer combos with higher combined hit chance (= every
   // leg is short-odds AND high-empirical) over balanced leg pricing. The
   // user explicitly wants Safer/Balanced multis to *feel* safer, even if
