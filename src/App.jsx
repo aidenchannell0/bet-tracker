@@ -1488,10 +1488,9 @@ function BuildingAnimation() {
 
   return (
     <div
-      className="mt-6 relative overflow-hidden rounded-2xl border border-[var(--border-new)]"
+      className="beam-border mt-6 relative overflow-hidden rounded-2xl border border-[var(--border-new)]"
       style={{ height: 380, background: "radial-gradient(circle at 50% 45%, #101013 0%, var(--bg-new) 72%)" }}
     >
-      <div className="building-progress absolute left-0 top-0 h-[2px] bg-gradient-to-r from-transparent to-[var(--accent-new)]" />
       <canvas ref={canvasRef} className="block h-full w-full" />
       <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2.5 whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-2-new)]">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" style={{ animation: "buildBlink 1.4s ease-in-out infinite" }} />
@@ -1513,6 +1512,10 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
   const [request, setRequest] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [edgeLoading, setEdgeLoading] = useState(false);
+  // True only while the "Build multi" button is running a fresh build (not a
+  // chat refine). Drives the full-screen sphere animation in the output column
+  // every time Build is pressed — even when a multi already exists.
+  const [buildingMulti, setBuildingMulti] = useState(false);
   const [showRiskExplanation, setShowRiskExplanation] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [lastEdgeContext, setLastEdgeContext] = useState(null);
@@ -1780,19 +1783,22 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
     const selectedGame = games.find((game) => game.id === selectedGameId);
     const gamePart = selectedGame ? ` for the ${selectedGame.label} game` : "";
     const prompt = `Build a ${displayedLegs}-leg ${sport} example multi${gamePart} targeting ${displayedTargetOdds}${riskPart}${requestPart}. Use real player form and current odds to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
-    sendChatMessage(prompt);
+    sendChatMessage(prompt, { isBuild: true });
     setTimeout(() => {
       outputPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   };
 
-  const sendChatMessage = async (messageOverride = null) => {
+  const sendChatMessage = async (messageOverride = null, opts = {}) => {
     const trimmed = (messageOverride || chatInput).trim();
     if (!trimmed || edgeLoading) return;
 
     setChatMessages((current) => [...current, { role: "user", text: trimmed }]);
     if (!messageOverride) setChatInput("");
     setEdgeLoading(true);
+    // Fresh "Build multi" runs show the sphere animation (even over an existing
+    // multi); chat refines keep the slim inline spinner instead.
+    if (opts.isBuild) setBuildingMulti(true);
 
     try {
       const response = await fetch("/api/edge", {
@@ -1844,6 +1850,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
       ]);
     } finally {
       setEdgeLoading(false);
+      if (opts.isBuild) setBuildingMulti(false);
     }
   };
 
@@ -2157,7 +2164,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.10em] font-medium text-[var(--text-3-new)]">MultiPick output</p>
                       <h2 className="mt-2 text-[22px] md:text-[26px] font-medium tracking-[-0.02em] text-[var(--text-new)]">
-                        {edgeLoading && !multiOutput
+                        {buildingMulti
                           ? <>Building your {sport} multi<span className="text-[var(--accent-new)]">.</span></>
                           : multiOutput
                           ? <>{multiOutput.legCount}-leg {multiOutput.sport} multi {multiOutput.game ? <span className="text-[var(--text-2-new)]"> · {multiOutput.game}</span> : null}</>
@@ -2171,10 +2178,10 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                       </p>
                     ) : null}
                   </div>
-                  {edgeLoading && !multiOutput ? (
+                  {buildingMulti ? (
                     <BuildingAnimation />
                   ) : (
-                  <>
+                  <div className="multi-reveal">
                   <p className="mt-4 text-sm text-[var(--text-2-new)]" style={{ display: "none" }}>
                     {multiOutput
                       ? <>Real form × current odds. Refine in chat below.</>
@@ -2486,7 +2493,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                       {saveBetMsg ? <div className="mt-2 text-xs font-medium text-[var(--text-new)]">{saveBetMsg}</div> : null}
                     </div>
                   ) : null}
-                  </>
+                  </div>
                   )}
                 </div>
               </div>

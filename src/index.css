@@ -345,9 +345,33 @@ html, body, #root {
 
 /* ── MultiPick build animation ──────────────────────────────────── */
 @keyframes buildBlink { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
-@keyframes buildingProgress {
-  0%   { width: 0;   opacity: 0.8; }
-  80%  { width: 88%; opacity: 1;   }
-  100% { width: 96%; opacity: 0.6; }
+
+/* Rotating lime beam that travels continuously around the stage border.
+   @property lets the conic-gradient angle interpolate; browsers without it
+   (older Safari/FF) just show a static gradient border — graceful fallback. */
+@property --beam-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes beamSpin { to { --beam-angle: 360deg; } }
+.beam-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;                /* beam / border ring thickness */
+  background: conic-gradient(from var(--beam-angle),
+    transparent 0deg, transparent 225deg,
+    rgba(205, 251, 80, 0.12) 285deg, #cdfb50 330deg,
+    rgba(205, 251, 80, 0.12) 350deg, transparent 360deg);
+  /* mask out the interior so only the ring shows */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: beamSpin 2.8s linear infinite;
+  pointer-events: none;
 }
-.building-progress { animation: buildingProgress 6s ease-in-out infinite; }
+
+/* Smooth hand-off: finished multi fades + lifts in as the sphere clears */
+@keyframes multiReveal {
+  0%   { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.multi-reveal { animation: multiReveal 0.55s cubic-bezier(0.16, 1, 0.3, 1); }
