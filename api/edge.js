@@ -1683,13 +1683,16 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // bucket 0) properly ordered for the user.
   const bucketSize = targetOddsValue ? Math.max(0.10, targetOddsValue * 0.05) : 0.5;
   const diffBucket = (c) => Math.floor(c.diff / bucketSize);
-  // Safer / Balanced prefer combos with higher combined hit chance (= every
-  // leg is short-odds AND high-empirical) over balanced leg pricing. The
-  // user explicitly wants Safer/Balanced multis to *feel* safer, even if
-  // that means uneven leg sizes (e.g. three $1.30 legs vs two $1.45+$1.50).
-  // Aggressive keeps the old balance-first sort so it can still chase
-  // edge-rich asymmetric combos.
-  const preferProbOverBalance = riskProfile !== "Aggressive";
+  // Safer prefers BALANCED leg pricing (even-sized legs spread risk across
+  // all of them instead of concentrating it on the one outlier). User
+  // feedback after seeing "$1.04 + $1.05 + $1.11 + $1.57" pop out of a
+  // Safer build: "I don't know how I feel about 3 lock and one 50-50."
+  // Safer should *feel* safe, and that means each leg looks similar in
+  // weight — the multi rides on the whole portfolio, not one leg.
+  // Aggressive also prefers balance (chase-edge combos don't want one long
+  // leg carrying the whole multi). Balanced keeps the original prob-first
+  // sort — its name implies the math optimises for raw hit chance.
+  const preferProbOverBalance = riskProfile === "Balanced";
   pool.sort((a, b) => {
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
     if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
