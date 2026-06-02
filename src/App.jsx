@@ -3577,6 +3577,17 @@ export default function BettingTrackerWebsite() {
         return;
       }
       setBetslipExtract(data);
+      // Map OCR-extracted status/result to the form's `result` field. Default
+      // is "pending" when the screenshot is unsettled (or the model couldn't
+      // tell), NOT the previous "win" — that was the Task #N bug where a
+      // screenshot of a LOST bet got saved as a win because the form's hard-
+      // coded `result: "win"` default was never overwritten by the OCR
+      // pre-fill. Safe fallback: better to leave it pending and force the
+      // user to settle manually than silently mark losses as wins.
+      const ocrResult =
+        data.status === "settled" && (data.result === "win" || data.result === "loss")
+          ? data.result
+          : "pending";
       // Auto-prefill the form with the extracted values.
       setForm((prev) => ({
         ...prev,
@@ -3587,6 +3598,7 @@ export default function BettingTrackerWebsite() {
         bookmaker: data.bookmaker || prev.bookmaker,
         betType: ["Single", "Multi", "Player prop", "Head-to-head", "Line", "Total", "Other"].includes(data.betType) ? data.betType : prev.betType,
         notes: data.notes || prev.notes,
+        result: ocrResult,
       }));
     } catch (err) {
       setBetslipError("Network error. Try again.");

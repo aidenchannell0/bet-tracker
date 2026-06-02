@@ -2985,6 +2985,8 @@ Return ONLY a JSON object with EXACTLY this shape (no markdown, no commentary):
   "stake": <number>,
   "odds": <number>,
   "returnAmount": <number>,
+  "status": "pending"|"settled",
+  "result": "win"|"loss"|null,
   "legs": [
     { "player": "<player or selection name>", "line": "<line description e.g. 12+ disposals>", "odds": <number>, "game": "<home vs away if visible>" }
   ],
@@ -2995,6 +2997,11 @@ Rules:
 - stake / odds / returnAmount must be numbers (not strings). Strip $ and currency.
 - For multis: include every leg. For singles: legs can be empty or a single entry.
 - Use null for any field you genuinely can't determine. Don't guess.
+- For status/result, look for VISUAL cues: green tick / "WON" / "CASHED" / payout > 0 = settled win.
+  Red cross / "LOST" / strikethrough legs / "$0.00" return on a settled slip = settled loss.
+  "OPEN" / "PENDING" / "IN PROGRESS" / no settlement marker = pending. If unsure, return
+  status:"pending" and result:null — better to leave it pending than guess a win/loss wrong.
+- If status="pending", result MUST be null. If status="settled", result must be "win" or "loss".
 - If the image isn't a betslip, return: {"valid": false, "error": "Not a betslip"}.`;
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
