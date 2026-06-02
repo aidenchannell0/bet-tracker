@@ -1498,6 +1498,25 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   const minLegs = 2;
   const maxLegs = Math.min(7, new Set(shortlist.map((p) => p.playerName)).size);
 
+  // Size of the largest single-team block in a combo (4 Hawks => 4). When the
+  // combo search produces "all 4 legs same team" picks (which used to happen
+  // a lot in same-game multis), the concentration risk goes up — if that team
+  // gets blown out and chases tail in the last quarter, every leg can die
+  // together. Same-game positive correlation already lifts the upside, but
+  // the downside is real too. Tracked as a soft penalty (not a hard cap) so
+  // the search still picks single-team stacks when they're genuinely the
+  // best buildable combo, but prefers cross-team spread when one's available.
+  const teamDominance = (legs) => {
+    const counts = {};
+    let max = 0;
+    for (const l of legs) {
+      const t = l.team || "?";
+      counts[t] = (counts[t] || 0) + 1;
+      if (counts[t] > max) max = counts[t];
+    }
+    return max;
+  };
+
   // Size of the largest single-metric block in a combo (5 goals => 5)
   const metricDominance = (legs) => {
     const counts = {};
@@ -1529,7 +1548,12 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       // Diversity: discourage stacking one metric (e.g. all goals). Allow up to
       // ~half the legs in any single market before penalising.
       const diversityPenalty = Math.max(0, metricDominance(acc) - Math.ceil(acc.length / 2));
-      const cand = { legs: [...acc], prob, diff, legPenalty, diversityPenalty, balance: balanceBucket(acc) };
+      // Team diversity: same shape — allow up to ~half the legs from any one
+      // team before penalising. Soft preference, not a hard cap; the sort
+      // below uses it as a tiebreaker so single-team stacks still win when
+      // they're genuinely the only/best combo near the target.
+      const teamPenalty = Math.max(0, teamDominance(acc) - Math.ceil(acc.length / 2));
+      const cand = { legs: [...acc], prob, diff, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc) };
       combos.push(cand);
       if (!closest || diff < closest.diff) closest = cand;
     }
@@ -1588,6 +1612,11 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
     if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
     if (a.diversityPenalty !== b.diversityPenalty) return a.diversityPenalty - b.diversityPenalty;
+    // Team spread: prefer combos that don't stack 3+ legs from one team
+    // (concentration risk if that team gets blown out). Soft tiebreaker —
+    // single-team stacks still win when no diverse alternative is in the
+    // same diff-bucket / metric-diversity tier.
+    if (a.teamPenalty !== b.teamPenalty) return a.teamPenalty - b.teamPenalty;
     if (preferProbOverBalance) {
       if (b.prob !== a.prob) return b.prob - a.prob;
       if (a.balance !== b.balance) return a.balance - b.balance;
