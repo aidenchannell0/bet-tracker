@@ -1753,7 +1753,7 @@ function _proj(p, R, cx, cy) {
   return { sx: cx + p.x * R * s, sy: cy + p.y * R * s, depth: (p.z + 1) / 2, s };
 }
 
-function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, className = "mt-6" }) {
+function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, className = "mt-6", bare = false, minimal = false }) {
   const canvasRef = useRef(null);
   const [phase, setPhase] = useState(0);
 
@@ -1769,7 +1769,7 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
     const ACC = [205, 251, 80];
-    const N = 220;
+    const N = minimal ? 110 : 220;
     const pts = _fibSphere(N);
     const neigh = [];
     const act = new Array(N).fill(0);
@@ -1785,11 +1785,13 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
       list.sort((m, n) => (a.x * pts[n].x + a.y * pts[n].y + a.z * pts[n].z) - (a.x * pts[m].x + a.y * pts[m].y + a.z * pts[m].z));
       neigh.push(list.slice(0, 4));
     }
-    const rings = [
+    // Minimal mode: drop the orbital rings (the busy bit) for a clean,
+    // slowly-rotating point-cloud sphere — used as the empty-state decoration.
+    const rings = (minimal ? [] : [
       { tilt: 0.3, yaw: 0, n: 24, sp: 0.0009, r: 0.50 },
       { tilt: 1.2, yaw: 0.8, n: 20, sp: -0.0012, r: 0.58 },
       { tilt: -0.7, yaw: 1.7, n: 16, sp: 0.0014, r: 0.44 },
-    ].map((d) => {
+    ]).map((d) => {
       const parts = [];
       for (let i = 0; i < d.n; i++) parts.push((i / d.n) * Math.PI * 2);
       return { ...d, parts, hot: (Math.random() * d.n) | 0 };
@@ -1813,10 +1815,12 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
       let g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.9);
       g.addColorStop(0, "rgba(205,251,80,0.06)"); g.addColorStop(0.5, "rgba(205,251,80,0.02)"); g.addColorStop(1, "rgba(205,251,80,0)");
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      if (!reduce && Math.random() < 0.022 && flares.length < 3) {
+      if (!reduce && Math.random() < (minimal ? 0.015 : 0.022) && flares.length < 3) {
         const seed = (Math.random() * N) | 0; act[seed] = 1;
         for (const j of neigh[seed]) act[j] = Math.max(act[j], 0.4);
-        flares.push({ node: seed, life: 1 });
+        // Core→shell beams only in full mode; minimal keeps just the gentle
+        // shell firing (lit dots + their connections), no center beams.
+        if (!minimal) flares.push({ node: seed, life: 1 });
       }
       const proj = pts.map((p) => { const r = _rot(p, ay, ax); return { r, pr: _proj(r, R, cx, cy) }; });
       const order = [...Array(N).keys()].sort((a, b) => proj[a].r.z - proj[b].r.z);
@@ -1849,7 +1853,7 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
         }
       }
       for (let i = 0; i < N; i++) items.push({ z: proj[i].r.z, kind: "shell", pr: proj[i].pr, a: act[i] });
-      items.push({ z: 0, kind: "core" });
+      if (!minimal) items.push({ z: 0, kind: "core" });
       items.sort((u, v) => u.z - v.z);
       const pulse = 0.5 + 0.5 * Math.sin(t * 0.0022);
       for (const it of items) {
@@ -1886,8 +1890,8 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
 
   return (
     <div
-      className={(showBeam ? "beam-border " : "") + "relative overflow-hidden rounded-2xl border border-[var(--border-new)] " + className}
-      style={{ height, background: "radial-gradient(circle at 50% 45%, #101013 0%, var(--bg-new) 72%)" }}
+      className={(showBeam ? "beam-border " : "") + "relative overflow-hidden " + (bare ? "" : "rounded-2xl border border-[var(--border-new)] ") + className}
+      style={{ height, background: bare ? "transparent" : "radial-gradient(circle at 50% 45%, #101013 0%, var(--bg-new) 72%)" }}
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
       {showStatus ? (
@@ -5220,9 +5224,10 @@ export default function BettingTrackerWebsite() {
                     <Button type="button" variant="outline" onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-xl px-5 py-3">Log a bet manually</Button>
                   </div>
                 </div>
-                {/* Compact, decorative MultiPick sphere — no status line / beam */}
+                {/* Compact, decorative MultiPick sphere — minimal point cloud,
+                    transparent (no card/border), no status line or beam */}
                 <div className="hidden md:block">
-                  <BuildingAnimation height={180} showStatus={false} showBeam={false} className="" />
+                  <BuildingAnimation height={200} showStatus={false} showBeam={false} bare minimal className="" />
                 </div>
               </div>
             </div>
