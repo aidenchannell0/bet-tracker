@@ -2484,7 +2484,15 @@ function LandingPage({ setActivePage, setAuthMode }) {
                     </div>
                   </div>
                   <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-7 md:p-9">
-                    <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Actual hit rate</div>
+                    <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--border-new)] pb-4">
+                      <h3 className="brand-wordmark text-[18px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[20px]">
+                        MultiPick<span className="text-[var(--accent-new)]">.</span> hit rate
+                      </h3>
+                      <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">
+                        Last <span className="mono-nums">{o.n}</span> picks
+                      </span>
+                    </div>
+                    <div className="mt-6 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Actual hit rate</div>
                     <div className="mono-nums mt-4 text-[88px] font-semibold leading-[0.85] tracking-[-0.055em] text-[var(--positive-new)] md:text-[136px]">
                       {o.actual}%
                     </div>
