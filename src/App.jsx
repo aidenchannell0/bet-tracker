@@ -1455,7 +1455,8 @@ function MultipickCheckbox({ checked, onChange }) {
 
 // Paywall shown when a free user hits the weekly build limit. Portal-rendered
 // over a blurred backdrop, brand-styled, with the Pro benefits + upgrade CTA.
-function Paywall({ usage = 3, limit = 3, onUpgrade, upgrading, onClose }) {
+function Paywall({ usage = 3, limit = 3, foundingSpotsLeft = null, onUpgrade, upgrading, onClose }) {
+  const founding = typeof foundingSpotsLeft === "number" && foundingSpotsLeft > 0;
   const benefits = [
     "Unlimited multi builds",
     "AFL + NBA player props",
@@ -1488,15 +1489,26 @@ function Paywall({ usage = 3, limit = 3, onUpgrade, upgrading, onClose }) {
               </li>
             ))}
           </ul>
-          <div className="mt-6 flex items-baseline gap-2">
-            <span className="mono-nums text-[30px] font-bold tracking-[-0.03em] text-[var(--text-new)]">A$6.99</span>
-            <span className="text-[13px] text-[var(--text-3-new)]">/ week</span>
-          </div>
+          {founding ? (
+            <div className="mt-5 rounded-xl border border-[var(--accent-new)] bg-[var(--accent-soft-new)] px-4 py-3">
+              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--accent-new)]">Founding offer · {foundingSpotsLeft} of 20 spots left</div>
+              <div className="mt-1.5 flex items-baseline gap-2">
+                <span className="mono-nums text-[30px] font-bold tracking-[-0.03em] text-[var(--text-new)]">A$4.99</span>
+                <span className="mono-nums text-[15px] font-medium text-[var(--text-3-new)] line-through">A$6.99</span>
+                <span className="text-[13px] text-[var(--text-3-new)]">/ week, locked in</span>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-6 flex items-baseline gap-2">
+              <span className="mono-nums text-[30px] font-bold tracking-[-0.03em] text-[var(--text-new)]">A$6.99</span>
+              <span className="text-[13px] text-[var(--text-3-new)]">/ week</span>
+            </div>
+          )}
           <button type="button" onClick={onUpgrade} disabled={upgrading} className="mt-4 w-full rounded-xl bg-[var(--accent-new)] py-3.5 text-[14px] font-bold text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:opacity-50">
-            {upgrading ? "Starting checkout…" : "Upgrade to Pro"}
+            {upgrading ? "Starting checkout…" : founding ? "Claim founding rate" : "Upgrade to Pro"}
           </button>
           <button type="button" onClick={onClose} className="mt-2 w-full py-2.5 text-[13px] font-semibold text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Maybe later</button>
-          <p className="mt-3 text-center text-[11px] text-[var(--text-3-new)]">Free builds reset Monday · 18+ · Gamble responsibly</p>
+          <p className="mt-3 text-center text-[11px] text-[var(--text-3-new)]">{founding ? "Locked-in rate for as long as you stay subscribed · " : "Free builds reset Monday · "}18+ · Gamble responsibly</p>
         </div>
       </div>
     </div>,
@@ -1908,7 +1920,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
   const [betStake, setBetStake] = useState("");
   const [savingBet, setSavingBet] = useState(false);
   const [saveBetMsg, setSaveBetMsg] = useState("");
-  const [entitlement, setEntitlement] = useState({ subscribed: false, usage: 0, limit: 3 });
+  const [entitlement, setEntitlement] = useState({ subscribed: false, usage: 0, limit: 3, foundingSpotsLeft: null });
   const [upgrading, setUpgrading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
@@ -1960,7 +1972,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
       try {
         const response = await fetch("/api/entitlement", { headers: { Authorization: `Bearer ${accessToken}` } });
         const data = await response.json();
-        if (!cancelled) setEntitlement({ subscribed: !!data.subscribed, usage: data.usage || 0, limit: data.limit || 3 });
+        if (!cancelled) setEntitlement({ subscribed: !!data.subscribed, usage: data.usage || 0, limit: data.limit || 3, foundingSpotsLeft: data.foundingSpotsLeft ?? null });
       } catch {
         /* ignore — counter just won't show until a build */
       }
@@ -2221,6 +2233,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
           subscribed: data.subscribed ?? current.subscribed,
           usage: data.usage,
           limit: data.limit ?? current.limit,
+          foundingSpotsLeft: current.foundingSpotsLeft,
         }));
       }
       // Server says the free limit is hit — surface the paywall instead of just
@@ -2254,7 +2267,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
         <div className="mx-auto max-w-7xl space-y-6">
           <TopNav activePage="edge" setActivePage={setActivePage} />
 
-          {showPaywall ? <Paywall usage={entitlement.usage} limit={entitlement.limit} onUpgrade={startUpgrade} upgrading={upgrading} onClose={() => setShowPaywall(false)} /> : null}
+          {showPaywall ? <Paywall usage={entitlement.usage} limit={entitlement.limit} foundingSpotsLeft={entitlement.foundingSpotsLeft} onUpgrade={startUpgrade} upgrading={upgrading} onClose={() => setShowPaywall(false)} /> : null}
           {propsStatus && propsStatus.propsAvailable && propsStatus.roundKey !== propsDismissedRound ? (
             <div className="flex items-center gap-3 rounded-2xl border border-[#2E7D5B]/40 bg-[#2E7D5B]/10 px-4 py-3 text-sm">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#2E7D5B]" />
@@ -2810,6 +2823,7 @@ function LandingPage({ setActivePage, setAuthMode }) {
   // resolved predictions to show meaningful numbers — better than a sparse
   // first impression.
   const [calibration, setCalibration] = useState(null);
+  const [foundingSpotsLeft, setFoundingSpotsLeft] = useState(null);
   useEffect(() => {
     let cancelled = false;
     fetch("/api/calibration")
@@ -2818,8 +2832,16 @@ function LandingPage({ setActivePage, setAuthMode }) {
         if (!cancelled && data?.overall?.n >= 10) setCalibration(data);
       })
       .catch(() => {});
+    // Founding-offer spots — no auth needed; /api/entitlement returns the count.
+    fetch("/api/entitlement")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && typeof data?.foundingSpotsLeft === "number") setFoundingSpotsLeft(data.foundingSpotsLeft);
+      })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+  const founding = typeof foundingSpotsLeft === "number" && foundingSpotsLeft > 0;
 
   return (
     <div className="page-fade-in min-h-screen bg-[var(--bg-new)] text-[var(--text-new)]">
@@ -3234,13 +3256,19 @@ function LandingPage({ setActivePage, setAuthMode }) {
 
               {/* Pro tier */}
               <div className="relative rounded-2xl border border-[var(--accent-new)] bg-[var(--surface-new)] p-7 sm:p-8">
-                <div className="absolute -top-2.5 right-7 rounded-full bg-[var(--accent-new)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.10em] text-[var(--bg-new)]">Best value</div>
+                <div className="absolute -top-2.5 right-7 rounded-full bg-[var(--accent-new)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.10em] text-[var(--bg-new)]">{founding ? "Founding offer" : "Best value"}</div>
                 <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--accent-new)]">Pickd Pro</div>
                 <div className="brand-wordmark mt-3 flex items-baseline gap-2">
-                  <span className="mono-nums text-[48px] font-bold leading-none tracking-[-0.04em]">$6.99</span>
+                  <span className="mono-nums text-[48px] font-bold leading-none tracking-[-0.04em]">{founding ? "$4.99" : "$6.99"}</span>
+                  {founding ? <span className="mono-nums text-[20px] font-medium text-[var(--text-3-new)] line-through">$6.99</span> : null}
                   <span className="text-[12px] text-[var(--text-3-new)]">/ week</span>
                 </div>
-                <p className="mt-4 text-[13px] leading-[1.55] text-[var(--text-2-new)]">Unlimited MultiPick + every feature, with priority access to new sports.</p>
+                {founding ? (
+                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-soft-new)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.10em] text-[var(--accent-new)]">
+                    First 20 members · <span className="mono-nums">{foundingSpotsLeft}</span> spots left
+                  </div>
+                ) : null}
+                <p className="mt-4 text-[13px] leading-[1.55] text-[var(--text-2-new)]">{founding ? "Lock in $4.99/wk for life as a founding member — then it's $6.99. Unlimited MultiPick + every feature." : "Unlimited MultiPick + every feature, with priority access to new sports."}</p>
                 <ul className="mt-6 space-y-3 text-[13px] text-[var(--text-2-new)]">
                   {[
                     "Everything in Free",

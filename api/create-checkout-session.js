@@ -7,6 +7,10 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Founding-member promo: the first 20 people to subscribe get a locked-in
+// discounted rate (A$4.99 vs A$6.99) via a forever-duration Stripe coupon.
+const FOUNDING_LIMIT = 20;
+
 function baseUrl(req) {
   const protocol = req.headers["x-forwarded-proto"] || "https";
   return `${protocol}://${req.headers.host}`;
@@ -53,17 +57,35 @@ export default async function handler(req, res) {
         .upsert({ user_id: user.id, stripe_customer_id: customerId }, { onConflict: "user_id" });
     }
 
+    // Founding-member eligibility: apply the locked-in coupon if this user
+    // would be within the first FOUNDING_LIMIT active subscribers and a coupon
+    // is configured. Stripe Checkout can't combine `discounts` with
+    // `allow_promotion_codes`, so we use one or the other.
+    let foundingEligible = false;
+    if (process.env.STRIPE_FOUNDING_COUPON) {
+      const { count } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("subscription_status", "active");
+      foundingEligible = (count || 0) < FOUNDING_LIMIT;
+    }
+
     const origin = baseUrl(req);
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       client_reference_id: user.id,
-      metadata: { user_id: user.id },
-      allow_promotion_codes: true,
+      metadata: { user_id: user.id, founding: foundingEligible ? "1" : "0" },
       success_url: `${origin}/?upgraded=1`,
       cancel_url: `${origin}/?upgrade=cancelled`,
-    });
+    };
+    if (foundingEligible) {
+      sessionParams.discounts = [{ coupon: process.env.STRIPE_FOUNDING_COUPON }];
+    } else {
+      sessionParams.allow_promotion_codes = true;
+    }
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     return res.status(200).json({ url: session.url });
   } catch (error) {
