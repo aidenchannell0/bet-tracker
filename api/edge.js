@@ -868,6 +868,14 @@ const PLAYER_MARKETS_BY_SPORT = {
     // within each market (no `_over` variants like AFL has). Sending an unknown
     // key like `player_points_over` causes the API to reject the entire request
     // with INVALID_MARKET, so keep this list to the actual canonical keys.
+    //
+    // The `_alternate` variants are what unlock the $1.02 — $2.00 leg range that
+    // AFL builds get natively (AFL `_over` markets already include all lines per
+    // player). Standard NBA markets only return the headline line per player
+    // (~$1.90 even-money pricing); alternates return ~40 lines per player at
+    // every price tier, including the cheap "Wembanyama 14.5+ points @ $1.02"
+    // style legs needed for low-target builds. Verified live against SportsBet,
+    // TABtouch, Unibet — all post alternates via The Odds API.
     markets: [
       "player_points",
       "player_rebounds",
@@ -875,6 +883,12 @@ const PLAYER_MARKETS_BY_SPORT = {
       "player_threes",
       "player_blocks",
       "player_steals",
+      "player_points_alternate",
+      "player_rebounds_alternate",
+      "player_assists_alternate",
+      "player_threes_alternate",
+      "player_blocks_alternate",
+      "player_steals_alternate",
     ],
   },
 };
@@ -939,6 +953,14 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
     "player_threes",
     "player_blocks",
     "player_steals",
+    // NBA alternates — same shape but multiple lines per player. Unlocks the
+    // $1.02 — $2.00 leg range; see PLAYER_MARKETS_BY_SPORT.NBA for context.
+    "player_points_alternate",
+    "player_rebounds_alternate",
+    "player_assists_alternate",
+    "player_threes_alternate",
+    "player_blocks_alternate",
+    "player_steals_alternate",
   ];
 
   const metricFromMarket = {
@@ -951,13 +973,21 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
     player_clearances_over: "clearances",
     player_kicks_over: "kicks",
     player_handballs_over: "handballs",
-    // NBA
+    // NBA — alternates map to the same metric as the standard so the
+    // dedup below (keyed on metric, not market.key) collapses them and
+    // we keep the highest-priced Over per player+line+price tier.
     player_points: "points",
     player_rebounds: "rebounds",
     player_assists: "assists",
     player_threes: "threes",
     player_blocks: "blocks",
     player_steals: "steals",
+    player_points_alternate: "points",
+    player_rebounds_alternate: "rebounds",
+    player_assists_alternate: "assists",
+    player_threes_alternate: "threes",
+    player_blocks_alternate: "blocks",
+    player_steals_alternate: "steals",
   };
 
   // For each unique player+market+line, keep the BEST (highest) Over price and
@@ -1004,13 +1034,20 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
           continue;
         }
 
-        const key = `${player}-${market.key}-${outcome.point}`;
+        // Dedup on player+metric+line (NOT player+marketKey+line) so the NBA
+        // standard market and its alternate variant for the same line collapse
+        // into one prop. E.g. `Wembanyama 24.5+ points` at $1.55 via
+        // player_points_alternate vs $1.50 via player_points → one prop kept,
+        // best price wins. Without this collapse, the candidate pool would
+        // double up and the combo search would see noise.
+        const metric = metricFromMarket[market.key] || "disposals";
+        const key = `${player}-${metric}-${outcome.point}`;
         const existing = bestByKey.get(key);
         if (existing && price <= existing.odds) continue;
 
         bestByKey.set(key, {
           playerName: player,
-          metric: metricFromMarket[market.key] || "disposals",
+          metric,
           marketKey: market.key,
           line: outcome.point,
           odds: price,
