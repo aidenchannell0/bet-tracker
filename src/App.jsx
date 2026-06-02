@@ -1489,7 +1489,7 @@ function Paywall({ usage = 3, limit = 3, onUpgrade, upgrading, onClose }) {
             ))}
           </ul>
           <div className="mt-6 flex items-baseline gap-2">
-            <span className="mono-nums text-[30px] font-bold tracking-[-0.03em] text-[var(--text-new)]">A$4.99</span>
+            <span className="mono-nums text-[30px] font-bold tracking-[-0.03em] text-[var(--text-new)]">A$6.99</span>
             <span className="text-[13px] text-[var(--text-3-new)]">/ week</span>
           </div>
           <button type="button" onClick={onUpgrade} disabled={upgrading} className="mt-4 w-full rounded-xl bg-[var(--accent-new)] py-3.5 text-[14px] font-bold text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:opacity-50">
