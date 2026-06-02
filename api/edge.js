@@ -1569,11 +1569,15 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       // Diversity: discourage stacking one metric (e.g. all goals). Allow up to
       // ~half the legs in any single market before penalising.
       const diversityPenalty = Math.max(0, metricDominance(acc) - Math.ceil(acc.length / 2));
-      // Team diversity: same shape — allow up to ~half the legs from any one
-      // team before penalising. Soft preference, not a hard cap; the sort
-      // below uses it as a tiebreaker so single-team stacks still win when
-      // they're genuinely the only/best combo near the target.
-      const teamPenalty = Math.max(0, teamDominance(acc) - Math.ceil(acc.length / 2));
+      // Team diversity: only penalise *pure* single-team stacks (4-0 in a
+      // 4-leg multi, 3-0 in a 3-leg, etc.). The earlier ceil(legs/2) shape
+      // was too eager — it biased toward forced 2-2 even when a 3-1 split
+      // had genuinely better value, which the user pushed back on ("I don't
+      // want to force the builder to have an exact even split — just give
+      // me the best selections from either team"). Two-leg multis never
+      // penalised since same-team-pair is often the most-likely combo.
+      const teamCapAllowed = Math.max(2, acc.length - 1);
+      const teamPenalty = Math.max(0, teamDominance(acc) - teamCapAllowed);
       const cand = { legs: [...acc], prob, diff, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc) };
       combos.push(cand);
       if (!closest || diff < closest.diff) closest = cand;
@@ -1957,8 +1961,14 @@ function structureLegFromEnriched(p) {
 
 // Same-game multi detection + conservative value. Bookmakers price same-game legs
 // as a Same-Game Multi with a correlation discount, so multiplying single-leg prices
-// overstates BOTH the odds and the value. We flag it, and haircut the odds (~15% per
+// overstates BOTH the odds and the value. We flag it, and haircut the odds (~8% per
 // extra same-game leg) when computing EV so the displayed value isn't overstated.
+//
+// Factor was 0.85 (15% per leg) — way more aggressive than typical AFL/NBA SGM
+// pricing in practice. For a 4-same-game-leg multi, 0.85^3 = 0.61 wiped out per-leg
+// edge entirely, showing negative EV even when every leg had +7-15% individual edge.
+// 0.92^3 = 0.78 matches what PointsBet/SportsBet actually post for AFL all-mid SGMs,
+// so the displayed EV now tracks real bookmaker repricing instead of worst-case.
 function sameGameAdjust(legs, combinedOdds, combinedProb) {
   const counts = {};
   let maxGroup = 1;
@@ -1969,7 +1979,7 @@ function sameGameAdjust(legs, combinedOdds, combinedProb) {
     if (counts[g] > maxGroup) maxGroup = counts[g];
   }
   const sameGameCount = maxGroup >= 2 ? maxGroup : 0;
-  const sgmFactor = Math.pow(0.85, Math.max(0, maxGroup - 1));
+  const sgmFactor = Math.pow(0.92, Math.max(0, maxGroup - 1));
   const effectiveOdds = combinedOdds * sgmFactor;
   const evPct = Math.round((combinedProb * effectiveOdds - 1) * 100);
   const sameGameNote = sameGameCount
