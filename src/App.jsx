@@ -1453,6 +1453,57 @@ function MultipickCheckbox({ checked, onChange }) {
   );
 }
 
+// Paywall shown when a free user hits the weekly build limit. Portal-rendered
+// over a blurred backdrop, brand-styled, with the Pro benefits + upgrade CTA.
+function Paywall({ usage = 3, limit = 3, onUpgrade, upgrading, onClose }) {
+  const benefits = [
+    "Unlimited multi builds",
+    "AFL + NBA player props",
+    "Every risk profile, incl. Best Chance",
+    "Live calibration + model track record",
+    "Cancel anytime",
+  ];
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Upgrade to Pro" onClick={onClose}>
+      <div className="w-full max-w-[440px] overflow-hidden rounded-3xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] shadow-[0_40px_120px_rgba(0,0,0,0.6)]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex h-[150px] items-center justify-center border-b border-[var(--border-new)]" style={{ background: "radial-gradient(circle at 50% 40%, #14160c 0%, #0d0d10 75%)" }}>
+          <div className="text-center">
+            <div className="brand-wordmark text-[40px]">Pickd<span className="text-[var(--accent-new)]">.</span> <span className="text-[var(--accent-new)]">Pro</span></div>
+            <div className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-3-new)]">Unlimited multi builder</div>
+          </div>
+        </div>
+        <div className="px-7 pt-6 pb-7">
+          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent-new)]">Free limit reached</div>
+          <h2 className="mt-2.5 text-[24px] font-bold leading-[1.1] tracking-[-0.03em] text-[var(--text-new)]">You're out of free builds.</h2>
+          <p className="mt-2.5 text-[13.5px] leading-relaxed text-[var(--text-2-new)]">
+            You've used all <span className="mono-nums font-medium text-[var(--text-new)]">{limit}</span> of your free builds this week. They reset Monday — or go unlimited with Pro right now.
+          </p>
+          <ul className="mt-5 space-y-2.5">
+            {benefits.map((b) => (
+              <li key={b} className="flex items-center gap-2.5 text-[13.5px] text-[var(--text-2-new)]">
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft-new)]">
+                  <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="var(--accent-new)" strokeWidth="2.2"><path d="M2.5 6.2 L5 8.5 L9.5 3.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </span>
+                {b}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-6 flex items-baseline gap-2">
+            <span className="mono-nums text-[30px] font-bold tracking-[-0.03em] text-[var(--text-new)]">A$4.99</span>
+            <span className="text-[13px] text-[var(--text-3-new)]">/ week</span>
+          </div>
+          <button type="button" onClick={onUpgrade} disabled={upgrading} className="mt-4 w-full rounded-xl bg-[var(--accent-new)] py-3.5 text-[14px] font-bold text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:opacity-50">
+            {upgrading ? "Starting checkout…" : "Upgrade to Pro"}
+          </button>
+          <button type="button" onClick={onClose} className="mt-2 w-full py-2.5 text-[13px] font-semibold text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Maybe later</button>
+          <p className="mt-3 text-center text-[11px] text-[var(--text-3-new)]">Free builds reset Monday · 18+ · Gamble responsibly</p>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function renderEdgeText(text) {
   const parts = String(text || "").split(/(\*\*[^*]+\*\*)/g);
 
@@ -1859,6 +1910,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
   const [saveBetMsg, setSaveBetMsg] = useState("");
   const [entitlement, setEntitlement] = useState({ subscribed: false, usage: 0, limit: 3 });
   const [upgrading, setUpgrading] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
   const [calibration, setCalibration] = useState(null);
   // Modal open/closed for the "View calibration detail →" link on the
@@ -2109,6 +2161,10 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
 
   const previewMulti = () => {
     if (edgeLoading) return;
+    // Hard-stop free users at the weekly limit before spending a request, and
+    // show the paywall. Server enforces this too (defence in depth), but this
+    // gives instant feedback and the upgrade prompt.
+    if (gatedNow) { setShowPaywall(true); return; }
     setAnalysisOutput(null);
     const requestPart = request.trim() ? `. Focus: ${request.trim()}` : "";
     const riskPart = riskProfile !== "Balanced" ? ` with a ${riskProfile} risk profile` : "";
@@ -2167,6 +2223,12 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
           limit: data.limit ?? current.limit,
         }));
       }
+      // Server says the free limit is hit — surface the paywall instead of just
+      // a chat line (and don't leave a dangling "Building…" state).
+      if (data?.gated) {
+        setShowPaywall(true);
+        return;
+      }
       if (data?.multi) {
         setMultiOutput(data.multi);
       }
@@ -2191,6 +2253,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
           <TopNav activePage="edge" setActivePage={setActivePage} />
+
+          {showPaywall ? <Paywall usage={entitlement.usage} limit={entitlement.limit} onUpgrade={startUpgrade} upgrading={upgrading} onClose={() => setShowPaywall(false)} /> : null}
           {propsStatus && propsStatus.propsAvailable && propsStatus.roundKey !== propsDismissedRound ? (
             <div className="flex items-center gap-3 rounded-2xl border border-[#2E7D5B]/40 bg-[#2E7D5B]/10 px-4 py-3 text-sm">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#2E7D5B]" />
