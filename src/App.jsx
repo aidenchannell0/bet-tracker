@@ -2367,6 +2367,22 @@ function LandingPage({ setActivePage, setAuthMode }) {
     setActivePage("auth");
   };
 
+  // Live model-track-record numbers from /api/calibration. Public endpoint,
+  // no auth required. We hide the section entirely until we have enough
+  // resolved predictions to show meaningful numbers — better than a sparse
+  // first impression.
+  const [calibration, setCalibration] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/calibration")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data?.overall?.n >= 10) setCalibration(data);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="page-fade-in min-h-screen bg-[var(--bg-new)] text-[var(--text-new)]">
       <main className="px-5 pb-24 pt-6 sm:px-8 md:px-10 md:pt-8">
@@ -2429,6 +2445,69 @@ function LandingPage({ setActivePage, setAuthMode }) {
               ))}
             </div>
           </header>
+
+          {/* ─────────────── RECEIPTS / MODEL TRACK RECORD ───────────────
+              Live calibration stats from /api/calibration. The actual hit
+              rate vs the model's prediction is the radical-transparency
+              differentiator vs other betting tools (no one shows their
+              misses) — earn the section the most-prominent post-hero slot. */}
+          {calibration?.overall ? (() => {
+            const o = calibration.overall;
+            const gap = Math.abs(Number(o.predicted || 0) - Number(o.actual || 0));
+            const wellCalibrated = gap <= 5;
+            const hitCount = Math.round((o.n * o.actual) / 100);
+            return (
+              <section className="border-b border-[var(--border-new)] py-20 md:py-28">
+                <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start lg:gap-16">
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">
+                      <span className="text-[var(--accent-new)]">●</span> Receipts · Live track record
+                    </p>
+                    <h2 className="brand-wordmark mt-3 text-[36px] font-bold leading-[0.95] tracking-[-0.045em] md:text-[52px]">
+                      We log every leg.<br />
+                      You see every miss<span className="text-[var(--accent-new)]">.</span>
+                    </h2>
+                    <p className="mt-5 max-w-[460px] text-[15px] leading-[1.6] text-[var(--text-2-new)]">
+                      When MultiPick rates a leg <span className="text-[var(--text-new)] font-medium">80% likely</span>, it should hit ~80% of the time. We log every prediction and check it against the actual result. Below is our last <span className="mono-nums text-[var(--text-new)] font-medium">{o.n}</span> calls — no cherry-picking, no curated highlights. If we're not honest, you'll see it here first.
+                    </p>
+                    <div className="mt-7 flex flex-wrap items-center gap-3">
+                      {wellCalibrated ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--positive-soft-new)] px-3 py-1.5 text-[11px] font-medium text-[var(--positive-new)]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--positive-new)]" /> Well calibrated
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--warning-soft-new)] px-3 py-1.5 text-[11px] font-medium text-[var(--warning-new)]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning-new)]" /> Calibrating
+                        </span>
+                      )}
+                      <span className="text-[11px] text-[var(--text-3-new)]">Updates weekly · Every prediction included</span>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-7 md:p-9">
+                    <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Actual hit rate</div>
+                    <div className="mono-nums mt-4 text-[88px] font-semibold leading-[0.85] tracking-[-0.055em] text-[var(--positive-new)] md:text-[136px]">
+                      {o.actual}%
+                    </div>
+                    <div className="mt-3 text-[12px] text-[var(--text-2-new)]">
+                      <span className="mono-nums text-[var(--text-new)] font-medium">{hitCount}</span> of <span className="mono-nums text-[var(--text-new)] font-medium">{o.n}</span> legs hit their line
+                    </div>
+                    <div className="mt-7 grid grid-cols-2 border-t border-[var(--border-new)] pt-6">
+                      <div className="pr-4">
+                        <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">We predicted</div>
+                        <div className="mono-nums mt-3 text-[28px] font-semibold leading-none tracking-[-0.03em] text-[var(--text-new)] md:text-[34px]">{o.predicted}%</div>
+                        <div className="mt-2 text-[11px] text-[var(--text-3-new)]">Average confidence</div>
+                      </div>
+                      <div className="border-l border-[var(--border-new)] pl-4">
+                        <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Gap</div>
+                        <div className="mono-nums mt-3 text-[28px] font-semibold leading-none tracking-[-0.03em] text-[var(--text-2-new)] md:text-[34px]">±{gap}%</div>
+                        <div className="mt-2 text-[11px] text-[var(--text-3-new)]">Prediction vs reality</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            );
+          })() : null}
 
           {/* ─────────────── DASHBOARD MOCK ───────────────
               Mirrors the actual app — stat strip + chart + recent form.
