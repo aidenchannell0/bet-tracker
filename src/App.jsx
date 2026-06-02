@@ -2138,7 +2138,13 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
                           <TeamCrest team={leg.team} className="h-10 w-10 shrink-0" />
                           <div className="min-w-0">
                             <div className="text-[15px] md:text-[17px] font-medium tracking-[-0.01em] text-[var(--text-new)]">
-                              {playerName}{lineText ? <span className="font-normal text-[var(--text-3-new)]"> — <span className="mono-nums">{lineText}</span></span> : null}
+                              {playerName}
+                              {leg.position ? (
+                                <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-[var(--text-3-new)] bg-[var(--surface-new)] align-middle">
+                                  {leg.position}
+                                </span>
+                              ) : null}
+                              {lineText ? <span className="font-normal text-[var(--text-3-new)]"> — <span className="mono-nums">{lineText}</span></span> : null}
                             </div>
                             <div className="mt-1 text-[13px] text-[var(--text-2-new)]">
                               {avgN != null ? <>Averaging <span className="mono-nums text-[var(--text-new)] font-medium">{avgN}</span></> : leg.reason}

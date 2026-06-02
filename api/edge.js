@@ -1089,6 +1089,34 @@ function propKey(prop) {
   return `${prop.playerName}|${prop.metric}|${prop.line}`;
 }
 
+// Lightweight AFL position inference from the player's recent stat profile.
+// Returns "MID" | "FWD" | "DEF" | "RUC" | "UTIL". Heuristic, not official —
+// a forward currently playing through the midfield will tag MID (which is
+// what we actually want for predicting his production tonight). The order
+// of checks matters: rucks are unambiguous (only they rack hitouts), then
+// volume mids, then forwards by goal output, then defenders by low-goal
+// possession profiles. Anything that doesn't fit cleanly falls through to
+// UTIL rather than being mis-tagged.
+function inferAFLPosition(matched) {
+  const m = matched?.metrics || {};
+  const avg = (key) => m[key]?.avg10 ?? m[key]?.recentAvg ?? null;
+  const disposals = avg("disposals") ?? 0;
+  const hitouts = avg("hitouts") ?? 0;
+  const marks = avg("marks") ?? 0;
+  const goals = avg("goals") ?? 0;
+  const tackles = avg("tackles") ?? 0;
+  const clearances = avg("clearances") ?? 0;
+
+  if (hitouts >= 10) return "RUC";
+  // Volume mids (Berry, Dawson) or inside mids who clear more than they collect
+  if (disposals >= 22 || (disposals >= 16 && clearances >= 3)) return "MID";
+  // Forwards: goal-scorers OR mark-heavy targets, low possession volume
+  if ((goals >= 0.5 || marks >= 3.5) && disposals < 18) return "FWD";
+  // Defenders: rebound runners with low goal output and moderate tackles
+  if (disposals >= 8 && disposals < 18 && goals < 0.4) return "DEF";
+  return "UTIL";
+}
+
 function matchStatsForProp(prop, statsMap) {
   const normName = String(prop.playerName || "").toLowerCase();
   const propWords = normName.split(" ").filter(Boolean);
@@ -1271,10 +1299,21 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
 
     const edge = calibratedEmpirical != null && implied != null ? calibratedEmpirical - implied : null;
 
+    // Tag with inferred position (AFL only for now — NBA is a follow-up
+    // once we pick a heuristic that holds up in modern position-less ball).
+    // Computed from the player's broader stat profile, not the prop's own
+    // metric. The presence of disposals data is the AFL signal (NBA stats
+    // never include a `disposals` key); the multi-build call site adds the
+    // indicator metrics to the stats fetch for AFL automatically.
+    const position = matched?.metrics?.disposals?.available
+      ? inferAFLPosition(matched)
+      : null;
+
     return {
       ...prop,
       statsAvailable: true,
       team: matched?.team || null,
+      position,
       formAsOf: matched?.lastGameDate || null,
       opponent,
       matchupFactor,
@@ -1790,6 +1829,7 @@ function structureLegFromEnriched(p) {
     player: p.playerName,
     metric: p.metric,
     team: p.team || null,
+    position: p.position || null,
     opponent: p.opponent || null,
     matchupFactor: p.matchupFactor || 1,
     formAsOf: p.formAsOf || null,
@@ -3341,6 +3381,18 @@ ${buildAnalysisDataBlock(analysis)}`,
 
       if (allProps.length > 0) {
         const uniqueMetrics = [...new Set(allProps.map((p) => p.metric))];
+        // For AFL position inference, always include the role-indicator metrics
+        // (disposals/hitouts/marks/goals/tackles/clearances) in the stats fetch.
+        // Lets us tag each leg with MID/FWD/DEF/RUC even when the prop metric
+        // itself doesn't expose enough signal (e.g. a 3+ tackles prop alone
+        // can't distinguish a hard-running fwd from a mid). NBA inference
+        // is left to a follow-up — modern NBA roles are blurrier and need a
+        // different heuristic.
+        if (sport === "AFL") {
+          for (const m of ["disposals", "hitouts", "marks", "goals", "tackles", "clearances"]) {
+            if (!uniqueMetrics.includes(m)) uniqueMetrics.push(m);
+          }
+        }
 
         // Group players by their game so each stats lookup only asks for that game's players
         const gameGroups = new Map();
