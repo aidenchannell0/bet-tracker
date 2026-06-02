@@ -1750,7 +1750,7 @@ function _proj(p, R, cx, cy) {
   return { sx: cx + p.x * R * s, sy: cy + p.y * R * s, depth: (p.z + 1) / 2, s };
 }
 
-function BuildingAnimation() {
+function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, className = "mt-6" }) {
   const canvasRef = useRef(null);
   const [phase, setPhase] = useState(0);
 
@@ -1883,14 +1883,16 @@ function BuildingAnimation() {
 
   return (
     <div
-      className="beam-border mt-6 relative overflow-hidden rounded-2xl border border-[var(--border-new)]"
-      style={{ height: 380, background: "radial-gradient(circle at 50% 45%, #101013 0%, var(--bg-new) 72%)" }}
+      className={(showBeam ? "beam-border " : "") + "relative overflow-hidden rounded-2xl border border-[var(--border-new)] " + className}
+      style={{ height, background: "radial-gradient(circle at 50% 45%, #101013 0%, var(--bg-new) 72%)" }}
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
-      <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2.5 whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-2-new)]">
-        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" style={{ animation: "buildBlink 1.4s ease-in-out infinite" }} />
-        <span style={{ transition: "opacity .4s" }}>{BUILD_PHASES[phase]}</span>
-      </div>
+      {showStatus ? (
+        <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2.5 whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-2-new)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" style={{ animation: "buildBlink 1.4s ease-in-out infinite" }} />
+          <span style={{ transition: "opacity .4s" }}>{BUILD_PHASES[phase]}</span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -5199,16 +5201,23 @@ export default function BettingTrackerWebsite() {
           {loadingBets ? <Card><div className="p-4 text-sm text-slate-700">Loading your saved bets...</div></Card> : null}
           {riskWarning ? <Card className="border-[#D9A39B] bg-[#F3DDD7]"><div className="p-4 text-sm text-[#A94442]">Warning: you are currently down overall and have had a losing streak of {stats.longestLosingStreak} bets. Consider reducing stake size or taking a break.</div></Card> : null}
           {!loadingBets && bets.length === 0 ? (
-            <Card className="border-[#C49A4A]/40 bg-[#C49A4A]/15">
-              <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+            <div className="overflow-hidden rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)]">
+              <div className="grid items-center gap-6 p-6 md:grid-cols-[1fr_220px] md:p-8">
                 <div>
-                  <p className="text-sm font-semibold text-[#11203B]">Welcome to Pickd</p>
-                  <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#11203B]">Start by adding your first bet.</h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Once you add a bet, your dashboard will start showing profit/loss, win rate, ROI, sport history and graph trends.</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-new)]">Welcome to Pickd</p>
+                  <h2 className="brand-wordmark mt-2 text-[26px] font-bold tracking-[-0.03em] text-[var(--text-new)] md:text-[30px]">Build your first multi with MultiPick<span className="text-[var(--accent-new)]">.</span></h2>
+                  <p className="mt-2.5 max-w-xl text-[13.5px] leading-relaxed text-[var(--text-2-new)]">Pick a sport, target odds and risk — MultiPick reads real player form and live market lines to build a form-backed multi in seconds. Save it here and your dashboard fills with profit/loss, win rate and ROI.</p>
+                  <div className="mt-5 flex flex-wrap gap-2.5">
+                    <Button type="button" onClick={() => setActivePage("edge")} className="rounded-xl px-5 py-3">Build a multi</Button>
+                    <Button type="button" variant="outline" onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-xl px-5 py-3">Log a bet manually</Button>
+                  </div>
                 </div>
-                <Button type="button" onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="w-full rounded-2xl px-5 py-3 sm:w-auto">Add first bet</Button>
+                {/* Compact, decorative MultiPick sphere — no status line / beam */}
+                <div className="hidden md:block">
+                  <BuildingAnimation height={180} showStatus={false} showBeam={false} className="" />
+                </div>
               </div>
-            </Card>
+            </div>
           ) : null}
 
           {/* Filter + feedback cards removed in Layout B port — sport filter
