@@ -3738,12 +3738,17 @@ ${buildAnalysisDataBlock(analysis)}`,
         const dataBlock = buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile, sport);
         const structuredMulti = buildStructuredMulti(computed, sport, targetOdds);
 
-        // Flag when a pinned bookmaker limited the pool below the requested leg count
+        // Pinned-bookmaker note — at most ONE, kept short. Either the pool fell
+        // short of the requested leg count, or (if it didn't) a brief nudge to
+        // confirm any alternate-line legs are listed at the book. Never both.
         const bookLabelUsed = bookmakerLabel(preferredBook);
         if (structuredMulti && bookLabelUsed) {
           const wantLegs = parseInt(targetLegs, 10);
+          const altLegs = (computed.selected || []).filter((leg) => String(leg.marketKey || "").endsWith("_alternate")).length;
           if (Number.isFinite(wantLegs) && structuredMulti.legCount < wantLegs) {
             structuredMulti.bookmakerNote = `Only ${structuredMulti.legCount} of ${wantLegs} legs are available at ${bookLabelUsed} for these games — switch the bookmaker to “Best available” for more options.`;
+          } else if (altLegs > 0) {
+            structuredMulti.bookmakerNote = `Some legs use alternate lines — confirm they're listed at ${bookLabelUsed} before betting.`;
           }
         }
 
