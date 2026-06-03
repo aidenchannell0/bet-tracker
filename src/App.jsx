@@ -4947,6 +4947,112 @@ export default function BettingTrackerWebsite() {
   if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} firstName={firstName} setFirstName={setFirstName} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
 
+  // MultiPick mini-builder card — rendered in two spots so it sits high on every
+  // screen: in the mobile hero (under the stat row) and the desktop left column.
+  // Shared state means only the visible copy at each breakpoint matters.
+  const multipickBuilderCard = !editingBetId ? (
+    <div
+      style={{ background: "linear-gradient(180deg, var(--accent-soft-new), transparent)" }}
+      className="rounded-2xl border border-[var(--border-new)] p-5"
+    >
+      <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-new)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" /> MultiPick
+      </div>
+      <h3 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)]">Build a multi<span className="text-[var(--accent-new)]">.</span></h3>
+      <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--text-2-new)]">Pick one or more games, set it up, and we’ll build it on real form + live odds.</p>
+
+      {/* Upcoming-games scroller */}
+      <div className="mt-3.5 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 snap-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {mpGamesLoading ? (
+          [0, 1, 2].map((skeleton) => (
+            <div key={skeleton} className="h-[104px] w-[150px] shrink-0 animate-pulse rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)]" />
+          ))
+        ) : mpGames.length === 0 ? (
+          <div className="w-full rounded-xl border border-dashed border-[var(--border-new)] px-3 py-4 text-center text-[12px] text-[var(--text-3-new)]">
+            No upcoming {mpSport} games right now — you can still build across the slate.
+          </div>
+        ) : (
+          mpGames.map((game) => {
+            const selected = mpGameIds.includes(game.id);
+            return (
+              <button
+                key={game.id}
+                type="button"
+                onClick={() => setMpGameIds((prev) => prev.includes(game.id) ? prev.filter((id) => id !== game.id) : [...prev, game.id])}
+                className={"relative snap-start shrink-0 w-[150px] rounded-xl border p-2.5 text-center transition-colors " + (selected ? "border-[var(--accent-new)] bg-[var(--accent-soft-new)]" : "border-[var(--border-new)] bg-[var(--surface-new)] hover:border-[var(--border-strong-new)]")}
+              >
+                {selected ? <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-new)] text-[10px] font-bold leading-none text-[var(--bg-new)]">✓</span> : null}
+                <div className="mb-2 flex justify-center">
+                  <span className="rounded-full bg-[var(--surface-2-new)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-[var(--text-2-new)]">{timeUntilGame(game.commenceTime)}</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <div className="flex flex-1 flex-col items-center gap-1">
+                    <TeamCrest team={game.homeTeam} className="h-7 w-7" />
+                    <span className="text-[10px] font-semibold text-[var(--text-new)]">{teamShort(game.homeTeam)}</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-[var(--text-3-new)]">VS</span>
+                  <div className="flex flex-1 flex-col items-center gap-1">
+                    <TeamCrest team={game.awayTeam} className="h-7 w-7" />
+                    <span className="text-[10px] font-semibold text-[var(--text-new)]">{teamShort(game.awayTeam)}</span>
+                  </div>
+                </div>
+                <div className="mt-2 text-[9.5px] text-[var(--text-3-new)]">{gameKickoff(game.commenceTime)}</div>
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      {/* One compact control row: sport / legs / odds / risk */}
+      <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[
+          { label: "Sport", value: mpSport, set: setMpSport, options: ["AFL", "NBA"] },
+          { label: "Legs", value: mpLegs, set: setMpLegs, options: ["2", "3", "4", "5"] },
+          { label: "Odds", value: mpOdds, set: setMpOdds, options: ["$2.00", "$3.00", "$5.00"] },
+          { label: "Risk", value: mpRisk, set: setMpRisk, options: ["Safer", "Balanced", "Aggressive"] },
+        ].map((ctrl) => (
+          <label key={ctrl.label} className="flex flex-col gap-1">
+            <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">{ctrl.label}</span>
+            <select
+              value={ctrl.value}
+              onChange={(event) => ctrl.set(event.target.value)}
+              className="cursor-pointer rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none hover:border-[var(--border-strong-new)] focus:border-[var(--text-new)]"
+            >
+              {ctrl.options.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
+
+      <label className="mt-2.5 flex flex-col gap-1">
+        <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Bookmaker</span>
+        <select
+          value={mpBook}
+          onChange={(event) => setMpBook(event.target.value)}
+          className="cursor-pointer rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none hover:border-[var(--border-strong-new)] focus:border-[var(--text-new)]"
+        >
+          <option value="">Best available</option>
+          <option value="sportsbet">Sportsbet</option>
+          <option value="tab">TAB</option>
+          <option value="ladbrokes_au">Ladbrokes</option>
+          <option value="neds">Neds</option>
+          <option value="pointsbetau">PointsBet</option>
+          <option value="unibet">Unibet</option>
+        </select>
+      </label>
+
+      <Button onClick={goBuildMulti} className="mt-4 w-full py-3 text-[14px]">
+        {mpGameIds.length >= 2 ? `Make multi · ${mpGameIds.length} games` : mpGameIds.length === 1 ? "Make this multi" : "Make the multi"} <span className="ml-0.5">→</span>
+      </Button>
+
+      <div className="mt-2.5 text-center text-[11.5px] text-[var(--text-3-new)]">
+        {entitlement.subscribed
+          ? <span className="text-[var(--positive-new)]">Pro · unlimited builds</span>
+          : <><span className="mono-nums font-semibold text-[var(--text-new)]">{Math.max(0, entitlement.limit - entitlement.usage)}</span> of <span className="mono-nums">{entitlement.limit}</span> free builds left this week</>}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
@@ -5276,6 +5382,11 @@ export default function BettingTrackerWebsite() {
                   ) : null}
                 </div>
 
+                {/* MultiPick builder — mobile placement. This whole section is
+                    md:hidden, so this copy only shows on phones, sitting right
+                    under the stat row (desktop renders it in the left column). */}
+                {!isTracker ? <div className="mt-7">{multipickBuilderCard}</div> : null}
+
                 {/* Quick add panel — Dashboard only. Tracker doesn't need
                     this because the bet list IS the page. */}
                 {!isTracker ? (
@@ -5459,114 +5570,9 @@ export default function BettingTrackerWebsite() {
           {activePage === "app" ? (
           <section className="grid gap-10 border-b border-[var(--border-new)] py-10 lg:grid-cols-5">
             <div className="lg:col-span-2" ref={formRef} onPaste={editingBetId ? undefined : handleBetslipPaste}>
-              {/* MultiPick mini-builder — Concept A, redesigned. Leads the left
-                  column: a horizontal scroller of upcoming games (crests · VS ·
-                  tip-off · countdown), then one compact row of sport / legs /
-                  odds / risk. "Make the multi" stashes the selection and smooth-
-                  navigates to MultiPick, which auto-fires the build on arrival.
-                  Hidden while editing a bet so that flow stays focused. */}
-              {!editingBetId ? (
-                <div
-                  style={{ background: "linear-gradient(180deg, var(--accent-soft-new), transparent)" }}
-                  className="mb-6 rounded-2xl border border-[var(--border-new)] p-5"
-                >
-                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-new)]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" /> MultiPick
-                  </div>
-                  <h3 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)]">Build a multi<span className="text-[var(--accent-new)]">.</span></h3>
-                  <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--text-2-new)]">Pick one or more games, set it up, and we’ll build it on real form + live odds.</p>
-
-                  {/* Upcoming-games scroller */}
-                  <div className="mt-3.5 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 snap-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                    {mpGamesLoading ? (
-                      [0, 1, 2].map((skeleton) => (
-                        <div key={skeleton} className="h-[104px] w-[150px] shrink-0 animate-pulse rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)]" />
-                      ))
-                    ) : mpGames.length === 0 ? (
-                      <div className="w-full rounded-xl border border-dashed border-[var(--border-new)] px-3 py-4 text-center text-[12px] text-[var(--text-3-new)]">
-                        No upcoming {mpSport} games right now — you can still build across the slate.
-                      </div>
-                    ) : (
-                      mpGames.map((game) => {
-                        const selected = mpGameIds.includes(game.id);
-                        return (
-                          <button
-                            key={game.id}
-                            type="button"
-                            onClick={() => setMpGameIds((prev) => prev.includes(game.id) ? prev.filter((id) => id !== game.id) : [...prev, game.id])}
-                            className={"relative snap-start shrink-0 w-[150px] rounded-xl border p-2.5 text-center transition-colors " + (selected ? "border-[var(--accent-new)] bg-[var(--accent-soft-new)]" : "border-[var(--border-new)] bg-[var(--surface-new)] hover:border-[var(--border-strong-new)]")}
-                          >
-                            {selected ? <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-new)] text-[10px] font-bold leading-none text-[var(--bg-new)]">✓</span> : null}
-                            <div className="mb-2 flex justify-center">
-                              <span className="rounded-full bg-[var(--surface-2-new)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-[var(--text-2-new)]">{timeUntilGame(game.commenceTime)}</span>
-                            </div>
-                            <div className="flex items-center justify-center gap-1.5">
-                              <div className="flex flex-1 flex-col items-center gap-1">
-                                <TeamCrest team={game.homeTeam} className="h-7 w-7" />
-                                <span className="text-[10px] font-semibold text-[var(--text-new)]">{teamShort(game.homeTeam)}</span>
-                              </div>
-                              <span className="text-[10px] font-bold text-[var(--text-3-new)]">VS</span>
-                              <div className="flex flex-1 flex-col items-center gap-1">
-                                <TeamCrest team={game.awayTeam} className="h-7 w-7" />
-                                <span className="text-[10px] font-semibold text-[var(--text-new)]">{teamShort(game.awayTeam)}</span>
-                              </div>
-                            </div>
-                            <div className="mt-2 text-[9.5px] text-[var(--text-3-new)]">{gameKickoff(game.commenceTime)}</div>
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  {/* One compact control row: sport / legs / odds / risk */}
-                  <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {[
-                      { label: "Sport", value: mpSport, set: setMpSport, options: ["AFL", "NBA"] },
-                      { label: "Legs", value: mpLegs, set: setMpLegs, options: ["2", "3", "4", "5"] },
-                      { label: "Odds", value: mpOdds, set: setMpOdds, options: ["$2.00", "$3.00", "$5.00"] },
-                      { label: "Risk", value: mpRisk, set: setMpRisk, options: ["Safer", "Balanced", "Aggressive"] },
-                    ].map((ctrl) => (
-                      <label key={ctrl.label} className="flex flex-col gap-1">
-                        <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">{ctrl.label}</span>
-                        <select
-                          value={ctrl.value}
-                          onChange={(event) => ctrl.set(event.target.value)}
-                          className="cursor-pointer rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none hover:border-[var(--border-strong-new)] focus:border-[var(--text-new)]"
-                        >
-                          {ctrl.options.map((option) => <option key={option} value={option}>{option}</option>)}
-                        </select>
-                      </label>
-                    ))}
-                  </div>
-
-                  <label className="mt-2.5 flex flex-col gap-1">
-                    <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Bookmaker</span>
-                    <select
-                      value={mpBook}
-                      onChange={(event) => setMpBook(event.target.value)}
-                      className="cursor-pointer rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none hover:border-[var(--border-strong-new)] focus:border-[var(--text-new)]"
-                    >
-                      <option value="">Best available</option>
-                      <option value="sportsbet">Sportsbet</option>
-                      <option value="tab">TAB</option>
-                      <option value="ladbrokes_au">Ladbrokes</option>
-                      <option value="neds">Neds</option>
-                      <option value="pointsbetau">PointsBet</option>
-                      <option value="unibet">Unibet</option>
-                    </select>
-                  </label>
-
-                  <Button onClick={goBuildMulti} className="mt-4 w-full py-3 text-[14px]">
-                    {mpGameIds.length >= 2 ? `Make multi · ${mpGameIds.length} games` : mpGameIds.length === 1 ? "Make this multi" : "Make the multi"} <span className="ml-0.5">→</span>
-                  </Button>
-
-                  <div className="mt-2.5 text-center text-[11.5px] text-[var(--text-3-new)]">
-                    {entitlement.subscribed
-                      ? <span className="text-[var(--positive-new)]">Pro · unlimited builds</span>
-                      : <><span className="mono-nums font-semibold text-[var(--text-new)]">{Math.max(0, entitlement.limit - entitlement.usage)}</span> of <span className="mono-nums">{entitlement.limit}</span> free builds left this week</>}
-                  </div>
-                </div>
-              ) : null}
+              {/* Desktop: the builder card leads the left column (md+). On mobile
+                  it's rendered up in the hero, under the stat row, instead. */}
+              <div className="mb-6 hidden md:block">{multipickBuilderCard}</div>
               <div className="mb-5 flex items-baseline justify-between">
                 <div>
                   <div className="text-[11px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{editingBetId ? "Editing" : "Manual entry"}</div>
