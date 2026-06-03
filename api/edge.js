@@ -999,18 +999,10 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
   // For Unders: indexed by player+market+line+book. Filled in pass 1, looked up in pass 2.
   const undersByKey = new Map();
 
-  // When the user has pinned a specific book, only trust its STANDARD markets.
-  // The Odds API's `_alternate` lines are aggregated and often aren't actually
-  // selectable at a named book — that's what surfaced e.g. rebound legs a user
-  // couldn't place on Sportsbet. With "Best available" (no pin) we keep
-  // alternates, since they unlock the cheap-line range and aren't promised at one book.
-  const pinnedBook = !!preferredBook && preferredBook !== "best";
-
   for (const bookmaker of event?.bookmakers || []) {
     if (!bookmakerMatches(bookmaker, preferredBook)) continue;
     for (const market of bookmaker.markets || []) {
       if (!overMarketKeys.includes(market.key)) continue;
-      if (pinnedBook && market.key.endsWith("_alternate")) continue;
 
       for (const outcome of market.outcomes || []) {
         const player = outcome.description || outcome.name;
