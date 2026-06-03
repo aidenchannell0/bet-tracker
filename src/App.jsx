@@ -529,6 +529,66 @@ function TeamCrest({ team, className = "" }) {
   );
 }
 
+// Countdown to tip-off for the dashboard game cards: "2D 17H", "23H 10M",
+// "45M", or "LIVE" once it's started. Coarse on purpose (no live ticking).
+function timeUntilGame(iso) {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (!Number.isFinite(ms)) return "";
+  if (ms <= 0) return "LIVE";
+  const mins = Math.floor(ms / 60000);
+  const days = Math.floor(mins / 1440);
+  const hours = Math.floor((mins % 1440) / 60);
+  const minutes = mins % 60;
+  if (days > 0) return `${days}D ${hours}H`;
+  if (hours > 0) return `${hours}H ${minutes}M`;
+  return `${minutes}M`;
+}
+
+// "7:30 pm · Sat 7 Jun" tip-off label for the dashboard game cards.
+function gameKickoff(iso) {
+  try {
+    const date = new Date(iso);
+    const time = date.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" }).toLowerCase();
+    const day = date.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
+    return `${time} · ${day}`;
+  } catch {
+    return "";
+  }
+}
+
+// Short club label for a game card — official 3-letter tile abbr where we have
+// one, else the first word of the name clipped to 4 letters.
+function teamShort(name) {
+  try {
+    const tile = tileFor(name);
+    if (tile?.abbr) return tile.abbr;
+  } catch { /* fall through to derived */ }
+  return String(name || "").trim().split(/\s+/)[0].slice(0, 4).toUpperCase() || "?";
+}
+
+// DEV-ONLY sample fixtures for the dashboard game scroller. `/api/odds` only
+// runs on Vercel, so in `vite dev` the real fetch returns nothing — this lets
+// the card be developed/reviewed locally. `import.meta.env.DEV` is false in
+// production builds, so this branch is dead-code-eliminated from the bundle.
+function devSampleGames(sport) {
+  const hrs = (h) => new Date(Date.now() + h * 3600000).toISOString();
+  if (sport === "NBA") {
+    return [
+      { id: "dev-nba-1", homeTeam: "Boston Celtics", awayTeam: "New York Knicks", commenceTime: hrs(20) },
+      { id: "dev-nba-2", homeTeam: "Oklahoma City Thunder", awayTeam: "Denver Nuggets", commenceTime: hrs(44) },
+      { id: "dev-nba-3", homeTeam: "Phoenix Suns", awayTeam: "San Antonio Spurs", commenceTime: hrs(67) },
+      { id: "dev-nba-4", homeTeam: "Los Angeles Lakers", awayTeam: "Golden State Warriors", commenceTime: hrs(91) },
+    ];
+  }
+  return [
+    { id: "dev-afl-1", homeTeam: "Adelaide Crows", awayTeam: "Geelong Cats", commenceTime: hrs(23) },
+    { id: "dev-afl-2", homeTeam: "Hawthorn Hawks", awayTeam: "Western Bulldogs", commenceTime: hrs(47) },
+    { id: "dev-afl-3", homeTeam: "North Melbourne", awayTeam: "Fremantle", commenceTime: hrs(65) },
+    { id: "dev-afl-4", homeTeam: "Carlton", awayTeam: "Collingwood", commenceTime: hrs(89) },
+    { id: "dev-afl-5", homeTeam: "Sydney Swans", awayTeam: "Brisbane Lions", commenceTime: hrs(113) },
+  ];
+}
+
 // Square guernsey-style tile used on the MultiPick legs (preview B style).
 // Each team gets primary colour + diagonal accent + 3-letter monogram.
 const TEAM_TILES = {
@@ -930,7 +990,9 @@ function TopNav({ activePage, setActivePage, handleLogout }) {
       <div className="-mx-2 flex items-center gap-4 overflow-x-auto px-2 md:gap-6 md:overflow-visible">
         <button onClick={() => setActivePage("app")} className={tabClass("app") + " whitespace-nowrap"}>Dashboard</button>
         <button onClick={() => setActivePage("tracker")} className={tabClass("tracker") + " whitespace-nowrap"}>Tracker</button>
-        <button onClick={() => setActivePage("edge")} className={tabClass("edge") + " whitespace-nowrap"}>MultiPick</button>
+        <button onClick={() => setActivePage("edge")} className={tabClass("edge") + " inline-flex items-center gap-1.5 whitespace-nowrap"}>
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" style={{ boxShadow: "0 0 8px var(--accent-new)" }} />MultiPick
+        </button>
         <button onClick={() => setActivePage("settings")} className={tabClass("settings") + " whitespace-nowrap"}>Settings</button>
         {handleLogout ? (
           <button onClick={handleLogout} className="whitespace-nowrap text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Log out</button>
@@ -1904,16 +1966,16 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
   );
 }
 
-function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
+function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, prefill, onPrefillConsumed }) {
   const [mode, setMode] = useState("multi");
-  const [sport, setSport] = useState("AFL");
-  const [legs, setLegs] = useState("3");
-  const [targetOdds, setTargetOdds] = useState("$2.00");
+  const [sport, setSport] = useState(prefill?.sport || "AFL");
+  const [legs, setLegs] = useState(prefill?.legs || "3");
+  const [targetOdds, setTargetOdds] = useState(prefill?.targetOdds || "$2.00");
   const [customTargetOdds, setCustomTargetOdds] = useState("2.20");
   const [customLegs, setCustomLegs] = useState("6");
-  const [riskProfile, setRiskProfile] = useState("Balanced");
-  const [bookmaker, setBookmaker] = useState("");
-  const [request, setRequest] = useState("");
+  const [riskProfile, setRiskProfile] = useState(prefill?.riskProfile || "Balanced");
+  const [bookmaker, setBookmaker] = useState(prefill?.bookmaker || "");
+  const [request, setRequest] = useState(prefill?.request || "");
   const [chatInput, setChatInput] = useState("");
   const [edgeLoading, setEdgeLoading] = useState(false);
   // True only while the "Build multi" button is running a fresh build (not a
@@ -2051,6 +2113,10 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
   };
   const [games, setGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState("");
+  // Deep-link prefill (from the dashboard mini-builder): the game to pre-select
+  // once the sport's games have loaded. Applied exactly once.
+  const wantGameIdRef = useRef(prefill?.gameId || "");
+  const gameAppliedRef = useRef(false);
   const chatSectionRef = React.useRef(null);
   const outputPanelRef = React.useRef(null);
 
@@ -2068,6 +2134,11 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
           .slice(0, 12)
           .map((event) => ({ id: event.id, label: `${event.homeTeam} vs ${event.awayTeam}` }));
         setGames(upcoming);
+        // Apply a deep-linked game once its sport's slate is in, exactly once.
+        if (!gameAppliedRef.current && wantGameIdRef.current && upcoming.some((game) => game.id === wantGameIdRef.current)) {
+          gameAppliedRef.current = true;
+          setSelectedGameId(wantGameIdRef.current);
+        }
       } catch {
         if (!cancelled) setGames([]);
       }
@@ -2197,6 +2268,30 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats }) {
       outputPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   };
+
+  // Deep-link build: when the dashboard mini-builder hands off a prefill, fire
+  // exactly one build — but wait until the requested game has been applied (so
+  // the build targets it). A fallback timer still fires a sport-wide build if
+  // the games never resolve (e.g. odds API hiccup), so the user never stalls.
+  const autoBuiltRef = useRef(false);
+  const fireAutoBuild = () => {
+    if (autoBuiltRef.current) return;
+    autoBuiltRef.current = true;
+    onPrefillConsumed?.();
+    previewMulti();
+  };
+  useEffect(() => {
+    if (autoBuiltRef.current || !prefill?.autoBuild) return;
+    const needsGame = !!wantGameIdRef.current;
+    if (needsGame && selectedGameId !== wantGameIdRef.current) return;
+    const timer = setTimeout(fireAutoBuild, 0);
+    return () => clearTimeout(timer);
+  }, [prefill, selectedGameId, games]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!prefill?.autoBuild) return;
+    const fallback = setTimeout(fireAutoBuild, 4500);
+    return () => clearTimeout(fallback);
+  }, [prefill]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendChatMessage = async (messageOverride = null, opts = {}) => {
     const trimmed = (messageOverride || chatInput).trim();
@@ -4043,6 +4138,59 @@ export default function BettingTrackerWebsite() {
   const [betslipParsing, setBetslipParsing] = useState(false);
   const [betslipError, setBetslipError] = useState("");
   const [betslipExtract, setBetslipExtract] = useState(null);
+  // MultiPick dashboard mini-builder — the compact builder card that leads the
+  // left column. Sport drives the upcoming-games scroller; legs/odds/risk are a
+  // single control row. "Make the multi" stashes the selection and smooth-
+  // navigates to the MultiPick page, which auto-fires the build on arrival.
+  const [mpSport, setMpSport] = useState("AFL");
+  const [mpGameId, setMpGameId] = useState("");
+  const [mpLegs, setMpLegs] = useState("3");
+  const [mpOdds, setMpOdds] = useState("$3.00");
+  const [mpRisk, setMpRisk] = useState("Balanced");
+  const [mpBook, setMpBook] = useState("");
+  const [mpGames, setMpGames] = useState([]);
+  const [mpGamesLoading, setMpGamesLoading] = useState(false);
+  const [edgePrefill, setEdgePrefill] = useState(null);
+  const [navigating, setNavigating] = useState(false);
+  // Weekly build allowance for the card's "X of N free builds left" nudge.
+  const [entitlement, setEntitlement] = useState({ subscribed: false, usage: 0, limit: 3 });
+
+  // Upcoming games for the scroller, refetched whenever the sport toggles.
+  useEffect(() => {
+    let cancelled = false;
+    setMpGames([]);
+    setMpGameId("");
+    setMpGamesLoading(true);
+    fetch(`/api/odds?sport=${encodeURIComponent(mpSport)}&markets=h2h`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (cancelled) return;
+        const events = (data.events || []).slice(0, 12).map((event) => ({ id: event.id, homeTeam: event.homeTeam, awayTeam: event.awayTeam, commenceTime: event.commenceTime }));
+        setMpGames(events.length === 0 && import.meta.env.DEV ? devSampleGames(mpSport) : events);
+      })
+      .catch(() => { if (!cancelled) setMpGames(import.meta.env.DEV ? devSampleGames(mpSport) : []); })
+      .finally(() => { if (!cancelled) setMpGamesLoading(false); });
+    return () => { cancelled = true; };
+  }, [mpSport]);
+
+  useEffect(() => {
+    const token = session?.access_token;
+    if (!token) return;
+    let cancelled = false;
+    fetch("/api/entitlement", { headers: { Authorization: `Bearer ${token}` } })
+      .then((response) => response.json())
+      .then((data) => { if (!cancelled) setEntitlement({ subscribed: !!data.subscribed, usage: data.usage || 0, limit: data.limit || 3 }); })
+      .catch(() => { /* card falls back to the default allowance */ });
+    return () => { cancelled = true; };
+  }, [session]);
+
+  // Smooth hand-off: stash the mini-builder selection, fade the dashboard out,
+  // then switch to MultiPick (which fades in and auto-builds on arrival).
+  const goBuildMulti = () => {
+    setEdgePrefill({ sport: mpSport, gameId: mpGameId, legs: mpLegs, targetOdds: mpOdds, riskProfile: mpRisk, bookmaker: mpBook, autoBuild: true });
+    setNavigating(true);
+    setTimeout(() => { setActivePage("edge"); setNavigating(false); }, 220);
+  };
 
   const parseBetslip = async (image) => {
     if (!image) return;
@@ -4778,7 +4926,7 @@ export default function BettingTrackerWebsite() {
   }
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
-  if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} gridBuildStats={gridBuildStats} />;
+  if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} gridBuildStats={gridBuildStats} prefill={edgePrefill} onPrefillConsumed={() => setEdgePrefill(null)} />;
   if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} onReplayTour={replayTour} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
@@ -5029,7 +5177,7 @@ export default function BettingTrackerWebsite() {
               mobile uses the bottom nav for navigation. The key={activePage}
               triggers a remount on page switch so the page-fade-in CSS
               animation re-fires every time the user navigates. */}
-          <div key={activePage} className="space-y-6 page-fade-in">
+          <div key={activePage} className={"space-y-6 " + (navigating ? "page-leaving" : "page-fade-in")}>
 
           {/* ───────────── MOBILE HERO + CAROUSEL (under md) ─────────────
               Concept #02 — Hero stat + horizontal scroll. Mobile gets a
@@ -5189,7 +5337,8 @@ export default function BettingTrackerWebsite() {
             <div className="flex flex-col items-end gap-2.5">
               <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="outline" onClick={exportCsv}>Export CSV</Button>
-                <Button onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}><span className="mr-1 text-base font-normal leading-none">+</span> Add bet</Button>
+                <Button variant="outline" onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}><span className="mr-1 text-base font-normal leading-none">+</span> Add bet</Button>
+                <Button onClick={() => setActivePage("edge")}>Build a multi</Button>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] uppercase tracking-[0.06em] text-[var(--text-3-new)]">
                 <select
@@ -5295,6 +5444,113 @@ export default function BettingTrackerWebsite() {
           {activePage === "app" ? (
           <section className="grid gap-10 border-b border-[var(--border-new)] py-10 lg:grid-cols-5">
             <div className="lg:col-span-2" ref={formRef} onPaste={editingBetId ? undefined : handleBetslipPaste}>
+              {/* MultiPick mini-builder — Concept A, redesigned. Leads the left
+                  column: a horizontal scroller of upcoming games (crests · VS ·
+                  tip-off · countdown), then one compact row of sport / legs /
+                  odds / risk. "Make the multi" stashes the selection and smooth-
+                  navigates to MultiPick, which auto-fires the build on arrival.
+                  Hidden while editing a bet so that flow stays focused. */}
+              {!editingBetId ? (
+                <div
+                  style={{ background: "linear-gradient(180deg, var(--accent-soft-new), transparent)" }}
+                  className="mb-6 rounded-2xl border border-[var(--border-new)] p-5"
+                >
+                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-new)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" /> MultiPick
+                  </div>
+                  <h3 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)]">Build a multi<span className="text-[var(--accent-new)]">.</span></h3>
+                  <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--text-2-new)]">Pick a game, set it up, and we’ll build it on real form + live odds.</p>
+
+                  {/* Upcoming-games scroller */}
+                  <div className="mt-3.5 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 snap-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                    {mpGamesLoading ? (
+                      [0, 1, 2].map((skeleton) => (
+                        <div key={skeleton} className="h-[104px] w-[150px] shrink-0 animate-pulse rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)]" />
+                      ))
+                    ) : mpGames.length === 0 ? (
+                      <div className="w-full rounded-xl border border-dashed border-[var(--border-new)] px-3 py-4 text-center text-[12px] text-[var(--text-3-new)]">
+                        No upcoming {mpSport} games right now — you can still build across the slate.
+                      </div>
+                    ) : (
+                      mpGames.map((game) => {
+                        const selected = mpGameId === game.id;
+                        return (
+                          <button
+                            key={game.id}
+                            type="button"
+                            onClick={() => setMpGameId(selected ? "" : game.id)}
+                            className={"snap-start shrink-0 w-[150px] rounded-xl border p-2.5 text-center transition-colors " + (selected ? "border-[var(--accent-new)] bg-[var(--accent-soft-new)]" : "border-[var(--border-new)] bg-[var(--surface-new)] hover:border-[var(--border-strong-new)]")}
+                          >
+                            <div className="mb-2 flex justify-center">
+                              <span className="rounded-full bg-[var(--surface-2-new)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-[var(--text-2-new)]">{timeUntilGame(game.commenceTime)}</span>
+                            </div>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <div className="flex flex-1 flex-col items-center gap-1">
+                                <TeamCrest team={game.homeTeam} className="h-7 w-7" />
+                                <span className="text-[10px] font-semibold text-[var(--text-new)]">{teamShort(game.homeTeam)}</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-[var(--text-3-new)]">VS</span>
+                              <div className="flex flex-1 flex-col items-center gap-1">
+                                <TeamCrest team={game.awayTeam} className="h-7 w-7" />
+                                <span className="text-[10px] font-semibold text-[var(--text-new)]">{teamShort(game.awayTeam)}</span>
+                              </div>
+                            </div>
+                            <div className="mt-2 text-[9.5px] text-[var(--text-3-new)]">{gameKickoff(game.commenceTime)}</div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* One compact control row: sport / legs / odds / risk */}
+                  <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {[
+                      { label: "Sport", value: mpSport, set: setMpSport, options: ["AFL", "NBA"] },
+                      { label: "Legs", value: mpLegs, set: setMpLegs, options: ["2", "3", "4", "5"] },
+                      { label: "Odds", value: mpOdds, set: setMpOdds, options: ["$2.00", "$3.00", "$5.00"] },
+                      { label: "Risk", value: mpRisk, set: setMpRisk, options: ["Safer", "Balanced", "Aggressive"] },
+                    ].map((ctrl) => (
+                      <label key={ctrl.label} className="flex flex-col gap-1">
+                        <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">{ctrl.label}</span>
+                        <select
+                          value={ctrl.value}
+                          onChange={(event) => ctrl.set(event.target.value)}
+                          className="cursor-pointer rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none hover:border-[var(--border-strong-new)] focus:border-[var(--text-new)]"
+                        >
+                          {ctrl.options.map((option) => <option key={option} value={option}>{option}</option>)}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+
+                  <label className="mt-2.5 flex flex-col gap-1">
+                    <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Bookmaker</span>
+                    <select
+                      value={mpBook}
+                      onChange={(event) => setMpBook(event.target.value)}
+                      className="cursor-pointer rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none hover:border-[var(--border-strong-new)] focus:border-[var(--text-new)]"
+                    >
+                      <option value="">Best available</option>
+                      <option value="sportsbet">Sportsbet</option>
+                      <option value="tab">TAB</option>
+                      <option value="ladbrokes_au">Ladbrokes</option>
+                      <option value="neds">Neds</option>
+                      <option value="pointsbetau">PointsBet</option>
+                      <option value="unibet">Unibet</option>
+                    </select>
+                  </label>
+
+                  <Button onClick={goBuildMulti} className="mt-4 w-full py-3 text-[14px]">
+                    {mpGameId ? "Make this multi" : "Make the multi"} <span className="ml-0.5">→</span>
+                  </Button>
+
+                  <div className="mt-2.5 text-center text-[11.5px] text-[var(--text-3-new)]">
+                    {entitlement.subscribed
+                      ? <span className="text-[var(--positive-new)]">Pro · unlimited builds</span>
+                      : <><span className="mono-nums font-semibold text-[var(--text-new)]">{Math.max(0, entitlement.limit - entitlement.usage)}</span> of <span className="mono-nums">{entitlement.limit}</span> free builds left this week</>}
+                  </div>
+                </div>
+              ) : null}
               <div className="mb-5 flex items-baseline justify-between">
                 <div>
                   <div className="text-[11px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{editingBetId ? "Editing" : "Manual entry"}</div>
