@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MultiPick loading — sphere concepts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:#0a0a0b; --surface:#131316; --surface-2:#0c0c0f; --border:#1f1f23;
+      --border-strong:#2a2a30; --text:#f5f5f7; --text-2:#a8a8b0; --text-3:#6b6b74;
+      --accent:#cdfb50; --accent-soft:rgba(205,251,80,.12); --positive:#4ade80;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:"Inter Tight",system-ui,sans-serif; min-height:100vh; padding:24px; }
+    .mono { font-family:"JetBrains Mono",monospace; }
+    .brand-wordmark { font-weight:700; letter-spacing:-.05em; } .brand-wordmark .dot { color:var(--accent); }
+    .toggle-bar { max-width:1400px; margin:0 auto 24px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .toggle-bar .title { font-size:18px; font-weight:700; letter-spacing:-.02em; }
+    .toggle-bar .spacer { flex:1; }
+    .toggle-bar button { font-family:inherit; font-size:13px; font-weight:600; padding:9px 18px; border-radius:999px; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-2); cursor:pointer; transition:all .15s; }
+    .toggle-bar button:hover { border-color:var(--text-3); color:var(--text); }
+    .toggle-bar button.active { background:var(--accent); color:#0a0a0b; border-color:var(--accent); }
+    .toggle-bar .replay { background:transparent; border-color:var(--border); color:var(--text-3); font-size:12px; }
+    .page { max-width:1400px; margin:0 auto; display:grid; grid-template-columns:300px 1fr; gap:40px; background:var(--bg); border:1px solid var(--border); border-radius:20px; padding:32px; }
+    .sidebar { display:flex; flex-direction:column; gap:20px; }
+    .field label { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-3); font-weight:600; margin-bottom:8px; }
+    .field .select { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:13px 16px; font-size:14px; color:var(--text); display:flex; justify-content:space-between; align-items:center; }
+    .field .select .chev { color:var(--text-3); }
+    .build-btn { width:100%; background:var(--accent); color:#0a0a0b; border:none; border-radius:12px; padding:16px; font-size:14px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; font-family:inherit; cursor:pointer; opacity:.55; position:relative; overflow:hidden; }
+    .build-btn::after { content:""; position:absolute; inset:0; background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.25) 50%,transparent 70%); transform:translateX(-100%); animation:btnShimmer 1.6s ease-in-out infinite; }
+    @keyframes btnShimmer { 100% { transform:translateX(100%); } }
+    .perf-box { margin-top:4px; border:1px solid var(--border); border-radius:16px; padding:18px; }
+    .perf-box .h { font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-3); font-weight:600; }
+    .perf-box .sub { font-size:12px; color:var(--text-2); margin:6px 0 14px; line-height:1.4; }
+    .perf-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .perf-grid .k { font-size:9px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-3); }
+    .perf-grid .v { font-size:20px; font-weight:600; margin-top:4px; } .perf-grid .v.pos { color:var(--positive); }
+    .output { min-height:600px; }
+    .output-eyebrow { display:flex; justify-content:space-between; align-items:baseline; }
+    .output-eyebrow .l { font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-3); font-weight:600; }
+    .output-title { font-size:40px; font-weight:700; letter-spacing:-.04em; margin-top:10px; }
+    .output-divider { height:1px; background:var(--border); margin:24px 0; }
+    .stage { border:1px solid var(--border); border-radius:16px; background:radial-gradient(circle at 50% 45%, #101013 0%, var(--surface-2) 70%); height:460px; position:relative; overflow:hidden; }
+    canvas { display:block; width:100%; height:100%; }
+    .status { position:absolute; bottom:26px; left:50%; transform:translateX(-50%); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-2); font-weight:500; display:flex; align-items:center; gap:10px; white-space:nowrap; z-index:3; }
+    .status .live { width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); animation:blink 1.4s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:.35} 50%{opacity:1} }
+    .status .phase { transition:opacity .4s; min-width:240px; text-align:left; }
+    .progress { position:absolute; top:0; left:0; height:2px; background:linear-gradient(90deg, transparent, var(--accent)); width:0; z-index:3; animation:prog 6s ease-in-out infinite; }
+    @keyframes prog { 0%{width:0;opacity:.8} 80%{width:88%;opacity:1} 100%{width:96%;opacity:.6} }
+    .note { max-width:1400px; margin:24px auto 0; padding:16px 20px; background:var(--surface); border:1px solid var(--border); border-radius:12px; font-size:13px; color:var(--text-2); line-height:1.55; }
+  </style>
+</head>
+<body>
+  <div class="toggle-bar">
+    <span class="title brand-wordmark">Sphere concepts<span class="dot">.</span></span>
+    <span class="spacer"></span>
+    <button class="cbtn active" data-c="synapse">A1 · Synapse sphere</button>
+    <button class="cbtn" data-c="reactor">A2 · Orbital core</button>
+    <button class="cbtn" data-c="globe">A3 · Data globe</button>
+    <button class="replay" onclick="location.reload()">↻ Replay</button>
+  </div>
+
+  <div class="page">
+    <div class="sidebar">
+      <div class="field"><label>Sport</label><div class="select">NBA <span class="chev">⌄</span></div></div>
+      <div class="field"><label>Games</label><div class="select" style="font-size:13px">San Antonio Spurs vs NY Knicks <span class="chev">⌄</span></div></div>
+      <div class="field"><label>Number of legs</label><div class="select">Any <span class="chev">⌄</span></div></div>
+      <div class="field"><label>Target odds</label><div class="select">$2.00 <span class="chev">⌄</span></div></div>
+      <div class="field"><label>Risk profile</label><div class="select">Best Chance <span class="chev">⌄</span></div></div>
+      <div class="field"><label>Bookmaker</label><div class="select">Best available <span class="chev">⌄</span></div></div>
+      <button class="build-btn">Building…</button>
+      <div class="perf-box">
+        <div class="h">MultiPick performance</div>
+        <div class="sub">How your saved AI multis have actually gone.</div>
+        <div class="perf-grid">
+          <div><div class="k">Multis picked</div><div class="v mono">5</div></div>
+          <div><div class="k">Won / Lost</div><div class="v mono"><span style="color:var(--positive)">4</span> / 0</div></div>
+          <div><div class="k">Profit / Loss</div><div class="v pos mono">$35.47</div></div>
+          <div><div class="k">ROI</div><div class="v pos mono">+81.2%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="output">
+      <div class="output-eyebrow"><span class="l">MultiPick output</span><span class="l">Building…</span></div>
+      <div class="output-title brand-wordmark">Building your multi<span class="dot">.</span></div>
+      <div class="output-divider"></div>
+      <div class="stage">
+        <div class="progress"></div>
+        <canvas id="cv"></canvas>
+        <div class="status"><span class="live"></span><span class="phase" id="phase">Pulling live odds</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Canvas-rendered, real 3D projection.</strong> A1 is the swirling point-cloud you described — ~260 nodes on a rotating sphere, signals firing across synapses, lime activation propagating to neighbours. A2 is an orbital reactor (atom-like rings). A3 is a wireframe data globe with pulsing hotspots + arcs. Status line cycles through real pipeline stages so it feels like deep work is happening. Toggle to compare; default is A1.
+  </div>
+
+  <script>
+  const canvas = document.getElementById('cv');
+  const ctx = canvas.getContext('2d');
+  let W=0, H=0, DPR=Math.min(window.devicePixelRatio||1, 2);
+  function resize(){
+    const r = canvas.getBoundingClientRect();
+    W=r.width; H=r.height;
+    canvas.width=W*DPR; canvas.height=H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  const ACCENT=[205,251,80];
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const mix=(c1,c2,t)=>[lerp(c1[0],c2[0],t),lerp(c1[1],c2[1],t),lerp(c1[2],c2[2],t)];
+
+  // ───────── geometry helpers ─────────
+  function fibSphere(n){
+    const pts=[]; const phi=Math.PI*(3-Math.sqrt(5));
+    for(let i=0;i<n;i++){
+      const y=1-(i/(n-1))*2; const rad=Math.sqrt(1-y*y); const th=phi*i;
+      pts.push({x:Math.cos(th)*rad, y, z:Math.sin(th)*rad});
+    }
+    return pts;
+  }
+  function rotate(p, ay, ax){
+    const cy=Math.cos(ay), sy=Math.sin(ay);
+    let x=p.x*cy - p.z*sy, z=p.x*sy + p.z*cy, y=p.y;
+    const cx=Math.cos(ax), sx=Math.sin(ax);
+    let y2=y*cx - z*sx, z2=y*sx + z*cx;
+    return {x, y:y2, z:z2};
+  }
+  const FOV=3.2;
+  function project(p, R, cx, cy){
+    const s=FOV/(FOV - p.z);
+    return {sx:cx+p.x*R*s, sy:cy+p.y*R*s, depth:(p.z+1)/2, s};
+  }
+
+  // ═══════════ A1 SYNAPSE SPHERE ═══════════
+  const synapse = (()=> {
+    const N=260; let pts=[], neigh=[], act=[];
+    function init(){
+      pts=fibSphere(N); neigh=[]; act=new Array(N).fill(0);
+      const TH=0.9; // cos angular threshold for "neighbour"
+      for(let i=0;i<N;i++){
+        const a=pts[i]; const list=[];
+        for(let j=0;j<N;j++){ if(i===j) continue;
+          const d=a.x*pts[j].x+a.y*pts[j].y+a.z*pts[j].z;
+          if(d>TH) list.push(j);
+        }
+        list.sort((m,n)=>{
+          const dm=a.x*pts[m].x+a.y*pts[m].y+a.z*pts[m].z;
+          const dn=a.x*pts[n].x+a.y*pts[n].y+a.z*pts[n].z;
+          return dn-dm;
+        });
+        neigh.push(list.slice(0,4));
+      }
+    }
+    function draw(t){
+      const cx=W/2, cy=H/2, R=Math.min(W,H)*0.34;
+      const ay=t*0.00022, ax=Math.sin(t*0.0004)*0.35;
+      // background glow
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.8);
+      g.addColorStop(0,'rgba(205,251,80,0.05)'); g.addColorStop(1,'rgba(205,251,80,0)');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      // fire activation
+      if(Math.random()<0.30){
+        const seed=(Math.random()*N)|0; act[seed]=1;
+        for(const j of neigh[seed]) act[j]=Math.max(act[j],0.55);
+      }
+      const proj=pts.map(p=>{ const r=rotate(p,ay,ax); return {r, pr:project(r,R,cx,cy)}; });
+      const order=[...Array(N).keys()].sort((a,b)=>proj[a].r.z-proj[b].r.z);
+      // edges first
+      ctx.lineWidth=1;
+      for(const i of order){
+        for(const j of neigh[i]){
+          if(j<i) continue;
+          const A=proj[i].pr, B=proj[j].pr;
+          const dep=(A.depth+B.depth)/2;
+          const a=Math.max(act[i],act[j]);
+          let alpha=0.05*dep + a*0.55;
+          if(alpha<0.02) continue;
+          const col=mix([90,90,100],ACCENT,Math.min(1,a*1.2));
+          ctx.strokeStyle=`rgba(${col[0]|0},${col[1]|0},${col[2]|0},${alpha})`;
+          ctx.beginPath(); ctx.moveTo(A.sx,A.sy); ctx.lineTo(B.sx,B.sy); ctx.stroke();
+        }
+      }
+      // nodes
+      for(const i of order){
+        const pr=proj[i].pr; const a=act[i];
+        const base=0.18+0.72*pr.depth;
+        const col=mix([150,150,162],ACCENT,Math.min(1,a*1.3));
+        const rad=(0.7+1.9*pr.depth)*(1+a*1.1)*pr.s;
+        if(a>0.15){ ctx.shadowBlur=12*a; ctx.shadowColor='rgba(205,251,80,0.9)'; } else ctx.shadowBlur=0;
+        ctx.fillStyle=`rgba(${col[0]|0},${col[1]|0},${col[2]|0},${base})`;
+        ctx.beginPath(); ctx.arc(pr.sx,pr.sy,rad,0,7); ctx.fill();
+        act[i]*=0.94;
+      }
+      ctx.shadowBlur=0;
+    }
+    return {init,draw};
+  })();
+
+  // ═══════════ A2 ORBITAL CORE ═══════════
+  const reactor = (()=> {
+    let rings=[];
+    function init(){
+      rings=[];
+      const defs=[ {tilt:0.2, yaw:0, n:30, sp:0.0006, r:1.0},
+                   {tilt:1.1, yaw:0.6, n:26, sp:-0.0009, r:0.92},
+                   {tilt:-0.8, yaw:1.4, n:22, sp:0.0011, r:0.84},
+                   {tilt:1.6, yaw:2.2, n:18, sp:-0.0007, r:0.72} ];
+      for(const d of defs){
+        const parts=[]; for(let i=0;i<d.n;i++) parts.push((i/d.n)*Math.PI*2);
+        rings.push({...d, parts, hot:(Math.random()*d.n)|0});
+      }
+    }
+    function draw(t){
+      const cx=W/2, cy=H/2, R=Math.min(W,H)*0.33;
+      const gy=t*0.00018;
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.6);
+      g.addColorStop(0,'rgba(205,251,80,0.10)'); g.addColorStop(0.4,'rgba(205,251,80,0.03)'); g.addColorStop(1,'rgba(205,251,80,0)');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      // core
+      const pulse=0.5+0.5*Math.sin(t*0.004);
+      ctx.shadowBlur=24+pulse*16; ctx.shadowColor='rgba(205,251,80,0.9)';
+      ctx.fillStyle=`rgba(205,251,80,${0.85})`;
+      ctx.beginPath(); ctx.arc(cx,cy,5+pulse*2.5,0,7); ctx.fill();
+      ctx.shadowBlur=0;
+      const all=[];
+      for(const ring of rings){
+        const ang=t*ring.sp;
+        for(let i=0;i<ring.parts.length;i++){
+          const a=ring.parts[i]+ang;
+          // point on ring in its own plane
+          let p={x:Math.cos(a)*ring.r, y:Math.sin(a)*ring.r*0.32, z:Math.sin(a)*ring.r};
+          // apply ring tilt (around X) then ring yaw (around Y) then global yaw
+          p=rotate(p, ring.yaw+gy, ring.tilt);
+          const pr=project(p,R,cx,cy);
+          all.push({pr, hot:(i===ring.hot)});
+        }
+      }
+      all.sort((a,b)=>a.pr.depth-b.pr.depth);
+      for(const o of all){
+        const pr=o.pr; const dep=pr.depth;
+        const col=o.hot?ACCENT:mix([120,120,134],ACCENT,0.25);
+        const rad=(0.8+2.0*dep)*pr.s*(o.hot?1.5:1);
+        if(o.hot){ ctx.shadowBlur=10; ctx.shadowColor='rgba(205,251,80,0.9)'; } else ctx.shadowBlur=0;
+        ctx.fillStyle=`rgba(${col[0]|0},${col[1]|0},${col[2]|0},${0.2+0.75*dep})`;
+        ctx.beginPath(); ctx.arc(pr.sx,pr.sy,rad,0,7); ctx.fill();
+      }
+      ctx.shadowBlur=0;
+    }
+    return {init,draw};
+  })();
+
+  // ═══════════ A3 DATA GLOBE ═══════════
+  const globe = (()=> {
+    let lats=[], lons=[], hot=[], arcs=[];
+    function surf(latDeg, lonDeg){
+      const la=latDeg*Math.PI/180, lo=lonDeg*Math.PI/180;
+      return {x:Math.cos(la)*Math.cos(lo), y:Math.sin(la), z:Math.cos(la)*Math.sin(lo)};
+    }
+    function init(){
+      lats=[]; lons=[]; hot=[]; arcs=[];
+      for(let la=-60; la<=60; la+=30){ const ring=[]; for(let lo=0; lo<360; lo+=12) ring.push(surf(la,lo)); lats.push(ring); }
+      for(let lo=0; lo<360; lo+=30){ const mer=[]; for(let la=-84; la<=84; la+=12) mer.push(surf(la,lo)); lons.push(mer); }
+      for(let i=0;i<9;i++) hot.push({p:surf((Math.random()*140-70),(Math.random()*360)), ph:Math.random()*Math.PI*2});
+      for(let i=0;i<3;i++){ const a=hot[(Math.random()*hot.length)|0].p, b=hot[(Math.random()*hot.length)|0].p; arcs.push({a,b,off:Math.random()}); }
+    }
+    function draw(t){
+      const cx=W/2, cy=H/2, R=Math.min(W,H)*0.34;
+      const ay=t*0.00026, ax=0.35;
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.6);
+      g.addColorStop(0,'rgba(205,251,80,0.05)'); g.addColorStop(1,'rgba(205,251,80,0)');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      const P=p=>project(rotate(p,ay,ax),R,cx,cy);
+      // wire lines
+      ctx.lineWidth=1;
+      const drawLine=(arr,close)=>{
+        ctx.beginPath(); let started=false;
+        for(let i=0;i<arr.length;i++){ const pr=P(arr[i]); const dep=pr.depth;
+          if(!started){ ctx.moveTo(pr.sx,pr.sy); started=true; } else ctx.lineTo(pr.sx,pr.sy);
+        }
+        if(close) ctx.closePath();
+      };
+      for(const ring of lats){ ctx.strokeStyle='rgba(110,110,124,0.22)'; drawLine(ring,true); ctx.stroke(); }
+      for(const mer of lons){ ctx.strokeStyle='rgba(110,110,124,0.16)'; drawLine(mer,false); ctx.stroke(); }
+      // arcs (great-circle-ish via slerp)
+      for(const arc of arcs){
+        const steps=40; ctx.beginPath();
+        for(let i=0;i<=steps;i++){
+          const u=i/steps;
+          const x=lerp(arc.a.x,arc.b.x,u), y=lerp(arc.a.y,arc.b.y,u), z=lerp(arc.a.z,arc.b.z,u);
+          const L=Math.hypot(x,y,z)||1; const lift=1+0.18*Math.sin(u*Math.PI);
+          const pr=P({x:x/L*lift,y:y/L*lift,z:z/L*lift});
+          if(i===0) ctx.moveTo(pr.sx,pr.sy); else ctx.lineTo(pr.sx,pr.sy);
+        }
+        const flow=0.4+0.4*Math.sin(t*0.003+arc.off*6);
+        ctx.strokeStyle=`rgba(205,251,80,${flow})`; ctx.lineWidth=1.4; ctx.stroke(); ctx.lineWidth=1;
+      }
+      // hotspots
+      for(const h of hot){
+        const pr=P(h.p); if(rotate(h.p,ay,ax).z< -0.1) continue; // hide far side mostly
+        const pulse=0.5+0.5*Math.sin(t*0.004+h.ph);
+        ctx.shadowBlur=12*pulse; ctx.shadowColor='rgba(205,251,80,0.9)';
+        ctx.fillStyle=`rgba(205,251,80,${0.4+0.5*pulse})`;
+        ctx.beginPath(); ctx.arc(pr.sx,pr.sy,(1.6+2.4*pr.depth)*pr.s,0,7); ctx.fill();
+        ctx.shadowBlur=0;
+      }
+    }
+    return {init,draw};
+  })();
+
+  const variants={synapse,reactor,globe};
+  let current='synapse';
+  function switchTo(name){ current=name; variants[name].init(); }
+
+  // phase cycler
+  const PHASES=['Pulling live odds','De-vigging market lines','Weighting recent form','Computing matchup factors','Searching 1,240 combinations','Optimising combined edge'];
+  let pi=0; const phaseEl=document.getElementById('phase');
+  setInterval(()=>{ pi=(pi+1)%PHASES.length; phaseEl.style.opacity=0; setTimeout(()=>{ phaseEl.textContent=PHASES[pi]; phaseEl.style.opacity=1; },350); }, 1700);
+
+  // toggle wiring
+  document.querySelectorAll('.cbtn').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.cbtn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); switchTo(b.dataset.c);
+  }));
+
+  // boot
+  resize(); switchTo('synapse');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let start=performance.now();
+  function loop(now){
+    ctx.clearRect(0,0,W,H);
+    variants[current].draw(now-start);
+    if(!reduce) requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

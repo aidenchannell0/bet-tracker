@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pickd — Instagram launch carousel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:#0a0a0b; --surface:#131316; --surface-2:#1a1a1f; --border:#232329; --border-strong:#2f2f37;
+      --text:#f5f5f7; --text-2:#a8a8b0; --text-3:#6b6b74; --accent:#cdfb50; --positive:#4ade80; --warning:#f5b545;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:#050506; font-family:"Inter Tight",system-ui,sans-serif; padding:40px; }
+    .mono { font-family:"JetBrains Mono",monospace; }
+    .bw { font-weight:800; letter-spacing:-.05em; } .bw .d { color:var(--accent); }
+
+    .controls { max-width:1200px; margin:0 auto 24px; color:#f5f5f7; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+    .controls h1 { font-size:18px; font-weight:700; letter-spacing:-.02em; }
+    .controls .note { font-size:12.5px; color:#a8a8b0; }
+    .controls button { font-family:inherit; font-size:13px; font-weight:600; padding:8px 16px; border-radius:999px; border:1px solid #2f2f37; background:#131316; color:#a8a8b0; cursor:pointer; }
+    .controls button.on { background:#cdfb50; color:#0a0a0b; border-color:#cdfb50; }
+
+    .deck { max-width:1200px; margin:0 auto; display:flex; flex-wrap:wrap; gap:28px; justify-content:center; }
+    /* each slide is a true 1080×1080; scaled for preview via the wrapper */
+    .wrap { width:540px; height:540px; overflow:hidden; border-radius:18px; box-shadow:0 24px 70px rgba(0,0,0,.6); }
+    body.full .wrap { width:1080px; height:1080px; }
+    .slide {
+      width:1080px; height:1080px; transform-origin:top left; transform:scale(0.5);
+      background:var(--bg); color:var(--text); position:relative; overflow:hidden;
+      display:flex; flex-direction:column; padding:96px;
+    }
+    body.full .slide { transform:scale(1); }
+
+    .eyebrow { font-size:26px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--text-3); }
+    .glow { position:absolute; border-radius:50%; filter:blur(80px); background:rgba(205,251,80,0.16); }
+    .slidenum { position:absolute; bottom:80px; right:96px; font-size:24px; font-weight:700; color:var(--text-3); letter-spacing:.1em; }
+    .url { position:absolute; bottom:78px; left:96px; font-size:30px; font-weight:700; letter-spacing:-.02em; }
+    .url .d { color:var(--accent); }
+
+    /* slide 1 hero */
+    .hero-wm { font-size:200px; line-height:.9; letter-spacing:-.06em; margin-top:auto; }
+    .hero-tag { font-size:46px; font-weight:600; letter-spacing:-.03em; color:var(--text-2); margin-top:24px; max-width:760px; line-height:1.15; }
+    .hero-eyebrow { font-size:24px; }
+    #dotsphere { position:absolute; top:90px; right:60px; width:420px; height:420px; opacity:.9; }
+    .swipe { position:absolute; bottom:78px; right:96px; font-size:26px; font-weight:700; color:var(--accent); }
+
+    /* generic heading slides */
+    .big-h { font-size:88px; font-weight:800; letter-spacing:-.04em; line-height:1.02; margin-top:26px; }
+    .sub { font-size:34px; font-weight:500; color:var(--text-2); line-height:1.4; margin-top:28px; max-width:840px; }
+    .sub b { color:var(--text); font-weight:700; }
+    .accent { color:var(--accent); }
+
+    /* multi card mock */
+    .card { margin-top:54px; background:var(--surface); border:1px solid var(--border); border-radius:28px; padding:40px 44px; }
+    .card-top { display:flex; justify-content:space-between; align-items:baseline; }
+    .card-top .t { font-size:32px; font-weight:700; }
+    .card-top .o { font-size:46px; font-weight:800; }
+    .leg { display:flex; align-items:center; gap:22px; padding:22px 0; border-top:1px solid var(--border); }
+    .leg:first-of-type { border-top:none; }
+    .crest { width:54px; height:54px; border-radius:50%; flex:none; }
+    .leg .nm { flex:1; font-size:30px; font-weight:600; }
+    .leg .cf { font-size:30px; font-weight:700; color:var(--positive); }
+    .leg .od { font-size:30px; font-weight:700; width:120px; text-align:right; }
+
+    /* receipts strip */
+    .strip { margin-top:54px; display:grid; grid-template-columns:repeat(3,1fr); border-top:2px solid var(--border); border-bottom:2px solid var(--border); }
+    .cell { padding:44px 36px; } .cell:not(:first-child){ border-left:2px solid var(--border); }
+    .cell .k { font-size:22px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+    .cell .v { font-size:96px; font-weight:800; letter-spacing:-.04em; margin-top:18px; line-height:1; }
+    .cell .v.green { color:var(--positive); }
+    .cell .v.med { font-size:62px; }
+    .pill { margin-top:40px; display:inline-flex; align-items:center; gap:14px; background:rgba(74,222,128,.14); color:var(--positive); font-size:26px; font-weight:700; padding:16px 28px; border-radius:999px; }
+    .pill .dot { width:14px; height:14px; border-radius:50%; background:var(--positive); }
+
+    /* CTA slide */
+    .founding-badge { display:inline-flex; align-items:center; gap:12px; background:var(--accent); color:var(--bg); font-size:26px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:16px 28px; border-radius:999px; }
+    .price-row { display:flex; align-items:baseline; gap:24px; margin-top:40px; }
+    .price-now { font-size:140px; font-weight:800; letter-spacing:-.05em; line-height:.9; }
+    .price-old { font-size:56px; font-weight:600; color:var(--text-3); text-decoration:line-through; }
+    .price-per { font-size:36px; color:var(--text-2); }
+    .cta-line { font-size:40px; font-weight:600; color:var(--text-2); margin-top:30px; max-width:840px; line-height:1.3; }
+    .disclaimer { position:absolute; bottom:70px; left:96px; right:96px; font-size:22px; color:var(--text-3); line-height:1.5; }
+
+    .footer-note { max-width:1200px; margin:30px auto 0; color:#6b6b74; font-size:12.5px; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <h1 class="bw" style="color:#f5f5f7">Pickd<span class="d">.</span> — IG launch carousel</h1>
+    <span class="note">4 slides · 1080×1080 · screenshot each for posting</span>
+    <span style="flex:1"></span>
+    <button id="sizeBtn" onclick="document.body.classList.toggle('full'); this.classList.toggle('on');">Toggle full size (1080)</button>
+  </div>
+
+  <div class="deck">
+    <!-- SLIDE 1 — HERO -->
+    <div class="wrap"><div class="slide">
+      <div class="glow" style="width:520px;height:520px;top:-120px;left:-120px;"></div>
+      <svg id="dotsphere" viewBox="0 0 420 420"></svg>
+      <div class="eyebrow hero-eyebrow">AI Multi Builder · AFL + NBA</div>
+      <div class="hero-wm bw">Pickd<span class="d">.</span></div>
+      <div class="hero-tag">Smarter multis. Backed by real data.</div>
+      <div class="url">pickd<span class="d">.</span>tech</div>
+      <div class="swipe">Swipe →</div>
+    </div></div>
+
+    <!-- SLIDE 2 — WHAT IT DOES -->
+    <div class="wrap"><div class="slide">
+      <div class="glow" style="width:480px;height:480px;bottom:-140px;right:-120px;"></div>
+      <div class="eyebrow">01 — MultiPick</div>
+      <div class="big-h">Stop guessing<br/>your multis<span class="accent">.</span></div>
+      <div class="sub">MultiPick reads <b>real player form</b> and <b>live market lines</b>, then builds a form-backed multi to your target odds — with a confidence rating on every leg.</div>
+      <div class="card">
+        <div class="card-top"><span class="t">3-leg AFL multi</span><span class="o mono">$1.90</span></div>
+        <div class="leg"><svg class="crest" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#000"/><rect x="11" width="3" height="32" fill="#fff"/><rect x="18" width="3" height="32" fill="#fff"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg><span class="nm">N. Daicos 25+ disposals</span><span class="cf mono">97%</span><span class="od mono">$1.20</span></div>
+        <div class="leg"><svg class="crest" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#2a0d54"/><polyline points="5,9 16,17 27,9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/><polyline points="5,15 16,23 27,15" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg><span class="nm">C. Serong 25+ disposals</span><span class="cf mono">96%</span><span class="od mono">$1.24</span></div>
+        <div class="leg"><svg class="crest" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#e1251b"/><rect y="11" width="32" height="10" fill="#fff"/><rect y="21" width="32" height="11" fill="#0a4595"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg><span class="nm">M. Bontempelli 20+ disp</span><span class="cf mono">95%</span><span class="od mono">$1.28</span></div>
+      </div>
+      <div class="slidenum mono">02 / 04</div>
+    </div></div>
+
+    <!-- SLIDE 3 — RECEIPTS -->
+    <div class="wrap"><div class="slide">
+      <div class="glow" style="width:460px;height:460px;top:-120px;right:-120px;"></div>
+      <div class="eyebrow">02 — Receipts</div>
+      <div class="big-h">We show our<br/>misses<span class="accent">.</span></div>
+      <div class="sub">Every prediction is logged and checked against the real result. Here's our last <b>120 calls</b> — no cherry-picking.</div>
+      <div class="strip">
+        <div class="cell"><div class="k">Actual</div><div class="v green mono">83%</div></div>
+        <div class="cell"><div class="k">Predicted</div><div class="v med mono">87%</div></div>
+        <div class="cell"><div class="k">Gap</div><div class="v med mono" style="color:var(--text-2)">±4%</div></div>
+      </div>
+      <div class="pill"><span class="dot"></span> Well calibrated</div>
+      <div class="slidenum mono">03 / 04</div>
+    </div></div>
+
+    <!-- SLIDE 4 — CTA / FOUNDING -->
+    <div class="wrap"><div class="slide">
+      <div class="glow" style="width:600px;height:600px;bottom:-160px;left:-140px;background:rgba(205,251,80,0.20);"></div>
+      <div class="bw" style="font-size:78px;letter-spacing:-.04em"><span class="d">3 free</span> builds a week.</div>
+      <div style="font-size:38px;color:var(--text-2);margin-top:12px;margin-bottom:40px">No card needed — start in seconds.</div>
+      <div class="founding-badge">🔒 Founding offer · First 20 members</div>
+      <div class="price-row">
+        <span class="price-now bw">$4.99</span>
+        <span class="price-old mono">$6.99</span>
+        <span class="price-per">/ week, forever</span>
+      </div>
+      <div class="cta-line">Then lock in Pro at the founding rate — unlimited AI multis, every feature. The first 20 keep $4.99 for life.</div>
+      <div style="margin-top:auto" class="bw" >
+        <div style="font-size:64px;letter-spacing:-.04em">Get on Pickd<span class="d">.</span></div>
+        <div class="url" style="position:static;margin-top:14px">pickd<span class="d">.</span>tech</div>
+      </div>
+      <div class="disclaimer">Informational analysis only — not betting advice or a tipping service. 18+ · Gamble responsibly · Gambling Help 1800 858 858</div>
+    </div></div>
+  </div>
+
+  <div class="footer-note">Tip: click "Toggle full size" then screenshot each slide at 1080×1080 for best quality, or screenshot the previews for a quick post.</div>
+
+  <script>
+    // Static fibonacci-ish dot sphere for the hero (projected to 2D)
+    const svg = document.getElementById('dotsphere');
+    const N = 130, R = 180, cx = 210, cy = 210;
+    const phi = Math.PI * (3 - Math.sqrt(5));
+    let dots = [];
+    for (let i = 0; i < N; i++) {
+      const y = 1 - (i / (N - 1)) * 2;
+      const rad = Math.sqrt(1 - y * y);
+      const th = phi * i;
+      const x = Math.cos(th) * rad, z = Math.sin(th) * rad;
+      // slight tilt
+      const ax = 0.5;
+      const y2 = y * Math.cos(ax) - z * Math.sin(ax);
+      const z2 = y * Math.sin(ax) + z * Math.cos(ax);
+      dots.push({ x, y: y2, z: z2 });
+    }
+    dots.sort((a, b) => a.z - b.z);
+    let html = "";
+    for (const d of dots) {
+      const depth = (d.z + 1) / 2;
+      const s = 1.2 + depth * 3.4;
+      const op = 0.18 + depth * 0.8;
+      const lime = depth > 0.78;
+      const col = lime ? "#cdfb50" : "#8a8a94";
+      html += `<circle cx="${(cx + d.x * R).toFixed(1)}" cy="${(cy + d.y * R).toFixed(1)}" r="${s.toFixed(1)}" fill="${col}" opacity="${op.toFixed(2)}"/>`;
+    }
+    svg.innerHTML = html;
+  </script>
+</body>
+</html>

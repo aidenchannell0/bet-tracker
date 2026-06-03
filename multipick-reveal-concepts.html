@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MultiPick reveal transitions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:#0a0a0b; --surface:#131316; --surface-2:#0c0c0f; --border:#1f1f23; --border-strong:#2a2a30;
+      --text:#f5f5f7; --text-2:#a8a8b0; --text-3:#6b6b74; --accent:#cdfb50; --positive:#4ade80; --warning:#f5b545;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:"Inter Tight",system-ui,sans-serif; padding:28px; }
+    .mono { font-family:"JetBrains Mono",monospace; }
+    .brand-wordmark { font-weight:700; letter-spacing:-.04em; } .brand-wordmark .a { color:var(--accent); }
+    .uc { text-transform:uppercase; letter-spacing:.12em; }
+    .bar { max-width:1080px; margin:0 auto 22px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .bar .title { font-size:18px; font-weight:700; letter-spacing:-.02em; } .bar .spacer { flex:1; }
+    .bar button { font-family:inherit; font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-2); cursor:pointer; transition:.15s; }
+    .bar button:hover { border-color:var(--text-3); color:var(--text); }
+    .bar button.active { background:var(--accent); color:#0a0a0b; border-color:var(--accent); }
+    .bar .replay { background:transparent; border-color:var(--border); color:var(--text); font-size:13px; }
+    .desc { max-width:1080px; margin:0 auto 18px; font-size:13px; color:var(--text-2); line-height:1.5; min-height:38px; }
+    .desc b { color:var(--accent); }
+    .frame { max-width:1080px; margin:0 auto; border:1px solid var(--border); border-radius:20px; padding:28px; background:var(--bg); }
+
+    .out-eyebrow { display:flex; justify-content:space-between; font-size:10px; color:var(--text-3); font-weight:600; letter-spacing:.12em; text-transform:uppercase; }
+    .out-title { font-size:30px; font-weight:700; letter-spacing:-.035em; margin-top:8px; }
+    .divider { height:1px; background:var(--border); margin:18px 0; }
+
+    /* output box holds both the sphere (absolute overlay) and the result (flow) */
+    .output { position:relative; min-height:430px; }
+
+    /* sphere overlay */
+    .sphere { position:absolute; inset:0; z-index:2; border-radius:14px; overflow:hidden;
+      background:radial-gradient(circle at 50% 45%, #101013 0%, var(--surface-2) 70%);
+      border:1px solid var(--border); }
+    canvas { display:block; width:100%; height:100%; }
+    .status { position:absolute; bottom:22px; left:50%; transform:translateX(-50%); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-2); font-weight:500; display:flex; align-items:center; gap:9px; }
+    .status .live { width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); animation:bk 1.4s ease-in-out infinite; }
+    @keyframes bk { 0%,100%{opacity:.35} 50%{opacity:1} }
+    /* center flash for implode mode */
+    .flash { position:absolute; inset:0; z-index:3; pointer-events:none; opacity:0;
+      background:radial-gradient(circle at 50% 48%, rgba(205,251,80,0.55), rgba(205,251,80,0) 45%); }
+
+    /* result (multi card) — in normal flow so it sets the height */
+    .result { opacity:0; }
+    .stat-strip { display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:22px 0; }
+    .stat { padding:0 22px; } .stat:not(:first-child){ border-left:1px solid var(--border); }
+    .stat .k { font-size:9px; color:var(--text-3); font-weight:600; letter-spacing:.10em; text-transform:uppercase; }
+    .stat .big { font-size:40px; font-weight:600; letter-spacing:-.04em; line-height:1; margin-top:12px; }
+    .stat .med { font-size:24px; font-weight:600; letter-spacing:-.03em; line-height:1; margin-top:12px; }
+    .stat .accent { color:var(--accent); } .stat .warn { color:var(--warning); }
+    .stat .sub { font-size:11px; color:var(--text-3); margin-top:11px; }
+    .legs-h { display:flex; justify-content:space-between; font-size:10px; color:var(--text-3); font-weight:600; letter-spacing:.10em; text-transform:uppercase; margin:24px 0 4px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    .leg { display:flex; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid var(--border); }
+    .leg .n { font-size:11px; color:var(--text-3); width:18px; }
+    .leg .crest { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#2a2a30,#1a1a1f); flex:none; }
+    .leg .body { flex:1; min-width:0; }
+    .leg .nm { font-size:15px; font-weight:600; }
+    .leg .meta { font-size:12px; color:var(--text-3); margin-top:3px; }
+    .leg .conf { text-align:right; } .leg .conf .v { font-size:18px; font-weight:600; } .leg .conf .l { font-size:9px; color:var(--text-3); text-transform:uppercase; letter-spacing:.08em; }
+    .leg .odds { text-align:right; width:74px; } .leg .odds .v { font-size:18px; font-weight:600; } .leg .odds .l { font-size:10px; color:var(--text-3); }
+
+    /* ══════════ REVEAL MODES ══════════ */
+    /* When .revealing is set, sphere plays an exit + result plays an entrance. */
+
+    /* --- exits (sphere) --- */
+    .revealing.mode-A .sphere { animation: exFade .40s ease forwards; }
+    .revealing.mode-B .sphere { animation: exFadeScale .50s ease forwards; }
+    .revealing.mode-C .sphere { animation: exBlur .60s ease forwards; }
+    .revealing.mode-D .sphere { animation: exImplode .50s cubic-bezier(.6,0,.8,.2) forwards; }
+    @keyframes exFade { to { opacity:0; } }
+    @keyframes exFadeScale { to { opacity:0; transform:scale(.92); } }
+    @keyframes exBlur { to { opacity:0; transform:scale(1.12); filter:blur(8px); } }
+    @keyframes exImplode { 60% { opacity:.6; } to { opacity:0; transform:scale(.15); } }
+
+    /* --- flash (mode D only) --- */
+    .revealing.mode-D .flash { animation: flashPulse .55s ease .35s; }
+    @keyframes flashPulse { 0%{opacity:0} 35%{opacity:.7} 100%{opacity:0} }
+
+    /* --- entrances (result container) --- */
+    .revealing.mode-A .result { animation: rvLift .60s cubic-bezier(.16,1,.3,1) .15s forwards; }
+    .revealing.mode-B .result { animation: rvFade .35s ease .18s forwards; }
+    .revealing.mode-C .result { animation: rvScale .60s cubic-bezier(.16,1,.3,1) .20s forwards; }
+    .revealing.mode-D .result { animation: rvBloom .60s cubic-bezier(.16,1,.3,1) .50s forwards; }
+    @keyframes rvLift  { 0%{opacity:0;transform:translateY(16px)} 100%{opacity:1;transform:translateY(0)} }
+    @keyframes rvFade  { to { opacity:1; } }
+    @keyframes rvScale { 0%{opacity:0;transform:scale(.94);filter:blur(6px)} 100%{opacity:1;transform:scale(1);filter:blur(0)} }
+    @keyframes rvBloom { 0%{opacity:0;transform:scale(.90)} 100%{opacity:1;transform:scale(1)} }
+
+    /* --- staggered legs (modes B + D) --- */
+    .revealing.mode-B .stat-strip, .revealing.mode-D .stat-strip { animation: legIn .5s cubic-bezier(.16,1,.3,1) both; }
+    .revealing.mode-B .leg, .revealing.mode-D .leg { animation: legIn .5s cubic-bezier(.16,1,.3,1) both; }
+    .revealing.mode-B .stat-strip { animation-delay:.20s } .revealing.mode-D .stat-strip { animation-delay:.55s }
+    .revealing.mode-B .leg:nth-child(2){animation-delay:.30s} .revealing.mode-B .leg:nth-child(3){animation-delay:.40s} .revealing.mode-B .leg:nth-child(4){animation-delay:.50s} .revealing.mode-B .leg:nth-child(5){animation-delay:.60s}
+    .revealing.mode-D .leg:nth-child(2){animation-delay:.65s} .revealing.mode-D .leg:nth-child(3){animation-delay:.75s} .revealing.mode-D .leg:nth-child(4){animation-delay:.85s} .revealing.mode-D .leg:nth-child(5){animation-delay:.95s}
+    @keyframes legIn { 0%{opacity:0;transform:translateY(18px)} 100%{opacity:1;transform:translateY(0)} }
+    /* keep final state */
+    .revealing .result { opacity:1; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <span class="title brand-wordmark">Reveal transitions<span class="a">.</span></span>
+    <span class="spacer"></span>
+    <button class="mbtn" data-m="A">A · Fade & lift</button>
+    <button class="mbtn" data-m="B">B · Stagger cascade</button>
+    <button class="mbtn" data-m="C">C · Scale dissolve</button>
+    <button class="mbtn active" data-m="D">D · Implode → bloom</button>
+    <button class="replay" id="replay">↻ Replay</button>
+  </div>
+  <div class="desc" id="desc"></div>
+
+  <div class="frame">
+    <div class="out-eyebrow"><span>MultiPick output</span><span id="ind">Building…</span></div>
+    <h2 class="out-title brand-wordmark" id="otitle">Building your NBA multi<span class="a">.</span></h2>
+    <div class="divider"></div>
+
+    <div class="output" id="output">
+      <!-- result (normal flow, sets height) -->
+      <div class="result" id="result">
+        <div class="stat-strip">
+          <div class="stat"><div class="k">Combined</div><div class="big mono">$1.90</div><div class="sub">Target $2.00 · within 5%</div></div>
+          <div class="stat"><div class="k">Combined chance</div><div class="med mono">71%</div><div class="sub">Correlation-adjusted</div></div>
+          <div class="stat"><div class="k">Value vs market</div><div class="med accent mono">+5%</div><div class="sub">4 of 4 +edge</div></div>
+          <div class="stat"><div class="k">Risk</div><div class="med warn mono">4<span style="font-size:13px;color:var(--text-3)"> / 10</span></div><div class="sub">Balanced</div></div>
+        </div>
+        <div class="legs-h"><span>Legs</span><span>Tap a row for form</span></div>
+        <div class="leg"><span class="n mono">01</span><span class="crest"></span><span class="body"><div class="nm">Mikal Bridges 3+ rebounds</div><div class="meta">Avg 4.2 · 9/10 cleared</div></span><span class="conf"><div class="v mono">96%</div><div class="l">conf</div></span><span class="odds"><div class="v mono">$1.38</div><div class="l">Bet Right</div></span></div>
+        <div class="leg"><span class="n mono">02</span><span class="crest"></span><span class="body"><div class="nm">Josh Hart 5+ points</div><div class="meta">Avg 14.8 · 10/10 cleared</div></span><span class="conf"><div class="v mono">97%</div><div class="l">conf</div></span><span class="odds"><div class="v mono">$1.05</div><div class="l">PointsBet</div></span></div>
+        <div class="leg"><span class="n mono">03</span><span class="crest"></span><span class="body"><div class="nm">Jalen Brunson 15+ points</div><div class="meta">Avg 24.8 · 10/10 cleared</div></span><span class="conf"><div class="v mono">98%</div><div class="l">conf</div></span><span class="odds"><div class="v mono">$1.04</div><div class="l">PointsBet</div></span></div>
+        <div class="leg"><span class="n mono">04</span><span class="crest"></span><span class="body"><div class="nm">Mitchell Robinson 3+ rebounds</div><div class="meta">Avg 5.8 · 9/10 cleared</div></span><span class="conf"><div class="v mono">96%</div><div class="l">conf</div></span><span class="odds"><div class="v mono">$1.10</div><div class="l">Bet Right</div></span></div>
+      </div>
+      <!-- sphere overlay -->
+      <div class="sphere" id="sphere">
+        <canvas id="cv"></canvas>
+        <div class="status"><span class="live"></span><span id="phase">Optimising combined edge</span></div>
+      </div>
+      <div class="flash"></div>
+    </div>
+  </div>
+
+  <script>
+  // ---- sphere (reuse hybrid) ----
+  const canvas=document.getElementById('cv'); const ctx=canvas.getContext('2d');
+  let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+  function resize(){ const r=canvas.getBoundingClientRect(); W=r.width;H=r.height; canvas.width=W*DPR;canvas.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
+  window.addEventListener('resize',resize);
+  const ACC=[205,251,80]; const lerp=(a,b,t)=>a+(b-a)*t; const mix=(c1,c2,t)=>[lerp(c1[0],c2[0],t),lerp(c1[1],c2[1],t),lerp(c1[2],c2[2],t)];
+  function fib(n){const p=[],phi=Math.PI*(3-Math.sqrt(5));for(let i=0;i<n;i++){const y=1-(i/(n-1))*2,rad=Math.sqrt(1-y*y),th=phi*i;p.push({x:Math.cos(th)*rad,y,z:Math.sin(th)*rad});}return p;}
+  function rot(p,ay,ax){const cy=Math.cos(ay),sy=Math.sin(ay);let x=p.x*cy-p.z*sy,z=p.x*sy+p.z*cy,y=p.y;const cx=Math.cos(ax),sx=Math.sin(ax);return{x,y:y*cx-z*sx,z:y*sx+z*cx};}
+  const FOV=3.2; function proj(p,R,cx,cy){const s=FOV/(FOV-p.z);return{sx:cx+p.x*R*s,sy:cy+p.y*R*s,depth:(p.z+1)/2,s};}
+  const N=220; const pts=fib(N); const neigh=[]; const act=new Array(N).fill(0); let flares=[];
+  (function(){const TH=0.9;for(let i=0;i<N;i++){const a=pts[i],list=[];for(let j=0;j<N;j++){if(i===j)continue;const d=a.x*pts[j].x+a.y*pts[j].y+a.z*pts[j].z;if(d>TH)list.push(j);}list.sort((m,n)=>(a.x*pts[n].x+a.y*pts[n].y+a.z*pts[n].z)-(a.x*pts[m].x+a.y*pts[m].y+a.z*pts[m].z));neigh.push(list.slice(0,4));}})();
+  const rings=[{tilt:0.3,yaw:0,n:24,sp:0.0009,r:0.50},{tilt:1.2,yaw:0.8,n:20,sp:-0.0012,r:0.58},{tilt:-0.7,yaw:1.7,n:16,sp:0.0014,r:0.44}].map(d=>{const parts=[];for(let i=0;i<d.n;i++)parts.push((i/d.n)*Math.PI*2);return{...d,parts,hot:(Math.random()*d.n)|0};});
+  function draw(t){const cx=W/2,cy=H/2,R=Math.min(W,H)*0.36;const ay=t*0.00022,ax=Math.sin(t*0.0004)*0.32,gy=t*0.00018;
+    let g=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.9);g.addColorStop(0,'rgba(205,251,80,0.06)');g.addColorStop(0.5,'rgba(205,251,80,0.02)');g.addColorStop(1,'rgba(205,251,80,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    if(Math.random()<0.022&&flares.length<3){const s=(Math.random()*N)|0;act[s]=1;for(const j of neigh[s])act[j]=Math.max(act[j],0.4);flares.push({node:s,life:1});}
+    const pr=pts.map(p=>{const r=rot(p,ay,ax);return{r,pr:proj(r,R,cx,cy)};});const order=[...Array(N).keys()].sort((a,b)=>pr[a].r.z-pr[b].r.z);
+    ctx.lineWidth=1;for(const i of order)for(const j of neigh[i]){if(j<i)continue;const A=pr[i].pr,B=pr[j].pr,dep=(A.depth+B.depth)/2,a=Math.max(act[i],act[j]);const al=0.045*dep+a*0.38;if(al<0.02)continue;const c=mix([90,90,100],ACC,Math.min(1,a*1.2));ctx.strokeStyle=`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${al})`;ctx.beginPath();ctx.moveTo(A.sx,A.sy);ctx.lineTo(B.sx,B.sy);ctx.stroke();}
+    for(const f of flares){const p=pr[f.node].pr;const gr=ctx.createLinearGradient(cx,cy,p.sx,p.sy);gr.addColorStop(0,`rgba(205,251,80,${0.05*f.life})`);gr.addColorStop(1,`rgba(205,251,80,${0.55*f.life})`);ctx.strokeStyle=gr;ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(p.sx,p.sy);ctx.stroke();f.life*=0.945;}
+    flares=flares.filter(f=>f.life>0.06);ctx.lineWidth=1;
+    const items=[];for(const ring of rings){const ang=t*ring.sp;for(let i=0;i<ring.parts.length;i++){const a=ring.parts[i]+ang;let p={x:Math.cos(a)*ring.r,y:Math.sin(a)*ring.r*0.30,z:Math.sin(a)*ring.r};p=rot(p,ring.yaw+gy,ring.tilt);items.push({z:p.z,kind:'ring',pr:proj(p,R,cx,cy),hot:i===ring.hot});}}
+    for(let i=0;i<N;i++)items.push({z:pr[i].r.z,kind:'shell',pr:pr[i].pr,a:act[i]});items.push({z:0,kind:'core'});items.sort((u,v)=>u.z-v.z);
+    const pulse=0.5+0.5*Math.sin(t*0.0022);
+    for(const it of items){if(it.kind==='core'){ctx.shadowBlur=22+pulse*10;ctx.shadowColor='rgba(205,251,80,0.9)';ctx.fillStyle='rgba(205,251,80,0.88)';ctx.beginPath();ctx.arc(cx,cy,5.5+pulse*1.6,0,7);ctx.fill();ctx.shadowBlur=0;}
+      else if(it.kind==='ring'){const p=it.pr,c=it.hot?ACC:mix([120,120,134],ACC,0.3);const rad=(0.8+1.8*p.depth)*p.s*(it.hot?1.4:1);if(it.hot){ctx.shadowBlur=9;ctx.shadowColor='rgba(205,251,80,0.9)';}else ctx.shadowBlur=0;ctx.fillStyle=`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${0.25+0.7*p.depth})`;ctx.beginPath();ctx.arc(p.sx,p.sy,rad,0,7);ctx.fill();}
+      else{const p=it.pr,a=it.a,base=0.16+0.7*p.depth;const c=mix([150,150,162],ACC,Math.min(1,a*1.3));const rad=(0.65+1.7*p.depth)*(1+a*1.0)*p.s;if(a>0.2){ctx.shadowBlur=7*a;ctx.shadowColor='rgba(205,251,80,0.85)';}else ctx.shadowBlur=0;ctx.fillStyle=`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${base})`;ctx.beginPath();ctx.arc(p.sx,p.sy,rad,0,7);ctx.fill();}}
+    ctx.shadowBlur=0;for(let i=0;i<N;i++)act[i]*=0.972;}
+  resize(); let start=performance.now();
+  function loop(now){ctx.clearRect(0,0,W,H);draw(now-start);requestAnimationFrame(loop);}
+  requestAnimationFrame(loop);
+
+  // ---- transition controller ----
+  const DESCS={
+    A:"<b>A · Fade & lift</b> — the current one. Result fades in and slides up 16px as the sphere fades out. Subtle, clean.",
+    B:"<b>B · Stagger cascade</b> — sphere fades+shrinks, then the stat strip and each leg row fly in one-by-one from below. Most 'building up' feel, very noticeable.",
+    C:"<b>C · Scale dissolve</b> — sphere blooms outward + blurs away while the result scales up from 94% with a blur-to-sharp focus pull. Cinematic.",
+    D:"<b>D · Implode → bloom</b> — sphere collapses into its core with a lime flash, then the result blooms out and legs cascade in. Most dramatic hand-off."
+  };
+  const output=document.getElementById('output'); const ind=document.getElementById('ind'); const otitle=document.getElementById('otitle'); const desc=document.getElementById('desc');
+  let mode='D'; let timer=null;
+  function setDesc(){ desc.innerHTML=DESCS[mode]; }
+  function reveal(){ output.classList.add('revealing','mode-'+mode); ind.textContent='Built just now'; otitle.innerHTML='4-leg NBA multi'; }
+  function replay(){
+    clearTimeout(timer);
+    output.classList.remove('revealing','mode-A','mode-B','mode-C','mode-D');
+    void output.offsetWidth; // reflow so animations restart cleanly
+    ind.textContent='Building…'; otitle.innerHTML='Building your NBA multi<span class="a">.</span>';
+    start=performance.now();
+    timer=setTimeout(reveal, 1900);
+  }
+  document.querySelectorAll('.mbtn').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.mbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');mode=b.dataset.m;setDesc();replay();}));
+  document.getElementById('replay').addEventListener('click',replay);
+  setDesc(); replay();
+  </script>
+</body>
+</html>

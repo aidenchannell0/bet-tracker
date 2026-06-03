@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MultiPick page — full composition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:#0a0a0b; --surface:#131316; --surface-2:#0c0c0f; --border:#1f1f23; --border-strong:#2a2a30;
+      --text:#f5f5f7; --text-2:#a8a8b0; --text-3:#6b6b74; --accent:#cdfb50; --accent-soft:rgba(205,251,80,.12);
+      --positive:#4ade80; --positive-soft:rgba(74,222,128,.12);
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:"Inter Tight",system-ui,sans-serif; padding:28px; }
+    .mono { font-family:"JetBrains Mono",monospace; }
+    .uc { text-transform:uppercase; letter-spacing:.12em; }
+    .brand-wordmark { font-weight:700; letter-spacing:-.04em; } .brand-wordmark .dot,.brand-wordmark .a { color:var(--accent); }
+    .page { max-width:1100px; margin:0 auto; }
+
+    /* annotation markers */
+    .marker { display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:#0a0a0b; font-size:11px; font-weight:700; padding:4px 11px; border-radius:999px; letter-spacing:.03em; }
+
+    /* header */
+    .back { font-size:11px; color:var(--text-3); font-weight:600; }
+    .eyebrow { font-size:11px; color:var(--text-3); font-weight:600; margin-top:14px; }
+    h1.title { font-size:48px; font-weight:600; letter-spacing:-.04em; line-height:0.95; margin-top:12px; }
+    .subtitle { color:var(--text-2); font-size:14px; max-width:480px; margin-top:12px; line-height:1.5; }
+    .builds { display:flex; gap:12px; align-items:center; margin-top:16px; font-size:11px; color:var(--text-3); }
+    .builds .up { color:var(--accent); font-weight:600; }
+    .hr { height:1px; background:var(--border); margin:28px 0; }
+
+    /* ① Model track record strip */
+    .track { position:relative; margin-bottom:32px; }
+    .track .ttl { font-size:22px; font-weight:600; letter-spacing:-.025em; margin-top:8px; }
+    .strip { display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--border); border-bottom:1px solid var(--border); margin-top:22px; padding:24px 0; }
+    .cell { padding:0 26px; }
+    .cell:not(:first-child) { border-left:1px solid var(--border); }
+    .cell .k { font-size:9px; color:var(--text-3); font-weight:600; letter-spacing:.10em; }
+    .cell .big { font-size:48px; font-weight:600; letter-spacing:-.04em; line-height:1; margin-top:12px; color:var(--positive); }
+    .cell .med { font-size:26px; font-weight:600; letter-spacing:-.03em; line-height:1; margin-top:12px; }
+    .cell .med.muted { color:var(--text-2); }
+    .cell .sub { font-size:11px; color:var(--text-3); margin-top:12px; }
+    .tfoot { display:flex; align-items:center; gap:13px; margin-top:18px; }
+    .calpill { display:inline-flex; align-items:center; gap:7px; background:var(--positive-soft); color:var(--positive); font-size:11px; font-weight:500; padding:6px 12px; border-radius:999px; }
+    .calpill .d { width:6px; height:6px; border-radius:50%; background:var(--positive); }
+    .tfoot .meta { font-size:11px; color:var(--text-3); }
+    .tfoot .detail { margin-left:auto; border:1px solid var(--border); background:var(--surface); color:var(--text-2); font-size:11px; font-weight:500; padding:6px 13px; border-radius:999px; }
+
+    /* two-column: controls + output */
+    .cols { display:grid; grid-template-columns:280px 1fr; gap:40px; align-items:start; }
+    .controls { display:flex; flex-direction:column; gap:16px; }
+    .modepill { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:4px; font-size:12px; font-weight:600; }
+    .modepill .on { background:var(--text); color:var(--bg); border-radius:6px; padding:8px; text-align:center; }
+    .modepill .off { color:var(--text-3); padding:8px; text-align:center; }
+    .field label { display:block; font-size:10px; color:var(--text-3); font-weight:600; letter-spacing:.10em; margin-bottom:7px; }
+    .field .sel { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; font-size:13px; display:flex; justify-content:space-between; }
+    .field .sel .chev { color:var(--text-3); }
+    .build { width:100%; background:var(--accent); color:#0a0a0b; border:none; border-radius:8px; padding:14px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; position:relative; overflow:hidden; }
+    .build::after { content:""; position:absolute; inset:0; background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.25) 50%,transparent 70%); transform:translateX(-100%); animation:sh 1.6s ease-in-out infinite; }
+    @keyframes sh { 100%{transform:translateX(100%)} }
+
+    /* output area */
+    .out .eyebrow2 { display:flex; justify-content:space-between; font-size:10px; color:var(--text-3); font-weight:600; letter-spacing:.12em; text-transform:uppercase; }
+    .out h2 { font-size:34px; font-weight:700; letter-spacing:-.04em; margin-top:8px; }
+    .out .divider { height:1px; background:var(--border); margin:18px 0; }
+    .stage { border:1px solid var(--border); border-radius:14px; background:radial-gradient(circle at 50% 45%, #101013 0%, var(--surface-2) 70%); height:360px; position:relative; overflow:hidden; }
+    canvas { display:block; width:100%; height:100%; }
+    .status { position:absolute; bottom:22px; left:50%; transform:translateX(-50%); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-2); font-weight:500; display:flex; align-items:center; gap:9px; z-index:3; }
+    .status .live { width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); animation:bk 1.4s ease-in-out infinite; }
+    @keyframes bk { 0%,100%{opacity:.35} 50%{opacity:1} }
+    .progress { position:absolute; top:0; left:0; height:2px; background:linear-gradient(90deg,transparent,var(--accent)); width:0; z-index:3; animation:pr 6s ease-in-out infinite; }
+    @keyframes pr { 0%{width:0;opacity:.8} 80%{width:88%;opacity:1} 100%{width:96%;opacity:.6} }
+    .annot { position:absolute; left:-12px; top:-10px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- HEADER -->
+    <div class="back">← Back to dashboard</div>
+    <div class="eyebrow uc">AI multi builder · Beta preview</div>
+    <h1 class="title brand-wordmark">MultiPick.<br/>Form-backed multis.</h1>
+    <p class="subtitle">A smarter way to build structured example multis using market lines, recent trends and risk scoring.</p>
+    <div class="builds"><span class="up">Pro · unlimited</span></div>
+
+    <div class="hr"></div>
+
+    <!-- ① MODEL TRACK RECORD (stays exactly as-is) -->
+    <section class="track">
+      <span class="marker" style="position:absolute; right:0; top:-2px">① Model track record — stays here, top of page</span>
+      <div class="eyebrow uc">Model track record</div>
+      <div class="ttl brand-wordmark">MultiPick's last <span class="mono">120</span> picks<span class="a">.</span></div>
+      <div class="strip">
+        <div class="cell"><div class="k uc">Actual hit rate</div><div class="big mono">83%</div><div class="sub"><span class="mono">100</span> of <span class="mono">120</span> legs hit their line</div></div>
+        <div class="cell"><div class="k uc">What we predicted</div><div class="med mono">87%</div><div class="sub">Average confidence rating</div></div>
+        <div class="cell"><div class="k uc">Typical gap</div><div class="med muted mono">±4%</div><div class="sub">Distance between prediction and reality</div></div>
+      </div>
+      <div class="tfoot">
+        <span class="calpill"><span class="d"></span> Well calibrated</span>
+        <span class="meta">Last 30 days · weekly refresh</span>
+        <span class="detail">View calibration detail →</span>
+      </div>
+    </section>
+
+    <!-- TWO COLUMN: controls + output(with animation) -->
+    <div class="cols">
+      <div class="controls">
+        <div class="modepill"><div class="on">Example Multi</div><div class="off">Game Analysis</div></div>
+        <div class="field"><label class="uc">Sport</label><div class="sel">NBA <span class="chev">⌄</span></div></div>
+        <div class="field"><label class="uc">Games</label><div class="sel" style="font-size:12px">Spurs vs Knicks <span class="chev">⌄</span></div></div>
+        <div class="field"><label class="uc">Number of legs</label><div class="sel">Any <span class="chev">⌄</span></div></div>
+        <div class="field"><label class="uc">Target odds</label><div class="sel">$2.00 <span class="chev">⌄</span></div></div>
+        <div class="field"><label class="uc">Risk profile</label><div class="sel">Best Chance <span class="chev">⌄</span></div></div>
+        <div class="field"><label class="uc">Bookmaker</label><div class="sel">Best available <span class="chev">⌄</span></div></div>
+        <button class="build">Analysing…</button>
+      </div>
+
+      <div class="out" style="position:relative">
+        <span class="marker annot">② Building animation renders here</span>
+        <div class="eyebrow2"><span>MultiPick output</span><span>Building…</span></div>
+        <h2 class="brand-wordmark">Building your multi<span class="a">.</span></h2>
+        <div class="divider"></div>
+        <div class="stage">
+          <div class="progress"></div>
+          <canvas id="cv"></canvas>
+          <div class="status"><span class="live"></span><span class="phase" id="phase">Pulling live odds</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const canvas=document.getElementById('cv'); const ctx=canvas.getContext('2d');
+  let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+  function resize(){ const r=canvas.getBoundingClientRect(); W=r.width;H=r.height; canvas.width=W*DPR;canvas.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
+  window.addEventListener('resize',resize);
+  const ACCENT=[205,251,80]; const lerp=(a,b,t)=>a+(b-a)*t; const mix=(c1,c2,t)=>[lerp(c1[0],c2[0],t),lerp(c1[1],c2[1],t),lerp(c1[2],c2[2],t)];
+  function fibSphere(n){ const p=[],phi=Math.PI*(3-Math.sqrt(5)); for(let i=0;i<n;i++){const y=1-(i/(n-1))*2;const rad=Math.sqrt(1-y*y);const th=phi*i;p.push({x:Math.cos(th)*rad,y,z:Math.sin(th)*rad});} return p; }
+  function rotate(p,ay,ax){ const cy=Math.cos(ay),sy=Math.sin(ay); let x=p.x*cy-p.z*sy,z=p.x*sy+p.z*cy,y=p.y; const cx=Math.cos(ax),sx=Math.sin(ax); let y2=y*cx-z*sx,z2=y*sx+z*cx; return {x,y:y2,z:z2}; }
+  const FOV=3.2; function project(p,R,cx,cy){ const s=FOV/(FOV-p.z); return {sx:cx+p.x*R*s,sy:cy+p.y*R*s,depth:(p.z+1)/2,s}; }
+
+  const N=220; let pts=fibSphere(N), neigh=[], act=new Array(N).fill(0), flares=[], rings=[];
+  (function init(){
+    const TH=0.9;
+    for(let i=0;i<N;i++){ const a=pts[i]; const list=[];
+      for(let j=0;j<N;j++){ if(i===j) continue; const d=a.x*pts[j].x+a.y*pts[j].y+a.z*pts[j].z; if(d>TH) list.push(j); }
+      list.sort((m,n)=>(a.x*pts[n].x+a.y*pts[n].y+a.z*pts[n].z)-(a.x*pts[m].x+a.y*pts[m].y+a.z*pts[m].z));
+      neigh.push(list.slice(0,4));
+    }
+    const defs=[{tilt:0.3,yaw:0,n:24,sp:0.0009,r:0.50},{tilt:1.2,yaw:0.8,n:20,sp:-0.0012,r:0.58},{tilt:-0.7,yaw:1.7,n:16,sp:0.0014,r:0.44}];
+    rings=defs.map(d=>{ const parts=[]; for(let i=0;i<d.n;i++) parts.push((i/d.n)*Math.PI*2); return {...d,parts,hot:(Math.random()*d.n)|0}; });
+  })();
+
+  function draw(t){
+    const cx=W/2, cy=H/2, R=Math.min(W,H)*0.36;
+    const ay=t*0.00022, ax=Math.sin(t*0.0004)*0.32, gy=t*0.00018;
+    let g=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.9); g.addColorStop(0,'rgba(205,251,80,0.06)'); g.addColorStop(0.5,'rgba(205,251,80,0.02)'); g.addColorStop(1,'rgba(205,251,80,0)'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    if(Math.random()<0.022 && flares.length<3){ const seed=(Math.random()*N)|0; act[seed]=1; for(const j of neigh[seed]) act[j]=Math.max(act[j],0.4); flares.push({node:seed,life:1}); }
+    const proj=pts.map(p=>{ const r=rotate(p,ay,ax); return {r,pr:project(r,R,cx,cy)}; });
+    const order=[...Array(N).keys()].sort((a,b)=>proj[a].r.z-proj[b].r.z);
+    ctx.lineWidth=1;
+    for(const i of order){ for(const j of neigh[i]){ if(j<i) continue; const A=proj[i].pr,B=proj[j].pr; const dep=(A.depth+B.depth)/2; const a=Math.max(act[i],act[j]); let alpha=0.045*dep+a*0.38; if(alpha<0.02) continue; const c=mix([90,90,100],ACCENT,Math.min(1,a*1.2)); ctx.strokeStyle=`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${alpha})`; ctx.beginPath(); ctx.moveTo(A.sx,A.sy); ctx.lineTo(B.sx,B.sy); ctx.stroke(); }}
+    for(const f of flares){ const pr=proj[f.node].pr; const grad=ctx.createLinearGradient(cx,cy,pr.sx,pr.sy); grad.addColorStop(0,`rgba(205,251,80,${0.05*f.life})`); grad.addColorStop(1,`rgba(205,251,80,${0.55*f.life})`); ctx.strokeStyle=grad; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(pr.sx,pr.sy); ctx.stroke(); f.life*=0.945; }
+    flares=flares.filter(f=>f.life>0.06); ctx.lineWidth=1;
+    const items=[];
+    for(const ring of rings){ const ang=t*ring.sp; for(let i=0;i<ring.parts.length;i++){ const a=ring.parts[i]+ang; let p={x:Math.cos(a)*ring.r,y:Math.sin(a)*ring.r*0.30,z:Math.sin(a)*ring.r}; p=rotate(p,ring.yaw+gy,ring.tilt); items.push({z:p.z,kind:'ring',pr:project(p,R,cx,cy),hot:(i===ring.hot)}); } }
+    for(let i=0;i<N;i++) items.push({z:proj[i].r.z,kind:'shell',pr:proj[i].pr,a:act[i]});
+    items.push({z:0,kind:'core'}); items.sort((u,v)=>u.z-v.z);
+    const pulse=0.5+0.5*Math.sin(t*0.0022);
+    for(const it of items){
+      if(it.kind==='core'){ ctx.shadowBlur=22+pulse*10; ctx.shadowColor='rgba(205,251,80,0.9)'; ctx.fillStyle='rgba(205,251,80,0.88)'; ctx.beginPath(); ctx.arc(cx,cy,5.5+pulse*1.6,0,7); ctx.fill(); ctx.shadowBlur=0; }
+      else if(it.kind==='ring'){ const pr=it.pr; const c=it.hot?ACCENT:mix([120,120,134],ACCENT,0.3); const rad=(0.8+1.8*pr.depth)*pr.s*(it.hot?1.4:1); if(it.hot){ctx.shadowBlur=9;ctx.shadowColor='rgba(205,251,80,0.9)';}else ctx.shadowBlur=0; ctx.fillStyle=`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${0.25+0.7*pr.depth})`; ctx.beginPath(); ctx.arc(pr.sx,pr.sy,rad,0,7); ctx.fill(); }
+      else { const pr=it.pr,a=it.a; const base=0.16+0.7*pr.depth; const c=mix([150,150,162],ACCENT,Math.min(1,a*1.3)); const rad=(0.65+1.7*pr.depth)*(1+a*1.0)*pr.s; if(a>0.2){ctx.shadowBlur=7*a;ctx.shadowColor='rgba(205,251,80,0.85)';}else ctx.shadowBlur=0; ctx.fillStyle=`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${base})`; ctx.beginPath(); ctx.arc(pr.sx,pr.sy,rad,0,7); ctx.fill(); }
+    }
+    ctx.shadowBlur=0; for(let i=0;i<N;i++) act[i]*=0.972;
+  }
+  const PHASES=['Pulling live odds','De-vigging market lines','Weighting recent form','Computing matchup factors','Searching 1,240 combinations','Optimising combined edge'];
+  let pi=0; const phaseEl=document.getElementById('phase');
+  setInterval(()=>{ pi=(pi+1)%PHASES.length; phaseEl.style.opacity=0; setTimeout(()=>{phaseEl.textContent=PHASES[pi];phaseEl.style.opacity=1;},350); },1700);
+  resize(); let start=performance.now();
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function loop(now){ ctx.clearRect(0,0,W,H); draw(now-start); if(!reduce) requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

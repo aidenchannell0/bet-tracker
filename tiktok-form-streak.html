@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pickd — The Form Streak ladder (screen-record me)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#0a0a0b; --surface:#131316; --border:#232329; --border-s:#2f2f37; --text:#f5f5f7; --text-2:#a8a8b0; --text-3:#5a5a64; --accent:#cdfb50; --positive:#4ade80; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:#050506; font-family:"Inter Tight",system-ui,sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:18px; }
+    .mono { font-family:"JetBrains Mono",monospace; }
+    .bw { font-weight:900; letter-spacing:-.05em; } .bw .d { color:var(--accent); }
+    .bar { color:#f5f5f7; display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap; justify-content:center; }
+    .bar h1 { font-size:16px; font-weight:700; } .bar .note { font-size:12px; color:#a8a8b0; }
+    .bar button { font-family:inherit; font-size:13px; font-weight:600; padding:8px 16px; border-radius:999px; border:1px solid #2f2f37; background:#131316; color:#cdfb50; cursor:pointer; }
+
+    .stage-wrap { height:86vh; aspect-ratio:9/16; border-radius:30px; overflow:hidden; box-shadow:0 30px 90px rgba(0,0,0,.7); position:relative; }
+    .stage { position:absolute; top:0; left:0; width:1080px; height:1920px; transform-origin:top left; background:radial-gradient(120% 80% at 70% 20%, #15170d 0%, var(--bg) 55%); color:var(--text); overflow:hidden; }
+    .prog { position:absolute; top:0; left:0; height:8px; background:var(--accent); width:0; z-index:30; }
+
+    /* series tag */
+    .seriestag { position:absolute; top:132px; left:56px; right:56px; z-index:25; display:flex; justify-content:space-between; align-items:center; }
+    .seriestag .l { font-size:30px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); }
+    .seriestag .r { font-size:26px; font-weight:700; color:var(--text-2); }
+
+    /* persistent streak ladder, left */
+    .streak { position:absolute; left:54px; top:0; bottom:300px; width:300px; display:flex; flex-direction:column; justify-content:center; gap:11px; z-index:20; }
+    .snum { font-size:64px; font-weight:900; letter-spacing:-.03em; line-height:1; color:var(--text-3); display:flex; align-items:center; gap:16px; }
+    .snum .tick { font-size:40px; }
+    .snum.done { color:var(--positive); }
+    .snum.on { color:var(--accent); font-size:88px; text-shadow:0 0 36px rgba(205,251,80,.85); }
+
+    /* right content scenes */
+    /* content sits inside TikTok's safe zone: clear of the right action rail (~150px) and the bottom caption/message bar (~430px) */
+    .scene { position:absolute; top:210px; bottom:560px; left:380px; right:96px; display:flex; flex-direction:column; justify-content:center; opacity:0; transform:translateY(24px) scale(.99); transition:opacity .6s ease, transform .7s cubic-bezier(.16,1,.3,1); }
+    .scene.active { opacity:1; transform:none; }
+    .scene .rise { opacity:0; transform:translateY(22px); transition:opacity .5s ease, transform .6s cubic-bezier(.16,1,.3,1); }
+    .scene.active .rise { opacity:1; transform:none; }
+    .scene.active .rise.d2{transition-delay:.16s} .scene.active .rise.d3{transition-delay:.32s}
+
+    .eyebrow { font-size:26px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); }
+    .big { font-size:62px; font-weight:900; letter-spacing:-.04em; line-height:1.0; margin-top:12px; }
+    .sub { font-size:34px; font-weight:500; color:var(--text-2); line-height:1.35; margin-top:22px; } .sub b{color:var(--text);font-weight:800}
+    .accent { color:var(--accent); }
+
+    .pcard { background:var(--surface); border:1px solid var(--border); border-radius:28px; padding:38px; }
+    .phead { display:flex; align-items:center; gap:22px; }
+    .crest { width:74px; height:74px; flex:none; }
+    .phead .nm { font-size:42px; font-weight:800; letter-spacing:-.02em; } .phead .tm { font-size:24px; color:var(--text-2); margin-top:6px; }
+    /* big, hero target number */
+    .ptarget { margin-top:30px; display:flex; align-items:baseline; gap:18px; }
+    .ptarget .tn { font-size:88px; font-weight:900; letter-spacing:-.05em; line-height:.85; color:var(--accent); text-shadow:0 0 30px rgba(205,251,80,.4); }
+    .ptarget .tl { font-size:44px; font-weight:800; color:var(--text); }
+    .preason { margin-top:26px; font-size:30px; line-height:1.42; color:var(--text-2); } .preason b{color:var(--text);font-weight:800}
+    .pproof { margin-top:28px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; font-size:26px; font-weight:800; color:var(--text-3); }
+    .pdots { display:flex; gap:9px; } .dot { width:22px; height:22px; border-radius:50%; } .dot.hit{background:var(--positive)} .dot.miss{background:transparent;border:3px solid var(--text-3)}
+    .pproof .ok { color:var(--positive); }
+
+    .follow { display:inline-flex; align-items:center; gap:14px; background:var(--accent); color:var(--bg); font-size:38px; font-weight:900; padding:24px 40px; border-radius:999px; }
+    .url { font-size:60px; font-weight:900; letter-spacing:-.03em; margin-top:34px; } .url .d{color:var(--accent)}
+
+    .caption { position:absolute; left:70px; right:70px; bottom:450px; text-align:center; z-index:25; }
+    .caption span { font-size:50px; font-weight:800; letter-spacing:-.02em; line-height:1.25; color:#fff; text-shadow:0 4px 18px rgba(0,0,0,.85),0 1px 2px rgba(0,0,0,.9); }
+    .caption .hl { color:var(--accent); }
+    .cap-anim { opacity:0; transform:translateY(14px); transition:opacity .35s ease, transform .4s cubic-bezier(.16,1,.3,1); }
+    .cap-anim.in { opacity:1; transform:none; }
+    .footer { color:#6b6b74; font-size:12px; margin-top:12px; text-align:center; max-width:680px; line-height:1.5; }
+
+    /* ── Record mode: pure-black full-bleed frame, no chrome ── */
+    .rec-hint { display:none; }
+    body.recording { background:#000; padding:0; justify-content:center; }
+    body.recording .bar, body.recording .footer { display:none; }
+    body.recording .stage-wrap { height:100vh; border-radius:0; box-shadow:none; }
+    body.recording .rec-hint { display:block; position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:999; color:#888; font-size:13px; background:rgba(0,0,0,.6); padding:6px 14px; border-radius:999px; transition:opacity .6s ease; }
+    body.recording .rec-hint b { color:var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <h1 class="bw" style="color:#f5f5f7">Pickd<span class="d">.</span> — The Form Streak</h1>
+    <span class="note">streak ladder · highlight current · no $ · footage-ready</span>
+    <button onclick="play()">↻ Replay</button>
+    <button onclick="rec()">🎬 Record mode</button>
+  </div>
+  <div class="rec-hint" id="recHint">Recording mode · press <b>R</b> to replay · <b>Esc</b> to exit — record just the frame</div>
+
+  <div class="stage-wrap" id="wrap">
+    <div class="stage" id="stage">
+      <div class="prog" id="prog"></div>
+      <div class="seriestag"><span class="l">🪜 The Form Streak</span><span class="r">On a 4 streak 🔥</span></div>
+
+      <!-- persistent climbing ladder (current = 4). Bump these classes each post. -->
+      <div class="streak">
+        <div class="snum">8</div>
+        <div class="snum">7</div>
+        <div class="snum">6</div>
+        <div class="snum">5</div>
+        <div class="snum on">4</div>
+        <div class="snum done">3 <span class="tick">✅</span></div>
+        <div class="snum done">2 <span class="tick">✅</span></div>
+        <div class="snum done">1 <span class="tick">✅</span></div>
+      </div>
+
+      <!-- right content -->
+      <div class="scene" data-key="hook">
+        <div class="eyebrow rise">The form streak is live 🔥</div>
+        <div class="big rise d2">4 streak<br/>&amp; counting<span class="accent">.</span></div>
+        <div class="sub rise d3">The run's still alive — here's the next 4. 👇</div>
+      </div>
+
+      <div class="scene" data-key="intro">
+        <div class="eyebrow rise">AI form analytics 🤖</div>
+        <div class="big rise d2">Form, not<br/>guesswork<span class="accent">.</span></div>
+        <div class="sub rise d3">Pickd's <b>AI</b> scans every AFL player and surfaces who's in <b>red-hot form</b> — with the numbers to prove it: average, hit rate, head-to-head. Today: <b>Crows v Cats</b>. 👇</div>
+      </div>
+
+      <div class="scene" data-key="p1">
+        <div class="eyebrow rise">Pick 01 · Adelaide</div>
+        <div class="pcard rise d2">
+          <div class="phead">
+            <svg class="crest" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#002b5c"/><rect y="11" width="32" height="11" fill="#e21937"/><rect y="22" width="32" height="10" fill="#ffd200"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg>
+            <div><div class="nm">Jordan Dawson</div><div class="tm">Adelaide · MID</div></div>
+          </div>
+          <div class="ptarget"><span class="tn">21+</span><span class="tl">disposals</span></div>
+          <div class="preason">Why: Crows skipper — <b>averaging 27 a game</b>, 9 of 10 over 21. Didn't play the last meeting, but his form's been elite.</div>
+          <div class="pproof"><span class="pdots" id="d1"></span> <span class="ok">9 of 10</span> · avg 27</div>
+        </div>
+      </div>
+
+      <div class="scene" data-key="p2">
+        <div class="eyebrow rise">Pick 02 · Adelaide</div>
+        <div class="pcard rise d2">
+          <div class="phead">
+            <svg class="crest" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#002b5c"/><rect y="11" width="32" height="11" fill="#e21937"/><rect y="22" width="32" height="10" fill="#ffd200"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg>
+            <div><div class="nm">Sam Berry</div><div class="tm">Adelaide · MID</div></div>
+          </div>
+          <div class="ptarget"><span class="tn">17+</span><span class="tl">disposals</span></div>
+          <div class="preason">Why: Inside bull — averaging 23 a game, 10 from 10. Last time these sides met: <b>22 disposals</b>.</div>
+          <div class="pproof"><span class="pdots" id="d2"></span> <span class="ok">10 of 10</span> · avg 23</div>
+        </div>
+      </div>
+
+      <div class="scene" data-key="p3">
+        <div class="eyebrow rise">Pick 03 · Geelong</div>
+        <div class="pcard rise d2">
+          <div class="phead">
+            <svg class="crest" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#ffffff"/><rect y="3" width="32" height="5.5" fill="#022b5c"/><rect y="13.25" width="32" height="5.5" fill="#022b5c"/><rect y="23.5" width="32" height="5.5" fill="#022b5c"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg>
+            <div><div class="nm">Sam De Koning</div><div class="tm">Geelong · FWD</div></div>
+          </div>
+          <div class="ptarget"><span class="tn">11+</span><span class="tl">disposals</span></div>
+          <div class="preason">Why: Quietly consistent — averaging 13.6 a game, 9 of 10 over 11. Had <b>18 in the last meeting</b>, well over.</div>
+          <div class="pproof"><span class="pdots" id="d3"></span> <span class="ok">9 of 10</span> · avg 13.6</div>
+        </div>
+      </div>
+
+      <div class="scene" data-key="p4">
+        <div class="eyebrow rise">Pick 04 · Geelong</div>
+        <div class="pcard rise d2">
+          <div class="phead">
+            <svg class="crest" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#ffffff"/><rect y="3" width="32" height="5.5" fill="#022b5c"/><rect y="13.25" width="32" height="5.5" fill="#022b5c"/><rect y="23.5" width="32" height="5.5" fill="#022b5c"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg>
+            <div><div class="nm">Max Holmes</div><div class="tm">Geelong · MID</div></div>
+          </div>
+          <div class="ptarget"><span class="tn">23+</span><span class="tl">disposals</span></div>
+          <div class="preason">Why: Geelong's run machine — averaging 29.6 a game, 10 from 10. Dropped <b>27 in the last clash</b> with the Crows.</div>
+          <div class="pproof"><span class="pdots" id="d4"></span> <span class="ok">10 of 10</span> · avg 29.6</div>
+        </div>
+      </div>
+
+      <div class="scene" data-key="cta">
+        <div class="eyebrow rise">Spot the next rung</div>
+        <div class="big rise d2">Can it hit<br/>5<span class="accent">?</span></div>
+        <div class="sub rise d3" style="margin-top:18px">Find form like this on <span class="bw">Pickd<span class="d" style="color:var(--accent)">.</span></span> — build your own.</div>
+        <div class="follow rise d3" style="margin-top:28px">＋ Follow the streak</div>
+        <div class="url bw rise d3">pickd<span class="d">.</span>tech</div>
+      </div>
+
+      <div class="caption"><span id="capText" class="cap-anim"></span></div>
+    </div>
+  </div>
+  <div class="footer">Open-ended streak ladder — bump the <code>on</code>/<code>done</code> classes each post as the run climbs (or resets on a miss — that's your receipts). No $, no "bet". Tip: in CapCut you can lay AFL footage behind this as a low-opacity overlay, or post the clean Pickd version as-is.</div>
+
+  <script>
+    const wrap=document.getElementById('wrap'),stage=document.getElementById('stage');
+    function fit(){ stage.style.transform=`scale(${wrap.clientHeight/1920})`; }
+    new ResizeObserver(fit).observe(wrap); fit();
+
+    function dots(el,p){ el.innerHTML=p.map(h=>`<span class="dot ${h?'hit':'miss'}"></span>`).join(''); }
+    dots(document.getElementById('d1'),[1,1,1,1,1,1,1,1,0,1]); // Dawson 9/10
+    dots(document.getElementById('d2'),[1,1,1,1,1,1,1,1,1,1]); // Berry 10/10
+    dots(document.getElementById('d3'),[1,1,0,1,1,1,1,1,1,1]); // De Koning 9/10
+    dots(document.getElementById('d4'),[1,1,1,1,1,1,1,1,1,1]); // Holmes 10/10
+
+    const scenes=[...document.querySelectorAll('.scene')], byKey=k=>scenes.find(s=>s.dataset.key===k);
+    const prog=document.getElementById('prog'), capText=document.getElementById('capText');
+    const STEPS=[
+      { key:'hook',  cap:'On a <span class="hl">4 streak</span> 🔥 and counting…', dur:3400 },
+      { key:'intro', cap:'Pickd\'s <span class="hl">AI</span> finds who\'s in red-hot form 🤖', dur:5800 },
+      { key:'p1',   cap:'Dawson — <span class="hl">averaging 27</span>, 9 of 10 over 21.', dur:6000 },
+      { key:'p2',   cap:'Berry — had <span class="hl">22 last meeting</span>. 17+, 10 of 10.', dur:6000 },
+      { key:'p3',   cap:'De Koning — <span class="hl">18 last meeting</span>. 11+, 9 of 10.', dur:5400 },
+      { key:'p4',   cap:'Holmes — <span class="hl">27 v the Crows</span> last time. 23+, 10 of 10.', dur:6000 },
+      { key:'cta',  cap:'Find form like this on <span class="hl">Pickd</span> → link in bio.', dur:4600 },
+    ];
+    // Record mode: strip chrome → pure black frame. R replays, Esc exits.
+    const recHint=document.getElementById('recHint');
+    function rec(){ document.body.classList.add('recording'); play(); recHint.style.opacity='1'; setTimeout(()=>{ recHint.style.opacity='0'; }, 2600); }
+    document.addEventListener('keydown', (e)=>{
+      if(e.key==='r'||e.key==='R') play();
+      if(e.key==='Escape') document.body.classList.remove('recording');
+    });
+
+    const TOTAL=STEPS.reduce((a,s)=>a+s.dur,0); let timers=[];
+    function showCap(html){ capText.classList.remove('in'); if(!html){capText.innerHTML='';return;} capText.innerHTML=html; requestAnimationFrame(()=>requestAnimationFrame(()=>capText.classList.add('in'))); }
+    function play(){
+      timers.forEach(clearTimeout); timers=[];
+      scenes.forEach(s=>s.classList.remove('active'));
+      prog.style.transition='none'; prog.style.width='0'; requestAnimationFrame(()=>{ prog.style.transition=`width ${TOTAL}ms linear`; prog.style.width='100%'; });
+      let acc=0;
+      STEPS.forEach((st)=>{ timers.push(setTimeout(()=>{ scenes.forEach(s=>s.classList.remove('active')); byKey(st.key).classList.add('active'); showCap(st.cap); }, acc)); acc+=st.dur; });
+      timers.push(setTimeout(play, TOTAL+500));
+    }
+    play();
+  </script>
+</body>
+</html>

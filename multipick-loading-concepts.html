@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MultiPick loading concepts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0b;
+      --surface: #131316;
+      --border: #1f1f23;
+      --border-strong: #2a2a30;
+      --text: #f5f5f7;
+      --text-2: #a8a8b0;
+      --text-3: #6b6b74;
+      --accent: #cdfb50;
+      --accent-soft: rgba(205, 251, 80, 0.12);
+      --danger: #ff5f4d;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Inter Tight", system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+    }
+    body {
+      padding: 64px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 64px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .header h1 {
+      font-size: 36px;
+      letter-spacing: -0.03em;
+      font-weight: 700;
+    }
+    .header p {
+      color: var(--text-2);
+      margin-top: 8px;
+      font-size: 14px;
+      max-width: 640px;
+      line-height: 1.5;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+    @media (min-width: 1100px) {
+      .grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    .concept {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-height: 480px;
+    }
+    .concept-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .concept-header .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-3);
+      font-weight: 600;
+    }
+    .concept-header h2 {
+      font-size: 22px;
+      letter-spacing: -0.02em;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .concept-desc {
+      font-size: 12.5px;
+      color: var(--text-2);
+      line-height: 1.55;
+    }
+    .canvas {
+      background: #050507;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+    }
+    .caption {
+      font-size: 11px;
+      color: var(--text-3);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-align: center;
+      font-weight: 500;
+    }
+    .mono { font-family: "JetBrains Mono", monospace; }
+
+    /* ────────── CONCEPT A: NEURAL PULSE ────────── */
+    .neural-svg { width: 100%; height: 100%; position: absolute; inset: 0; }
+    .neural-svg circle.node {
+      fill: var(--text-3);
+      transform-origin: center;
+    }
+    .neural-svg circle.node.pulse {
+      animation: nodePulse 2.4s ease-in-out infinite;
+    }
+    .neural-svg circle.node.pulse-2 { animation-delay: 0.4s; }
+    .neural-svg circle.node.pulse-3 { animation-delay: 0.8s; }
+    .neural-svg circle.node.pulse-4 { animation-delay: 1.2s; }
+    .neural-svg circle.node.pulse-5 { animation-delay: 1.6s; }
+    @keyframes nodePulse {
+      0%, 100% { fill: var(--text-3); r: 3; }
+      50% { fill: var(--accent); r: 5; filter: drop-shadow(0 0 8px var(--accent)); }
+    }
+    .neural-svg line.connection {
+      stroke: var(--border-strong);
+      stroke-width: 0.5;
+      opacity: 0.4;
+      stroke-dasharray: 80;
+      stroke-dashoffset: 80;
+      animation: drawLine 3s ease-in-out infinite;
+    }
+    .neural-svg line.connection.l2 { animation-delay: 0.5s; }
+    .neural-svg line.connection.l3 { animation-delay: 1s; }
+    .neural-svg line.connection.l4 { animation-delay: 1.5s; }
+    .neural-svg line.connection.l5 { animation-delay: 2s; }
+    @keyframes drawLine {
+      0% { stroke-dashoffset: 80; opacity: 0; }
+      40%, 60% { stroke-dashoffset: 0; opacity: 0.6; stroke: var(--accent); }
+      100% { stroke-dashoffset: -80; opacity: 0; }
+    }
+    .neural-status {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .neural-status .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: dotBlink 1.4s ease-in-out infinite;
+    }
+    @keyframes dotBlink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+    /* ────────── CONCEPT B: ODDS RIVER ────────── */
+    .river {
+      display: flex;
+      gap: 28px;
+      width: 100%;
+      height: 100%;
+      align-items: stretch;
+      justify-content: center;
+      padding: 24px 32px;
+      position: relative;
+    }
+    .river::before, .river::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0;
+      height: 60px;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .river::before { top: 0; background: linear-gradient(to bottom, #050507, transparent); }
+    .river::after { bottom: 0; background: linear-gradient(to top, #050507, transparent); }
+    .stream {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      max-width: 90px;
+    }
+    .stream-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: streamScroll 8s linear infinite;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 14px;
+      text-align: center;
+      color: var(--text-3);
+    }
+    .stream:nth-child(1) .stream-inner { animation-duration: 7s; }
+    .stream:nth-child(2) .stream-inner { animation-duration: 9s; animation-delay: -2s; }
+    .stream:nth-child(3) .stream-inner { animation-duration: 8s; animation-delay: -4s; }
+    .stream:nth-child(4) .stream-inner { animation-duration: 10s; animation-delay: -1s; }
+    .stream-inner .highlight { color: var(--accent); font-weight: 600; }
+    @keyframes streamScroll {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-50%); }
+    }
+    .river-status {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      font-weight: 500;
+      z-index: 3;
+      background: #050507;
+      padding: 4px 12px;
+    }
+
+    /* ────────── CONCEPT C: PROBABILITY ROLL ────────── */
+    .roll {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      padding: 32px 28px;
+    }
+    .roll-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .roll-row:last-child { border-bottom: none; }
+    .roll-row.settling .roll-fill { animation: rollFill 1.8s ease-out forwards; }
+    .roll-row.settling:nth-child(1) .roll-fill { animation-delay: 0s; }
+    .roll-row.settling:nth-child(2) .roll-fill { animation-delay: 0.4s; }
+    .roll-row.settling:nth-child(3) .roll-fill { animation-delay: 0.8s; }
+    .roll-row.settling:nth-child(4) .roll-fill { animation-delay: 1.2s; }
+    .roll-label {
+      font-size: 13px;
+      color: var(--text-2);
+      font-weight: 500;
+      min-width: 90px;
+    }
+    .roll-track {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+    .roll-fill {
+      position: absolute;
+      inset: 0;
+      width: 0;
+      background: linear-gradient(90deg, var(--accent), var(--accent));
+      box-shadow: 0 0 10px var(--accent-soft);
+      border-radius: 3px;
+    }
+    @keyframes rollFill {
+      0% { width: 0; }
+      70% { width: 95%; }
+      100% { width: 88%; }
+    }
+    .roll-pct {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 48px;
+      text-align: right;
+      animation: pctTick 1.8s steps(40) forwards;
+    }
+    .roll-row:nth-child(2) .roll-pct { animation-delay: 0.4s; }
+    .roll-row:nth-child(3) .roll-pct { animation-delay: 0.8s; }
+    .roll-row:nth-child(4) .roll-pct { animation-delay: 1.2s; }
+    @keyframes pctTick {
+      0%   { content: "00%"; }
+      100% { content: "97%"; }
+    }
+    .roll-status {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      font-weight: 500;
+    }
+    .roll-status .accent { color: var(--accent); }
+
+    /* ────────── SHARED ────────── */
+    .restart-note {
+      margin-top: 32px;
+      padding: 16px;
+      background: var(--surface);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-2);
+      text-align: center;
+    }
+    .restart-note kbd {
+      font-family: "JetBrains Mono", monospace;
+      background: var(--bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      font-size: 11px;
+    }
+    .brand-wordmark {
+      font-family: "Inter Tight", sans-serif;
+      font-weight: 700;
+      letter-spacing: -0.05em;
+    }
+    .brand-wordmark .dot { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 class="brand-wordmark">MultiPick<span class="dot">.</span> loading concepts</h1>
+    <p>Three takes on the "we're crunching player props for your multi" moment. All on-brand. Each loops seamlessly. Refresh to replay the entry animation.</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- ────────────────── CONCEPT A: NEURAL PULSE ────────────────── -->
+    <div class="concept">
+      <div class="concept-header">
+        <div>
+          <p class="label">Concept A</p>
+          <h2>Neural pulse</h2>
+        </div>
+      </div>
+      <p class="concept-desc">
+        Player props as nodes; the model's "thinking" lights up paths between
+        them. Lime accents pulse along randomly-firing connections, suggesting
+        the search exploring combinations. Subtle, sophisticated — feels like
+        AI reasoning, not a slot machine.
+      </p>
+      <div class="canvas">
+        <svg class="neural-svg" viewBox="0 0 300 280" preserveAspectRatio="xMidYMid meet">
+          <!-- background grid -->
+          <defs>
+            <pattern id="dotgrid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <circle cx="1" cy="1" r="0.8" fill="#1a1a1f" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#dotgrid)" opacity="0.4" />
+
+          <!-- connections -->
+          <line class="connection" x1="60" y1="80" x2="150" y2="60" />
+          <line class="connection l2" x1="150" y1="60" x2="240" y2="100" />
+          <line class="connection l3" x1="60" y1="80" x2="100" y2="160" />
+          <line class="connection l4" x1="100" y1="160" x2="200" y2="180" />
+          <line class="connection l5" x1="200" y1="180" x2="240" y2="100" />
+          <line class="connection" x1="150" y1="60" x2="200" y2="180" />
+          <line class="connection l3" x1="60" y1="80" x2="200" y2="180" />
+          <line class="connection l2" x1="100" y1="160" x2="240" y2="100" />
+
+          <!-- nodes -->
+          <circle class="node pulse" cx="60" cy="80" r="3" />
+          <circle class="node pulse-2" cx="150" cy="60" r="3" />
+          <circle class="node pulse-3" cx="240" cy="100" r="3" />
+          <circle class="node pulse-4" cx="100" cy="160" r="3" />
+          <circle class="node pulse-5" cx="200" cy="180" r="3" />
+          <circle class="node" cx="40" cy="200" r="2" />
+          <circle class="node" cx="260" cy="200" r="2" />
+          <circle class="node" cx="170" cy="220" r="2" />
+        </svg>
+        <div class="neural-status">
+          <span class="dot"></span>
+          Analysing 247 player props
+        </div>
+      </div>
+      <p class="caption">Best fit · editorial dark theme</p>
+    </div>
+
+    <!-- ────────────────── CONCEPT B: ODDS RIVER ────────────────── -->
+    <div class="concept">
+      <div class="concept-header">
+        <div>
+          <p class="label">Concept B</p>
+          <h2>Odds river</h2>
+        </div>
+      </div>
+      <p class="concept-desc">
+        Vertical streams of player names + odds scrolling past, like a sports-
+        book ticker. Some scroll faster, some slower. Lime highlights flash
+        on candidates the search is "considering". Data-rich, evocative of
+        the actual prop-evaluation process.
+      </p>
+      <div class="canvas">
+        <div class="river">
+          <div class="stream">
+            <div class="stream-inner">
+              <div>Berry</div><div class="highlight">$1.22</div>
+              <div>Dawson</div><div>$1.24</div>
+              <div>Crouch</div><div>$1.31</div>
+              <div>Holmes</div><div class="highlight">$1.15</div>
+              <div>Miers</div><div>$1.13</div>
+              <div>Peatling</div><div>$1.14</div>
+              <div>Berry</div><div class="highlight">$1.22</div>
+              <div>Dawson</div><div>$1.24</div>
+              <div>Crouch</div><div>$1.31</div>
+              <div>Holmes</div><div class="highlight">$1.15</div>
+              <div>Miers</div><div>$1.13</div>
+              <div>Peatling</div><div>$1.14</div>
+            </div>
+          </div>
+          <div class="stream">
+            <div class="stream-inner">
+              <div>Bridges</div><div>$1.42</div>
+              <div class="highlight">SGA</div><div>$1.08</div>
+              <div>Brunson</div><div>$1.04</div>
+              <div>Hart</div><div class="highlight">$1.05</div>
+              <div>Robinson</div><div>$1.10</div>
+              <div>Castle</div><div>$1.42</div>
+              <div>Bridges</div><div>$1.42</div>
+              <div class="highlight">SGA</div><div>$1.08</div>
+              <div>Brunson</div><div>$1.04</div>
+              <div>Hart</div><div class="highlight">$1.05</div>
+              <div>Robinson</div><div>$1.10</div>
+              <div>Castle</div><div>$1.42</div>
+            </div>
+          </div>
+          <div class="stream">
+            <div class="stream-inner">
+              <div>23+ disp</div><div>$1.25</div>
+              <div class="highlight">9.5+ kicks</div><div>$1.18</div>
+              <div>3+ marks</div><div>$1.48</div>
+              <div>4+ tackles</div><div>$1.31</div>
+              <div>1+ goals</div><div class="highlight">$1.05</div>
+              <div>15+ pts</div><div>$1.50</div>
+              <div>23+ disp</div><div>$1.25</div>
+              <div class="highlight">9.5+ kicks</div><div>$1.18</div>
+              <div>3+ marks</div><div>$1.48</div>
+              <div>4+ tackles</div><div>$1.31</div>
+              <div>1+ goals</div><div class="highlight">$1.05</div>
+              <div>15+ pts</div><div>$1.50</div>
+            </div>
+          </div>
+          <div class="stream">
+            <div class="stream-inner">
+              <div>97%</div><div class="highlight">+15%</div>
+              <div>82%</div><div>+12%</div>
+              <div>98%</div><div>+11%</div>
+              <div>96%</div><div class="highlight">+10%</div>
+              <div>88%</div><div>+9%</div>
+              <div>91%</div><div>+8%</div>
+              <div>97%</div><div class="highlight">+15%</div>
+              <div>82%</div><div>+12%</div>
+              <div>98%</div><div>+11%</div>
+              <div>96%</div><div class="highlight">+10%</div>
+              <div>88%</div><div>+9%</div>
+              <div>91%</div><div>+8%</div>
+            </div>
+          </div>
+        </div>
+        <div class="river-status">Scanning 6 bookmakers</div>
+      </div>
+      <p class="caption">Energy + density · best for data-heavy feel</p>
+    </div>
+
+    <!-- ────────────────── CONCEPT C: PROBABILITY ROLL ────────────────── -->
+    <div class="concept">
+      <div class="concept-header">
+        <div>
+          <p class="label">Concept C</p>
+          <h2>Probability roll</h2>
+        </div>
+      </div>
+      <p class="concept-desc">
+        Four leg bars fill up sequentially, percentage ticks from 0 → final
+        value, lime glow when each settles. Mirrors the actual leg cards
+        users see in the output — feels like a preview of the result
+        loading in. Most "satisfying" of the three.
+      </p>
+      <div class="canvas">
+        <div class="roll">
+          <div class="roll-row settling">
+            <span class="roll-label">Berry</span>
+            <span class="roll-track"><span class="roll-fill"></span></span>
+            <span class="roll-pct mono">97%</span>
+          </div>
+          <div class="roll-row settling">
+            <span class="roll-label">Dawson</span>
+            <span class="roll-track"><span class="roll-fill"></span></span>
+            <span class="roll-pct mono">96%</span>
+          </div>
+          <div class="roll-row settling">
+            <span class="roll-label">Peatling</span>
+            <span class="roll-track"><span class="roll-fill"></span></span>
+            <span class="roll-pct mono">98%</span>
+          </div>
+          <div class="roll-row settling">
+            <span class="roll-label">Ah Chee</span>
+            <span class="roll-track"><span class="roll-fill"></span></span>
+            <span class="roll-pct mono">73%</span>
+          </div>
+          <div class="roll-status">
+            Combined chance <span class="accent mono">73%</span> · within 5% of $2.00
+          </div>
+        </div>
+      </div>
+      <p class="caption">Outcome-driven · preview of the actual build</p>
+    </div>
+
+  </div>
+
+  <div class="restart-note">
+    Refresh the page (<kbd>⌘R</kbd>) to replay each animation from start. To preview implementation, pick the concept you like and I'll wire it into <code>EdgePage</code>'s loading state.
+  </div>
+</body>
+</html>

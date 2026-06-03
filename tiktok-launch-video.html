@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pickd — TikTok launch (screen-record me)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#0a0a0b; --surface:#131316; --surface2:#1a1a1f; --border:#232329; --border-s:#2f2f37; --text:#f5f5f7; --text-2:#a8a8b0; --text-3:#6b6b74; --accent:#cdfb50; --positive:#4ade80; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:#050506; font-family:"Inter Tight",system-ui,sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:18px; }
+    .mono { font-family:"JetBrains Mono",monospace; }
+    .bw { font-weight:900; letter-spacing:-.05em; } .bw .d { color:var(--accent); }
+    .bar { color:#f5f5f7; display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap; justify-content:center; }
+    .bar h1 { font-size:16px; font-weight:700; } .bar .note { font-size:12px; color:#a8a8b0; }
+    .bar button { font-family:inherit; font-size:13px; font-weight:600; padding:8px 16px; border-radius:999px; border:1px solid #2f2f37; background:#131316; color:#cdfb50; cursor:pointer; }
+
+    .stage-wrap { height:86vh; aspect-ratio:9/16; border-radius:30px; overflow:hidden; box-shadow:0 30px 90px rgba(0,0,0,.7); position:relative; }
+    .stage { position:absolute; top:0; left:0; width:1080px; height:1920px; transform-origin:top left; background:var(--bg); color:var(--text); overflow:hidden; }
+    .glow { position:absolute; border-radius:50%; filter:blur(90px); background:rgba(205,251,80,0.18); pointer-events:none; }
+    .prog { position:absolute; top:0; left:0; height:8px; background:var(--accent); width:0; z-index:20; }
+
+    .scene { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding:120px 90px; opacity:0; transform:translateY(24px) scale(.99); transition:opacity .7s ease, transform .8s cubic-bezier(.16,1,.3,1); pointer-events:none; }
+    .scene.active { opacity:1; transform:none; }
+    .scene .rise { opacity:0; transform:translateY(26px); transition:opacity .55s ease, transform .65s cubic-bezier(.16,1,.3,1); }
+    .scene.active .rise { opacity:1; transform:none; }
+    .scene.active .rise.d1{transition-delay:.10s} .scene.active .rise.d2{transition-delay:.24s} .scene.active .rise.d3{transition-delay:.38s} .scene.active .rise.d4{transition-delay:.52s}
+
+    .eyebrow { font-size:30px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--text-3); }
+    .huge { font-size:126px; font-weight:900; letter-spacing:-.05em; line-height:.98; }
+    .big { font-size:90px; font-weight:800; letter-spacing:-.04em; line-height:1.02; }
+    .sub { font-size:40px; font-weight:500; color:var(--text-2); line-height:1.35; margin-top:30px; } .sub b { color:var(--text); font-weight:700; }
+    .accent { color:var(--accent); }
+
+    /* ---------- DEMO scene (click → loading → reveal) ---------- */
+    .demo { padding:0; }
+    .demo .layer { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding:110px 90px; opacity:0; transform:translateY(22px) scale(.985); transition:opacity .65s ease, transform .75s cubic-bezier(.16,1,.3,1); }
+    .demo.s-click .l-controls { opacity:1; transform:none; }
+    .demo.s-load  .l-load     { opacity:1; transform:none; }
+    .demo.s-reveal .l-reveal  { opacity:1; transform:none; }
+
+    .demo-eyebrow { font-size:28px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); }
+    .ctrl-card { margin-top:36px; background:var(--surface); border:1px solid var(--border); border-radius:30px; padding:46px 48px; }
+    .ctrl-row { display:flex; justify-content:space-between; align-items:center; padding:30px 0; border-top:1px solid var(--border); }
+    .ctrl-row:first-of-type { border-top:none; }
+    .ctrl-row .k { font-size:30px; color:var(--text-3); font-weight:600; }
+    .ctrl-row .v { font-size:34px; color:var(--text); font-weight:700; }
+    .build-btn { position:relative; margin-top:40px; width:100%; background:var(--accent); color:var(--bg); border-radius:22px; padding:42px; text-align:center; font-size:40px; font-weight:900; letter-spacing:.04em; text-transform:uppercase; overflow:hidden; transition:transform .14s ease, filter .14s ease; }
+    .build-btn.pressed { transform:scale(.955); filter:brightness(.92); }
+    .ripple { position:absolute; top:50%; left:50%; width:40px; height:40px; border-radius:50%; background:rgba(10,10,11,.35); transform:translate(-50%,-50%) scale(0); opacity:0; pointer-events:none; }
+    .ripple.go { animation:ripple .75s ease forwards; }
+    @keyframes ripple { 0%{transform:translate(-50%,-50%) scale(0);opacity:.55} 100%{transform:translate(-50%,-50%) scale(26);opacity:0} }
+
+    /* cursor — position + click are driven in JS so it lands exactly on the button */
+    .cursor { position:absolute; left:0; top:0; width:64px; height:64px; z-index:10; opacity:0; filter:drop-shadow(0 4px 10px rgba(0,0,0,.5)); }
+
+    /* loading layer */
+    .l-load { align-items:center; }
+    #sphere { width:560px; height:560px; }
+    .load-title { font-size:64px; font-weight:800; letter-spacing:-.03em; margin-top:10px; text-align:center; }
+    .load-status { margin-top:22px; font-size:28px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-2); display:flex; align-items:center; gap:14px; }
+    .load-status .dot { width:12px; height:12px; border-radius:50%; background:var(--accent); box-shadow:0 0 14px var(--accent); animation:blink 1.2s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:.35} 50%{opacity:1} }
+
+    /* reveal card */
+    .rcard { background:var(--surface); border:1px solid var(--border); border-radius:30px; padding:44px 48px; }
+    .rcard .top { display:flex; justify-content:space-between; align-items:baseline; }
+    .rcard .top .t { font-size:36px; font-weight:800; } .rcard .top .o { font-size:54px; font-weight:900; }
+    .rcard .meta { margin-top:8px; font-size:26px; color:var(--text-3); }
+    .rcard .meta b { color:var(--positive); }
+    .rleg { display:flex; align-items:center; gap:24px; padding:26px 0; border-top:1px solid var(--border); opacity:0; transform:translateY(22px); }
+    .rleg:first-of-type { border-top:none; }
+    .demo.s-reveal .rleg { animation:legUp .55s cubic-bezier(.16,1,.3,1) forwards; }
+    .demo.s-reveal .rleg:nth-of-type(1){animation-delay:.20s} .demo.s-reveal .rleg:nth-of-type(2){animation-delay:.36s} .demo.s-reveal .rleg:nth-of-type(3){animation-delay:.52s}
+    @keyframes legUp { to{opacity:1;transform:none} }
+    .crest { width:56px; height:56px; border-radius:50%; flex:none; }
+    .rleg .nm { flex:1; font-size:32px; font-weight:600; } .rleg .cf { font-size:32px; font-weight:800; color:var(--positive); } .rleg .od { font-size:32px; font-weight:800; width:130px; text-align:right; }
+
+    /* receipts + cta (reused) */
+    .strip { margin-top:48px; display:grid; grid-template-columns:repeat(3,1fr); border-top:3px solid var(--border); border-bottom:3px solid var(--border); }
+    .cell { padding:46px 28px; } .cell:not(:first-child){ border-left:3px solid var(--border); }
+    .cell .k { font-size:24px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+    .cell .v { font-size:100px; font-weight:900; letter-spacing:-.04em; margin-top:16px; line-height:1; } .cell .v.green{color:var(--positive)} .cell .v.med{font-size:62px}
+
+    /* leg-decoded scene */
+    .legbig { margin-top:46px; background:var(--surface); border:1px solid var(--border); border-radius:30px; padding:48px; }
+    .legbig .head { display:flex; align-items:center; gap:26px; }
+    .legbig .head .cr { width:72px; height:72px; border-radius:50%; flex:none; background:linear-gradient(135deg,#f58426,#1d428a); }
+    .legbig .head .nm { font-size:46px; font-weight:800; } .legbig .head .ln { font-size:30px; color:var(--text-3); margin-top:6px; }
+    .legbig .grid { margin-top:40px; display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+    .legbig .tile { background:var(--bg); border:1px solid var(--border); border-radius:20px; padding:30px 32px; }
+    .legbig .tile .k { font-size:22px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
+    .legbig .tile .v { font-size:60px; font-weight:900; letter-spacing:-.03em; margin-top:12px; line-height:1; }
+    .legbig .tile .v.green { color:var(--positive); } .legbig .tile .v.lime { color:var(--accent); }
+    .fbadge { align-self:flex-start; display:inline-flex; gap:12px; background:var(--accent); color:var(--bg); font-size:28px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; padding:18px 30px; border-radius:999px; }
+    .price-row { display:flex; align-items:baseline; gap:26px; margin-top:42px; } .price-now { font-size:168px; font-weight:900; letter-spacing:-.05em; line-height:.85; } .price-old { font-size:62px; font-weight:600; color:var(--text-3); text-decoration:line-through; }
+    .price-per { font-size:36px; color:var(--text-2); margin-top:18px; } .url { font-size:74px; font-weight:900; letter-spacing:-.03em; margin-top:54px; } .url .d{color:var(--accent)}
+
+    /* burned-in caption bar (VO subtitles) */
+    .caption { position:absolute; left:70px; right:70px; bottom:300px; text-align:center; z-index:15; }
+    .caption span { display:inline; font-size:52px; font-weight:800; letter-spacing:-.02em; line-height:1.25; color:#fff; background:rgba(0,0,0,.0); text-shadow:0 4px 18px rgba(0,0,0,.85), 0 1px 2px rgba(0,0,0,.9); }
+    .caption .hl { color:var(--accent); }
+    .cap-anim { opacity:0; transform:translateY(14px); transition:opacity .35s ease, transform .4s cubic-bezier(.16,1,.3,1); }
+    .cap-anim.in { opacity:1; transform:none; }
+    .disc { position:absolute; bottom:70px; left:90px; right:90px; text-align:center; font-size:22px; color:var(--text-3); line-height:1.5; z-index:15; }
+    .footer { color:#6b6b74; font-size:12px; margin-top:12px; text-align:center; max-width:620px; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <h1 class="bw" style="color:#f5f5f7">Pickd<span class="d">.</span> — TikTok launch</h1>
+    <span class="note">9:16 · captions burned in · VO-timed · screen-record the frame</span>
+    <button onclick="play()">↻ Replay</button>
+  </div>
+
+  <div class="stage-wrap" id="wrap">
+    <div class="stage" id="stage">
+      <div class="prog" id="prog"></div>
+
+      <!-- 1 HOOK -->
+      <div class="scene" data-key="hook">
+        <div class="glow" style="width:600px;height:600px;top:-160px;right:-160px;"></div>
+        <div class="eyebrow rise d1">AFL · NBA</div>
+        <div class="big rise d2" style="margin-top:20px">Your bookie has a<br/>data science team.</div>
+        <div class="huge rise d3" style="font-size:108px;margin-top:30px">Now you've got<br/>one too<span class="accent">.</span></div>
+      </div>
+
+      <!-- 2 LOGO -->
+      <div class="scene" data-key="logo">
+        <div class="glow" style="width:680px;height:680px;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+        <div style="text-align:center;align-self:center">
+          <div class="bw rise d1" style="font-size:210px;line-height:.9">Pickd<span class="d">.</span></div>
+          <div class="eyebrow rise d2" style="margin-top:30px">The AI Multi Builder · AFL + NBA</div>
+        </div>
+      </div>
+
+      <!-- 3 DEMO (click → load → reveal) -->
+      <div class="scene demo" data-key="demo">
+        <div class="glow" style="width:520px;height:520px;bottom:-160px;left:-140px;"></div>
+
+        <!-- click layer -->
+        <div class="layer l-controls">
+          <div class="demo-eyebrow">MultiPick</div>
+          <div class="ctrl-card">
+            <div class="ctrl-row"><span class="k">Sport</span><span class="v">NBA</span></div>
+            <div class="ctrl-row"><span class="k">Target odds</span><span class="v mono">$2.00</span></div>
+            <div class="ctrl-row"><span class="k">Risk</span><span class="v">Best Chance</span></div>
+            <div class="build-btn">Build multi<span class="ripple"></span></div>
+          </div>
+          <svg class="cursor" viewBox="0 0 32 32" fill="none"><path d="M5 3 L5 25 L11 19 L15 28 L19 26 L15 17 L23 17 Z" fill="#fff" stroke="#0a0a0b" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        </div>
+
+        <!-- loading layer -->
+        <div class="layer l-load">
+          <canvas id="sphere"></canvas>
+          <div class="load-title bw">Building your multi<span class="d">.</span></div>
+          <div class="load-status"><span class="dot"></span><span id="loadPhase">Reading recent form</span></div>
+        </div>
+
+        <!-- reveal layer -->
+        <div class="layer l-reveal">
+          <div class="demo-eyebrow" style="color:var(--text-3)">Your multi · built</div>
+          <div class="rcard" style="margin-top:30px">
+            <div class="top"><span class="t">3-leg AFL multi</span><span class="o mono">$1.90</span></div>
+            <div class="meta">74% combined chance · <b>+6% value</b></div>
+            <div class="rleg"><svg class="crest" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#000"/><rect x="11" width="3" height="32" fill="#fff"/><rect x="18" width="3" height="32" fill="#fff"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg><span class="nm">N. Daicos 25+ disposals</span><span class="cf mono">97%</span><span class="od mono">$1.20</span></div>
+            <div class="rleg"><svg class="crest" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#2a0d54"/><polyline points="5,9 16,17 27,9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/><polyline points="5,15 16,23 27,15" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg><span class="nm">C. Serong 25+ disposals</span><span class="cf mono">96%</span><span class="od mono">$1.24</span></div>
+            <div class="rleg"><svg class="crest" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#e1251b"/><rect y="11" width="32" height="10" fill="#fff"/><rect y="21" width="32" height="11" fill="#0a4595"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg><span class="nm">M. Bontempelli 20+ disp</span><span class="cf mono">95%</span><span class="od mono">$1.28</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3.5 EVERY LEG DECODED -->
+      <div class="scene" data-key="leg">
+        <div class="glow" style="width:520px;height:520px;top:-150px;right:-150px;"></div>
+        <div class="eyebrow rise d1">Every leg, decoded</div>
+        <div class="big rise d2">Not tips —<br/>real data<span class="accent">.</span></div>
+        <div class="legbig rise d3">
+          <div class="head"><svg class="cr" viewBox="0 0 32 32" style="clip-path:circle(50%)"><rect width="32" height="32" fill="#000"/><rect x="11" width="3" height="32" fill="#fff"/><rect x="18" width="3" height="32" fill="#fff"/><circle cx="16" cy="16" r="15.2" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/></svg><div><div class="nm">Nick Daicos</div><div class="ln">25+ disposals · vs Essendon</div></div></div>
+          <div class="grid">
+            <div class="tile"><div class="k">Confidence</div><div class="v green mono">97%</div></div>
+            <div class="tile"><div class="k">Cleared</div><div class="v mono">10/10</div></div>
+            <div class="tile"><div class="k">Value vs market</div><div class="v lime mono">+12%</div></div>
+            <div class="tile"><div class="k">Recent avg</div><div class="v mono">31.4</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 RECEIPTS -->
+      <div class="scene" data-key="receipts">
+        <div class="glow" style="width:520px;height:520px;bottom:-160px;left:-140px;"></div>
+        <div class="eyebrow rise d1">MultiPick · Receipts</div>
+        <div class="big rise d2">It even shows<br/>its misses<span class="accent">.</span></div>
+        <div class="strip rise d3">
+          <div class="cell"><div class="k">Actual</div><div class="v green mono">83%</div></div>
+          <div class="cell"><div class="k">We said</div><div class="v med mono">87%</div></div>
+          <div class="cell"><div class="k">Gap</div><div class="v med mono" style="color:var(--text-2)">±4%</div></div>
+        </div>
+      </div>
+
+      <!-- 5 CTA -->
+      <div class="scene" data-key="cta">
+        <div class="glow" style="width:760px;height:760px;bottom:-220px;left:-160px;background:rgba(205,251,80,0.22);"></div>
+        <div class="big rise d1" style="font-size:88px"><span class="accent">3 free</span> builds,<br/>every week.</div>
+        <div class="sub rise d1" style="margin-top:16px;font-size:40px">No card needed — start in seconds.</div>
+        <div class="fbadge rise d2" style="margin-top:44px">🔒 First 20 lock in forever</div>
+        <div class="price-row rise d3" style="margin-top:28px"><span class="price-now bw" style="font-size:128px">$4.99</span><span class="price-old mono">$6.99</span></div>
+        <div class="price-per rise d3">/ week — then $6.99</div>
+        <div class="url bw rise d4" style="margin-top:44px">pickd<span class="d">.</span>tech</div>
+      </div>
+
+      <!-- caption + disclaimer overlays -->
+      <div class="caption"><span id="capText" class="cap-anim"></span></div>
+      <div class="disc" id="disc" style="opacity:0">Informational analysis only — not betting advice or a tipping service. 18+ · Gamble responsibly · Gambling Help 1800 858 858</div>
+    </div>
+  </div>
+  <div class="footer">Screen-record the frame (QuickTime → New Screen Recording → drag a box). Generate the VO from the script (ElevenLabs/CapCut), lay it under the video, nudge to the captions, add a quiet trending beat.</div>
+
+  <script>
+    const wrap=document.getElementById('wrap'), stage=document.getElementById('stage');
+    function fit(){ stage.style.transform=`scale(${wrap.clientHeight/1920})`; }
+    new ResizeObserver(fit).observe(wrap); fit();
+
+    // mini point-cloud sphere (loading layer)
+    const cv=document.getElementById('sphere'), ctx=cv.getContext('2d');
+    const DPR=Math.min(window.devicePixelRatio||1,2); cv.width=560*DPR; cv.height=560*DPR; ctx.scale(DPR,DPR);
+    const N=120, phi=Math.PI*(3-Math.sqrt(5)), P=[];
+    for(let i=0;i<N;i++){const y=1-(i/(N-1))*2,r=Math.sqrt(1-y*y),t=phi*i;P.push({x:Math.cos(t)*r,y,z:Math.sin(t)*r});}
+    function frame(t){ ctx.clearRect(0,0,560,560); const cx=280,cy=280,R=190,ay=t*0.0005,ax=Math.sin(t*0.0006)*0.3;
+      const pr=P.map(p=>{const cyy=Math.cos(ay),syy=Math.sin(ay);let x=p.x*cyy-p.z*syy,z=p.x*syy+p.z*cyy,y=p.y;const cxx=Math.cos(ax),sxx=Math.sin(ax);let y2=y*cxx-z*sxx,z2=y*sxx+z*cxx;const s=3.2/(3.2-z2);return{sx:cx+x*R*s,sy:cy+y2*R*s,depth:(z2+1)/2,s};}).sort((a,b)=>a.depth-b.depth);
+      // soft glow
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.6); g.addColorStop(0,'rgba(205,251,80,0.10)'); g.addColorStop(1,'rgba(205,251,80,0)'); ctx.fillStyle=g; ctx.fillRect(0,0,560,560);
+      // core
+      const pulse=0.5+0.5*Math.sin(t*0.003); ctx.shadowBlur=20+pulse*12; ctx.shadowColor='rgba(205,251,80,0.9)'; ctx.fillStyle='rgba(205,251,80,.9)'; ctx.beginPath(); ctx.arc(cx,cy,7+pulse*2,0,7); ctx.fill(); ctx.shadowBlur=0;
+      for(const p of pr){const lime=p.depth>0.8;ctx.fillStyle=lime?`rgba(205,251,80,${0.4+p.depth*0.6})`:`rgba(150,150,162,${0.16+p.depth*0.6})`;ctx.beginPath();ctx.arc(p.sx,p.sy,(0.9+2.4*p.depth)*p.s,0,7);ctx.fill();}
+    }
+    let t0=performance.now(); (function loop(now){frame(now-t0);requestAnimationFrame(loop);})(performance.now());
+    // cycle the loading phase text
+    const LP=["Reading recent form","De-vigging the odds","Matchup factors","Optimising edge"]; let lpi=0;
+    setInterval(()=>{lpi=(lpi+1)%LP.length; const el=document.getElementById('loadPhase'); if(el) el.textContent=LP[lpi];},900);
+
+    // ---- timeline ----
+    const scenes=[...document.querySelectorAll('.scene')];
+    const byKey=k=>scenes.find(s=>s.dataset.key===k);
+    const prog=document.getElementById('prog'), capText=document.getElementById('capText'), disc=document.getElementById('disc');
+    // step: which scene, optional demo sub-mode, caption (html), duration
+    const STEPS=[
+      { key:'hook',     cap:'',                                                                          dur:4000 },
+      { key:'logo',     cap:'Meet <span class="hl">Pickd.</span> — the AI multi builder.',                dur:2400 },
+      { key:'demo', m:'s-click',  cap:'Pick your game, target odds and <span class="hl">risk</span>.',    dur:2900 },
+      { key:'demo', m:'s-load',   cap:'It reads <span class="hl">real form</span>, de-vigs the odds, weighs the matchup…', dur:2800 },
+      { key:'demo', m:'s-reveal', cap:'…then builds your <span class="hl">multi</span> in seconds.',       dur:3200 },
+      { key:'leg',      cap:'Every leg: confidence, form & <span class="hl">value vs the market</span>.', dur:3800 },
+      { key:'receipts', cap:'And it shows its <span class="hl">real</span> hit rate — even the misses.',  dur:3400 },
+      { key:'cta',      cap:'<span class="hl">3 free builds</span> a week — first 20 lock in $4.99 forever.', dur:4900, disc:true },
+    ];
+    const TOTAL=STEPS.reduce((a,s)=>a+s.dur,0);
+    let timers=[];
+    function showCap(html){ capText.classList.remove('in'); if(!html){ capText.innerHTML=''; return; } capText.innerHTML=html; requestAnimationFrame(()=>requestAnimationFrame(()=>capText.classList.add('in'))); }
+
+    // Drive the cursor to the actual Build button and click it (pixel-accurate,
+    // measured each run so it lands on the button regardless of scale/layout).
+    function runClickDemo(){
+      const demo=byKey('demo'), cursor=demo.querySelector('.cursor'), btn=demo.querySelector('.build-btn'), ripple=demo.querySelector('.ripple');
+      if(!cursor||!btn||!ripple) return;
+      btn.classList.remove('pressed'); ripple.classList.remove('go');
+      requestAnimationFrame(()=>{
+        const sr=stage.getBoundingClientRect(), scale=sr.width/1080, br=btn.getBoundingClientRect();
+        const tx=(br.left + br.width*0.5 - sr.left)/scale;   // button centre in stage coords
+        const ty=(br.top  + br.height*0.52 - sr.top)/scale;
+        cursor.style.left=(tx-6)+'px'; cursor.style.top=(ty-2)+'px';   // tip lands on the button
+        cursor.style.transition='none'; cursor.style.opacity='0'; cursor.style.transform='translate(300px,380px) scale(1)';
+        requestAnimationFrame(()=>{
+          cursor.style.transition='transform 1.15s cubic-bezier(.5,0,.2,1), opacity .35s ease';
+          cursor.style.opacity='1'; cursor.style.transform='translate(0,0) scale(1)';
+        });
+        // arrive ≈1.15s → press; then release. Ripple + button press fire on contact.
+        timers.push(setTimeout(()=>{ cursor.style.transition='transform .12s ease'; cursor.style.transform='translate(0,0) scale(.8)'; btn.classList.add('pressed'); ripple.classList.add('go'); }, 1220));
+        timers.push(setTimeout(()=>{ cursor.style.transform='translate(0,0) scale(1)'; }, 1360));
+        timers.push(setTimeout(()=>{ btn.classList.remove('pressed'); }, 1420));
+      });
+    }
+    function play(){
+      timers.forEach(clearTimeout); timers=[];
+      scenes.forEach(s=>{ s.classList.remove('active'); s.classList.remove('s-click','s-load','s-reveal'); });
+      disc.style.opacity='0';
+      prog.style.transition='none'; prog.style.width='0'; requestAnimationFrame(()=>{ prog.style.transition=`width ${TOTAL}ms linear`; prog.style.width='100%'; });
+      let acc=0;
+      STEPS.forEach((st)=>{
+        timers.push(setTimeout(()=>{
+          scenes.forEach(s=>s.classList.remove('active'));
+          const sc=byKey(st.key); sc.classList.add('active');
+          if(st.key==='demo'){ sc.classList.remove('s-click','s-load','s-reveal'); if(st.m) sc.classList.add(st.m); if(st.m==='s-click') runClickDemo(); }
+          disc.style.opacity = st.disc ? '1' : '0';
+          showCap(st.cap);
+        }, acc));
+        acc+=st.dur;
+      });
+      timers.push(setTimeout(play, TOTAL+500));
+    }
+    play();
+  </script>
+</body>
+</html>

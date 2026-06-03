@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pickd — new-user tour (feature visuals)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:#0a0a0b; --surface:#131316; --surface-2:#1a1a1f; --border:#1f1f23; --border-strong:#2a2a30;
+      --text:#f5f5f7; --text-2:#a8a8b0; --text-3:#6b6b74; --accent:#cdfb50; --positive:#4ade80; --warning:#f5b545; --danger:#ff5f4d;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:"Inter Tight",system-ui,sans-serif; min-height:100vh; }
+    .mono { font-family:"JetBrains Mono",monospace; }
+    .brand-wordmark { font-weight:800; letter-spacing:-.05em; } .brand-wordmark .dot { color:var(--accent); }
+
+    .behind { position:fixed; inset:0; padding:40px; filter:blur(3px); opacity:.35; pointer-events:none; }
+    .behind h1 { font-size:48px; font-weight:800; letter-spacing:-.04em; }
+    .behind .strip { display:grid; grid-template-columns:repeat(4,1fr); gap:30px; margin-top:40px; max-width:900px; }
+    .behind .cell .k { font-size:11px; color:var(--text-3); } .behind .cell .v { font-size:40px; font-weight:600; margin-top:10px; }
+
+    .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.62); backdrop-filter:blur(7px); display:flex; align-items:center; justify-content:center; padding:24px; z-index:10; }
+    .modal { width:100%; max-width:540px; background:var(--surface); border:1px solid var(--border-strong); border-radius:24px; overflow:hidden; box-shadow:0 40px 120px rgba(0,0,0,.6); }
+
+    /* visual stage holds a mini-mockup of the real feature */
+    .visual { height:236px; position:relative; overflow:hidden; background:radial-gradient(circle at 50% 35%, #14160c 0%, #0d0d10 75%); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:center; padding:22px; }
+    .mock { width:100%; max-width:400px; }
+
+    /* generic mini-card bits */
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
+    .eyebrow { font-size:8px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-3); font-weight:700; }
+
+    /* welcome hero */
+    .hero { text-align:center; }
+    .hero .wm { font-size:54px; }
+    .hero .tag { margin-top:10px; font-size:11px; text-transform:uppercase; letter-spacing:.14em; color:var(--text-3); }
+
+    /* multipick mock */
+    .mp-top { display:flex; justify-content:space-between; align-items:baseline; }
+    .mp-top .ttl { font-size:13px; font-weight:600; }
+    .mp-top .od { font-size:18px; font-weight:700; } .mp-top .od .mono{ }
+    .mp-leg { display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--border); }
+    .mp-leg:first-of-type { border-top:none; }
+    .mp-crest { width:22px; height:22px; border-radius:50%; flex:none; }
+    .mp-leg .nm { flex:1; font-size:12px; font-weight:500; }
+    .mp-leg .cf { font-size:12px; font-weight:600; color:var(--positive); }
+    .mp-leg .od2 { font-size:12px; font-weight:600; width:40px; text-align:right; }
+
+    /* tracker mock */
+    .tr-strip { display:grid; grid-template-columns:repeat(3,1fr); gap:0; }
+    .tr-cell { padding:0 14px; } .tr-cell:not(:first-child){ border-left:1px solid var(--border); }
+    .tr-cell .k { font-size:8px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-3); font-weight:700; }
+    .tr-cell .v { font-size:24px; font-weight:600; margin-top:6px; letter-spacing:-.02em; }
+    .tr-bars { display:flex; align-items:flex-end; gap:6px; height:42px; margin-top:14px; padding:0 2px; }
+    .tr-bars i { flex:1; border-radius:3px 3px 0 0; }
+
+    /* receipts mock */
+    .rc-strip { display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:14px 0; }
+    .rc-cell { padding:0 14px; } .rc-cell:not(:first-child){ border-left:1px solid var(--border); }
+    .rc-cell .k { font-size:8px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-3); font-weight:700; }
+    .rc-cell .big { font-size:30px; font-weight:600; color:var(--positive); margin-top:8px; line-height:1; }
+    .rc-cell .med { font-size:18px; font-weight:600; margin-top:8px; line-height:1; }
+    .rc-cell .med.muted { color:var(--text-2); }
+    .rc-pill { display:inline-flex; align-items:center; gap:6px; margin-top:12px; background:rgba(74,222,128,.12); color:var(--positive); font-size:10px; font-weight:600; padding:5px 11px; border-radius:999px; }
+    .rc-pill .d { width:5px; height:5px; border-radius:50%; background:var(--positive); }
+
+    /* ready check */
+    .ready { text-align:center; }
+    .ready .ring { width:88px; height:88px; margin:0 auto; }
+
+    .body { padding:28px 32px 22px; }
+    .step-label { font-size:10px; text-transform:uppercase; letter-spacing:.14em; color:var(--accent); font-weight:700; }
+    .body h2 { font-size:26px; font-weight:700; letter-spacing:-.03em; margin-top:10px; line-height:1.05; }
+    .body p { color:var(--text-2); font-size:14px; line-height:1.55; margin-top:11px; }
+    .namefield { margin-top:16px; }
+    .namefield label { font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-3); font-weight:600; }
+    .namefield input { width:100%; margin-top:8px; background:var(--bg); border:1px solid var(--border-strong); border-radius:12px; padding:13px 16px; font-size:16px; font-family:inherit; color:var(--text); outline:none; }
+    .namefield input:focus { border-color:var(--accent); }
+
+    .foot { display:flex; align-items:center; gap:14px; padding:0 32px 26px; }
+    .dots { display:flex; gap:7px; }
+    .dot { width:7px; height:7px; border-radius:50%; background:var(--border-strong); transition:.2s; }
+    .dot.on { background:var(--accent); width:22px; border-radius:4px; }
+    .foot .spacer { flex:1; }
+    .btn-ghost { background:transparent; border:none; color:var(--text-3); font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; padding:10px 6px; }
+    .btn-ghost:hover { color:var(--text-2); }
+    .btn-back { background:transparent; border:1px solid var(--border-strong); color:var(--text-2); font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; padding:11px 18px; border-radius:999px; }
+    .btn-next { background:var(--accent); color:#0a0a0b; border:none; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; padding:12px 22px; border-radius:999px; }
+    .btn-next:hover { opacity:.9; }
+    .hint { max-width:540px; margin:18px auto 0; text-align:center; font-size:12px; color:var(--text-3); }
+  </style>
+</head>
+<body>
+  <div class="behind">
+    <div class="brand-wordmark" style="font-size:24px">Pickd<span class="dot">.</span></div>
+    <h1 class="brand-wordmark" style="margin-top:40px">Track every bet.<br>Read every result.</h1>
+    <div class="strip">
+      <div class="cell"><div class="k">PROFIT / LOSS</div><div class="v" style="color:var(--positive)">$536.76</div></div>
+      <div class="cell"><div class="k">WIN RATE</div><div class="v">53.7%</div></div>
+      <div class="cell"><div class="k">ROI</div><div class="v" style="color:var(--positive)">+38.6%</div></div>
+      <div class="cell"><div class="k">IN FLIGHT</div><div class="v">$0.00</div></div>
+    </div>
+  </div>
+
+  <div class="backdrop">
+    <div>
+      <div class="modal">
+        <div class="visual"><div class="mock" id="mock"></div></div>
+        <div class="body">
+          <div class="step-label" id="stepLabel"></div>
+          <h2 id="title"></h2>
+          <p id="copy"></p>
+          <div class="namefield" id="nameField" style="display:none">
+            <label>What should we call you?</label>
+            <input id="nameInput" type="text" placeholder="First name" autocomplete="given-name" />
+          </div>
+        </div>
+        <div class="foot">
+          <div class="dots" id="dots"></div>
+          <div class="spacer"></div>
+          <button class="btn-ghost" id="skip">Skip</button>
+          <button class="btn-back" id="back" style="display:none">Back</button>
+          <button class="btn-next" id="next">Get started</button>
+        </div>
+      </div>
+      <div class="hint">↑ Each step shows a mini of the real feature · click Next to walk it</div>
+    </div>
+  </div>
+
+  <script>
+    // mini feature mockups (real-looking, brand-styled)
+    const MOCK_WELCOME = `<div class="hero"><div class="wm brand-wordmark">Pickd<span class="dot">.</span></div><div class="tag">AI multi builder · bet tracker</div></div>`;
+    const MOCK_MULTIPICK = `<div class="card mock">
+      <div class="mp-top"><span class="ttl">3-leg NBA multi</span><span class="od mono">$1.90</span></div>
+      <div style="margin-top:10px">
+        <div class="mp-leg"><span class="mp-crest" style="background:linear-gradient(135deg,#f58426,#1d428a)"></span><span class="nm">J. Brunson 15+ pts</span><span class="cf">98%</span><span class="od2 mono">$1.04</span></div>
+        <div class="mp-leg"><span class="mp-crest" style="background:linear-gradient(135deg,#f58426,#1d428a)"></span><span class="nm">Josh Hart 5+ pts</span><span class="cf">97%</span><span class="od2 mono">$1.05</span></div>
+        <div class="mp-leg"><span class="mp-crest" style="background:linear-gradient(135deg,#c8102e,#000)"></span><span class="nm">M. Bridges 3+ reb</span><span class="cf">96%</span><span class="od2 mono">$1.38</span></div>
+      </div>
+    </div>`;
+    const MOCK_TRACKER = `<div class="card mock">
+      <div class="eyebrow">Dashboard</div>
+      <div class="tr-strip" style="margin-top:10px">
+        <div class="tr-cell"><div class="k">P / L</div><div class="v mono" style="color:var(--positive)">$536</div></div>
+        <div class="tr-cell"><div class="k">Win rate</div><div class="v mono">53.7%</div></div>
+        <div class="tr-cell"><div class="k">ROI</div><div class="v mono" style="color:var(--positive)">+38.6%</div></div>
+      </div>
+      <div class="tr-bars">
+        ${[14,20,10,26,18,30,22,34].map((h,k)=>`<i style="height:${h*1.2}px;background:${k%4===2?'var(--danger)':'var(--positive)'};opacity:${0.5+k*0.06}"></i>`).join('')}
+      </div>
+    </div>`;
+    const MOCK_RECEIPTS = `<div class="card mock">
+      <div class="eyebrow">Model track record</div>
+      <div class="rc-strip" style="margin-top:8px">
+        <div class="rc-cell"><div class="k">Actual</div><div class="big mono">83%</div></div>
+        <div class="rc-cell"><div class="k">Predicted</div><div class="med mono">87%</div></div>
+        <div class="rc-cell"><div class="k">Gap</div><div class="med muted mono">±4%</div></div>
+      </div>
+      <div class="rc-pill"><span class="d"></span> Well calibrated</div>
+    </div>`;
+    const MOCK_READY = `<div class="ready"><svg class="ring" viewBox="0 0 96 96" fill="none"><circle cx="48" cy="48" r="40" stroke="#1f1f23" stroke-width="5"/><circle cx="48" cy="48" r="40" stroke="#cdfb50" stroke-width="5" stroke-dasharray="251" stroke-dashoffset="0" transform="rotate(-90 48 48)" stroke-linecap="round"/><path d="M32 49 L43 60 L65 36" stroke="#cdfb50" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`;
+
+    const STEPS = [
+      { label:"Welcome", title:"Welcome to Pickd.", copy:"Your AI multi builder + bet tracker for AFL and NBA. Take 20 seconds — here's what you can do.", mock:MOCK_WELCOME, name:true, cta:"Get started" },
+      { label:"MultiPick", title:"Build form-backed multis.", copy:"Pick a sport, target odds and risk — MultiPick reads real player form and live market lines to assemble the strongest legs. Tap any leg for the full form breakdown.", mock:MOCK_MULTIPICK },
+      { label:"Tracker", title:"Track every bet.", copy:"Log bets manually or snap a betslip screenshot — we read the stake, odds and legs for you. Profit/loss, win rate and ROI update automatically.", mock:MOCK_TRACKER },
+      { label:"Receipts", title:"We show our misses.", copy:"Every prediction is logged and checked against the real result. The Model Track Record shows our actual hit rate vs what we predicted — no cherry-picking.", mock:MOCK_RECEIPTS },
+      { label:"Ready", title:"You're all set.", copy:"Your free plan includes 3 builds a week. Build your first multi whenever you're ready — and gamble responsibly.", mock:MOCK_READY, cta:"Build my first multi" },
+    ];
+    let i=0, name="";
+    const mock=document.getElementById('mock'), stepLabel=document.getElementById('stepLabel'), title=document.getElementById('title'), copy=document.getElementById('copy');
+    const nameField=document.getElementById('nameField'), nameInput=document.getElementById('nameInput'), dots=document.getElementById('dots');
+    const back=document.getElementById('back'), next=document.getElementById('next'), skip=document.getElementById('skip');
+    nameInput.addEventListener('input', e=>{ name=e.target.value.trim(); });
+    function render(){
+      const s=STEPS[i];
+      mock.innerHTML=s.mock;
+      stepLabel.textContent=`${s.label} · ${i+1} of ${STEPS.length}`;
+      let t=s.title, c=s.copy;
+      if(i===STEPS.length-1 && name) t=`You're all set, ${name}.`;
+      if(i===1 && name) c=`${name}, `+c.charAt(0).toLowerCase()+c.slice(1);
+      title.textContent=t; copy.textContent=c;
+      nameField.style.display=s.name?'block':'none';
+      back.style.display=i>0?'inline-block':'none';
+      skip.style.display=i<STEPS.length-1?'inline-block':'none';
+      next.textContent=s.cta||'Next';
+      dots.innerHTML=STEPS.map((_,k)=>`<span class="dot ${k===i?'on':''}"></span>`).join('');
+    }
+    next.addEventListener('click',()=>{ if(i<STEPS.length-1){i++;render();} else { alert((name?name+', ':'')+'tour complete → close + flag seen → MultiPick'); } });
+    back.addEventListener('click',()=>{ if(i>0){i--;render();} });
+    skip.addEventListener('click',()=>{ alert('Skipped → flag seen, close tour'); });
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MultiPick loading — in-page preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0b;
+      --surface: #131316;
+      --surface-2: #0f0f12;
+      --border: #1f1f23;
+      --border-strong: #2a2a30;
+      --text: #f5f5f7;
+      --text-2: #a8a8b0;
+      --text-3: #6b6b74;
+      --accent: #cdfb50;
+      --accent-soft: rgba(205, 251, 80, 0.12);
+      --positive: #4ade80;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Inter Tight", system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .mono { font-family: "JetBrains Mono", monospace; }
+    .brand-wordmark { font-weight: 700; letter-spacing: -0.05em; }
+    .brand-wordmark .dot { color: var(--accent); }
+
+    /* Concept toggle bar */
+    .toggle-bar {
+      max-width: 1400px;
+      margin: 0 auto 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .toggle-bar .title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+    .toggle-bar .spacer { flex: 1; }
+    .toggle-bar button {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text-2);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .toggle-bar button:hover { border-color: var(--text-3); color: var(--text); }
+    .toggle-bar button.active {
+      background: var(--accent);
+      color: #0a0a0b;
+      border-color: var(--accent);
+    }
+    .toggle-bar .replay {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-3);
+      font-size: 12px;
+    }
+
+    /* Page chrome */
+    .page {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 40px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+    }
+
+    /* Sidebar */
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+    .field label {
+      display: block;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-3);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .field .select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-size: 14px;
+      color: var(--text);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .field .select .chev { color: var(--text-3); }
+    .build-btn {
+      width: 100%;
+      background: var(--accent);
+      color: #0a0a0b;
+      border: none;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-family: inherit;
+      cursor: pointer;
+      opacity: 0.5;
+      position: relative;
+      overflow: hidden;
+    }
+    /* shimmer on the build button while loading */
+    .build-btn::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.25) 50%, transparent 70%);
+      transform: translateX(-100%);
+      animation: btnShimmer 1.6s ease-in-out infinite;
+    }
+    @keyframes btnShimmer { 100% { transform: translateX(100%); } }
+    .perf-box {
+      margin-top: 4px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+    }
+    .perf-box .h { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); font-weight: 600; }
+    .perf-box .sub { font-size: 12px; color: var(--text-2); margin: 6px 0 14px; line-height: 1.4; }
+    .perf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .perf-grid .k { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
+    .perf-grid .v { font-size: 20px; font-weight: 600; margin-top: 4px; }
+    .perf-grid .v.pos { color: var(--positive); }
+
+    /* Output area */
+    .output { min-height: 600px; }
+    .output-eyebrow {
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .output-eyebrow .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); font-weight: 600; }
+    .output-title {
+      font-size: 40px; font-weight: 700; letter-spacing: -0.04em; margin-top: 10px;
+    }
+    .output-divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+    /* The loading stage where concepts render */
+    .stage {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface-2);
+      min-height: 440px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .concept { display: none; width: 100%; height: 100%; position: absolute; inset: 0; align-items: center; justify-content: center; }
+    .concept.show { display: flex; }
+
+    /* ───── shared status line ───── */
+    .status {
+      position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+      font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--text-3); font-weight: 500; display: flex; align-items: center; gap: 10px;
+      white-space: nowrap;
+    }
+    .status .live { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1.4s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+    .status .step { animation: stepFade 6s linear infinite; }
+    @keyframes stepFade { 0%,100%{opacity:1} }
+
+    /* ════════ A: NEURAL PULSE ════════ */
+    .neural { width: 100%; height: 100%; position: absolute; inset: 0; }
+    .neural circle.node { fill: var(--text-3); }
+    .neural circle.node.p { animation: nPulse 2.4s ease-in-out infinite; transform-origin: center; }
+    .neural circle.node.p2 { animation-delay: .4s } .neural circle.node.p3 { animation-delay: .8s }
+    .neural circle.node.p4 { animation-delay: 1.2s } .neural circle.node.p5 { animation-delay: 1.6s }
+    .neural circle.node.p6 { animation-delay: 2s }
+    @keyframes nPulse { 0%,100%{fill:var(--text-3);r:3} 50%{fill:var(--accent);r:5.5;filter:drop-shadow(0 0 8px var(--accent))} }
+    .neural line.conn { stroke: var(--border-strong); stroke-width:.6; stroke-dasharray:90; stroke-dashoffset:90; animation: nDraw 3s ease-in-out infinite; }
+    .neural line.c2{animation-delay:.5s} .neural line.c3{animation-delay:1s} .neural line.c4{animation-delay:1.5s} .neural line.c5{animation-delay:2s} .neural line.c6{animation-delay:2.5s}
+    @keyframes nDraw { 0%{stroke-dashoffset:90;opacity:0} 40%,60%{stroke-dashoffset:0;opacity:.7;stroke:var(--accent)} 100%{stroke-dashoffset:-90;opacity:0} }
+
+    /* ════════ B: ODDS RIVER ════════ */
+    .river { display:flex; gap:34px; width:100%; height:100%; padding:30px 48px; position:relative; justify-content:center; }
+    .river::before,.river::after { content:""; position:absolute; left:0; right:0; height:80px; pointer-events:none; z-index:2; }
+    .river::before { top:0; background:linear-gradient(to bottom,var(--surface-2),transparent) }
+    .river::after { bottom:0; background:linear-gradient(to top,var(--surface-2),transparent) }
+    .stream { flex:1; overflow:hidden; position:relative; max-width:110px; }
+    .stream-inner { display:flex; flex-direction:column; gap:18px; font-family:"JetBrains Mono",monospace; font-size:14px; text-align:center; color:var(--text-3); animation: sScroll 8s linear infinite; }
+    .stream:nth-child(1) .stream-inner{animation-duration:7s} .stream:nth-child(2) .stream-inner{animation-duration:9s;animation-delay:-2s}
+    .stream:nth-child(3) .stream-inner{animation-duration:8s;animation-delay:-4s} .stream:nth-child(4) .stream-inner{animation-duration:10s;animation-delay:-1s}
+    .stream-inner .hl{color:var(--accent);font-weight:600}
+    @keyframes sScroll { 0%{transform:translateY(0)} 100%{transform:translateY(-50%)} }
+
+    /* ════════ C: PROBABILITY ROLL ════════ */
+    .roll { display:flex; flex-direction:column; gap:18px; width:100%; max-width:460px; padding:0 24px; }
+    .roll-row { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:14px 0; border-bottom:1px solid var(--border); opacity:0; animation: rRow .5s ease forwards; }
+    .roll-row:nth-child(1){animation-delay:.1s} .roll-row:nth-child(2){animation-delay:.5s} .roll-row:nth-child(3){animation-delay:.9s} .roll-row:nth-child(4){animation-delay:1.3s}
+    @keyframes rRow { 0%{opacity:0;transform:translateY(8px)} 100%{opacity:1;transform:translateY(0)} }
+    .roll-label { font-size:13px; color:var(--text-2); font-weight:500; min-width:80px; }
+    .roll-track { flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden; position:relative; }
+    .roll-fill { position:absolute; inset:0; width:0; background:var(--accent); box-shadow:0 0 10px var(--accent-soft); border-radius:3px; }
+    .roll-row:nth-child(1) .roll-fill{animation:rFill 1.4s ease-out .1s forwards} .roll-row:nth-child(2) .roll-fill{animation:rFill 1.4s ease-out .5s forwards}
+    .roll-row:nth-child(3) .roll-fill{animation:rFill 1.4s ease-out .9s forwards} .roll-row:nth-child(4) .roll-fill{animation:rFill2 1.4s ease-out 1.3s forwards}
+    @keyframes rFill { 0%{width:0} 100%{width:90%} } @keyframes rFill2 { 0%{width:0} 100%{width:68%} }
+    .roll-pct { font-family:"JetBrains Mono",monospace; font-size:14px; font-weight:600; color:var(--accent); min-width:46px; text-align:right; }
+    .roll-foot { margin-top:10px; text-align:center; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); }
+    .roll-foot .a { color:var(--accent); }
+
+    .note {
+      max-width: 1400px; margin: 24px auto 0; padding: 16px 20px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      font-size: 13px; color: var(--text-2); line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="toggle-bar">
+    <span class="title brand-wordmark">In-page preview<span class="dot">.</span></span>
+    <span class="spacer"></span>
+    <button class="concept-btn active" data-concept="A">A · Neural pulse</button>
+    <button class="concept-btn" data-concept="B">B · Odds river</button>
+    <button class="concept-btn" data-concept="C">C · Probability roll</button>
+    <button class="replay" onclick="replay()">↻ Replay</button>
+  </div>
+
+  <div class="page">
+    <!-- Sidebar (replica of the real EdgePage controls) -->
+    <div class="sidebar">
+      <div class="field"><label>Sport</label><div class="select">NBA <span class="chev">⌄</span></div></div>
+      <div class="field"><label>Games</label><div class="select" style="font-size:13px">San Antonio Spurs vs NY Knicks <span class="chev">⌄</span></div></div>
+      <div class="field"><label>Number of legs</label><div class="select">Any <span class="chev">⌄</span></div></div>
+      <div class="field"><label>Target odds</label><div class="select">$2.00 <span class="chev">⌄</span></div></div>
+      <div class="field"><label>Risk profile</label><div class="select">Best Chance <span class="chev">⌄</span></div></div>
+      <div class="field"><label>Bookmaker</label><div class="select">Best available <span class="chev">⌄</span></div></div>
+      <button class="build-btn">Building…</button>
+      <div class="perf-box">
+        <div class="h">MultiPick performance</div>
+        <div class="sub">How your saved AI multis have actually gone.</div>
+        <div class="perf-grid">
+          <div><div class="k">Multis picked</div><div class="v mono">5</div></div>
+          <div><div class="k">Won / Lost</div><div class="v mono"><span style="color:var(--positive)">4</span> / 0</div></div>
+          <div><div class="k">Profit / Loss</div><div class="v pos mono">$35.47</div></div>
+          <div><div class="k">ROI</div><div class="v pos mono">+81.2%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output area -->
+    <div class="output">
+      <div class="output-eyebrow">
+        <span class="l">MultiPick output</span>
+        <span class="l">Building…</span>
+      </div>
+      <div class="output-title brand-wordmark">Building your multi<span class="dot">.</span></div>
+      <div class="output-divider"></div>
+
+      <div class="stage">
+        <!-- A: NEURAL -->
+        <div class="concept show" data-concept="A">
+          <svg class="neural" viewBox="0 0 600 380" preserveAspectRatio="xMidYMid meet">
+            <defs><pattern id="dg" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#1a1a1f"/></pattern></defs>
+            <rect width="100%" height="100%" fill="url(#dg)" opacity=".4"/>
+            <line class="conn" x1="120" y1="110" x2="300" y2="80"/>
+            <line class="conn c2" x1="300" y1="80" x2="480" y2="130"/>
+            <line class="conn c3" x1="120" y1="110" x2="200" y2="220"/>
+            <line class="conn c4" x1="200" y1="220" x2="400" y2="250"/>
+            <line class="conn c5" x1="400" y1="250" x2="480" y2="130"/>
+            <line class="conn c6" x1="300" y1="80" x2="400" y2="250"/>
+            <line class="conn c2" x1="120" y1="110" x2="400" y2="250"/>
+            <line class="conn c4" x1="200" y1="220" x2="480" y2="130"/>
+            <circle class="node p" cx="120" cy="110" r="3"/>
+            <circle class="node p2" cx="300" cy="80" r="3"/>
+            <circle class="node p3" cx="480" cy="130" r="3"/>
+            <circle class="node p4" cx="200" cy="220" r="3"/>
+            <circle class="node p5" cx="400" cy="250" r="3"/>
+            <circle class="node p6" cx="300" cy="310" r="3"/>
+            <circle class="node" cx="90" cy="290" r="2"/>
+            <circle class="node" cx="510" cy="290" r="2"/>
+          </svg>
+          <div class="status"><span class="live"></span><span>Analysing 247 player props</span></div>
+        </div>
+
+        <!-- B: RIVER -->
+        <div class="concept" data-concept="B">
+          <div class="river">
+            <div class="stream"><div class="stream-inner">
+              <div>Bridges</div><div class="hl">$1.38</div><div>SGA</div><div>$1.08</div><div>Brunson</div><div class="hl">$1.04</div><div>Hart</div><div>$1.05</div><div>Robinson</div><div class="hl">$1.10</div><div>Castle</div><div>$1.42</div>
+              <div>Bridges</div><div class="hl">$1.38</div><div>SGA</div><div>$1.08</div><div>Brunson</div><div class="hl">$1.04</div><div>Hart</div><div>$1.05</div><div>Robinson</div><div class="hl">$1.10</div><div>Castle</div><div>$1.42</div>
+            </div></div>
+            <div class="stream"><div class="stream-inner">
+              <div>12+ pts</div><div class="hl">3+ reb</div><div>15+ pts</div><div>5+ ast</div><div class="hl">2+ stl</div><div>1+ blk</div>
+              <div>12+ pts</div><div class="hl">3+ reb</div><div>15+ pts</div><div>5+ ast</div><div class="hl">2+ stl</div><div>1+ blk</div>
+            </div></div>
+            <div class="stream"><div class="stream-inner">
+              <div>96%</div><div class="hl">97%</div><div>98%</div><div>84%</div><div class="hl">91%</div><div>88%</div>
+              <div>96%</div><div class="hl">97%</div><div>98%</div><div>84%</div><div class="hl">91%</div><div>88%</div>
+            </div></div>
+            <div class="stream"><div class="stream-inner">
+              <div class="hl">+12%</div><div>+5%</div><div>+11%</div><div class="hl">+9%</div><div>+6%</div><div>+2%</div>
+              <div class="hl">+12%</div><div>+5%</div><div>+11%</div><div class="hl">+9%</div><div>+6%</div><div>+2%</div>
+            </div></div>
+          </div>
+          <div class="status"><span class="live"></span><span>Scanning 6 bookmakers · de-vigging lines</span></div>
+        </div>
+
+        <!-- C: ROLL -->
+        <div class="concept" data-concept="C">
+          <div class="roll">
+            <div class="roll-row"><span class="roll-label">Bridges</span><span class="roll-track"><span class="roll-fill"></span></span><span class="roll-pct mono">96%</span></div>
+            <div class="roll-row"><span class="roll-label">Hart</span><span class="roll-track"><span class="roll-fill"></span></span><span class="roll-pct mono">97%</span></div>
+            <div class="roll-row"><span class="roll-label">Brunson</span><span class="roll-track"><span class="roll-fill"></span></span><span class="roll-pct mono">98%</span></div>
+            <div class="roll-row"><span class="roll-label">Robinson</span><span class="roll-track"><span class="roll-fill"></span></span><span class="roll-pct mono">84%</span></div>
+            <div class="roll-foot">Combined chance <span class="a mono">71%</span> · within 5% of $2.00</div>
+          </div>
+          <div class="status" style="bottom:18px"><span class="live"></span><span>Composing your multi</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>This is the real page layout.</strong> The animation sits exactly where the leg cards appear once the build finishes — so the transition into the result feels continuous. Toggle A / B / C above to compare in context, ↻ Replay to restart the entry animation. Default shown here is the "Best Chance" build you just ran.
+  </div>
+
+  <script>
+    const btns = document.querySelectorAll('.concept-btn');
+    const concepts = document.querySelectorAll('.concept[data-concept]');
+    btns.forEach(b => b.addEventListener('click', () => {
+      btns.forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const c = b.dataset.concept;
+      concepts.forEach(x => x.classList.toggle('show', x.dataset.concept === c));
+    }));
+    function replay() {
+      const active = document.querySelector('.concept.show');
+      const clone = active.cloneNode(true);
+      active.replaceWith(clone);
+      // re-bind not needed; concepts re-queried only on toggle
+    }
+  </script>
+</body>
+</html>

@@ -336,3 +336,95 @@ high-odds niche markets, or the EB prior collapsing. To debug:
   has run a few times to see which markets have high error)
 - **#104** Home/away splits (needs venue scraping)
 - **#105** Real ML model (only after ~500 resolved predictions)
+
+---
+
+## 2026-06-03 session (large — marketing + model + onboarding)
+
+### ✅ #106 RESOLVED — the real root cause
+The 0/10-leg "67% confidence" bug was **`applyCalibrationCurve` clamping out-of-range
+inputs to the boundary y**. The fitted AFL curve starts ~(0.63, 0.67), so every leg with
+raw empirical < 0.63 got mapped to 67%+ (disposals curve started ~0.80 → 80%). The math
+was honest; the calibration layer was the liar. Fix: return `x` unchanged outside the
+fitted domain (commit `d44a4d6`). Plus 3 defensive layers in `enrichProps`: isOver
+extraction rejects `outcome.name==="Under"`; prior fallback chain implied→impliedRaw→0.5;
+15% evidence ceiling on `hr10.hits===0 && total>=5`. Verified Amartey 67%→1.8%.
+Root cause follow-up still open: `grid_build_predictions` only logs *selected* legs
+(empirical ≥ minHit), so curve domain is narrow — log ALL rated legs to widen it (chip
+was spawned).
+
+### MultiPick model tuning (all in `api/edge.js` `selectOptimalLegs`/`selectLegsForProfile`)
+- **Raw hit-rate floors** by profile: Safer ≥9/10, Balanced ≥7/10, Aggressive none (was
+  confidence-only).
+- **Team diversity**: soft penalty for pure single-team stacks (`teamCapAllowed = max(2, legs-1)`)
+  + per-team shortlist quota (≥4 candidates/team) so the combo search has cross-team options.
+- **% tolerance bands** (5/10/15/20/30/50% of target) + % diff buckets — fixes builds
+  landing far from target at higher odds.
+- **Safer/Aggressive prefer balance, Balanced prefers prob**; **min combined-prob floor**
+  (Safer 0.80, Balanced 0.50) drives the relax chain.
+- **"Best Chance" 4th profile** — pure max-prob, no floors/penalties (frontend dropdown too).
+- **SGM haircut 0.85→0.92** per extra same-game leg (0.85 wiped real edge → negative EV).
+- Sport selector limited to **AFL/NBA** only.
+
+### UX / app
+- **Build animation**: canvas hybrid sphere (`BuildingAnimation`) in EdgePage output while
+  building; traveling lime beam border; fires on every Build (`buildingMulti` flag);
+  Mode-B stagger-cascade reveal; rAF cleanup + reduced-motion. `bare`/`minimal` props for a
+  decorative version used in the dashboard empty state ("Build your first multi").
+- **Compact tap-to-expand legs** (`EdgeLegRow`) — replaced always-expanded rows + the old
+  `EdgeDetailToggle` (removed).
+- **Onboarding tour** (`OnboardingTour`) — 5-step, real feature mockups, captures first name;
+  only auto-shows for accounts created <24h ago + not seen (localStorage per-user). Replay in
+  Settings.
+- **First name** via `user_metadata.first_name` (signup field + tour); dashboard greets
+  "Welcome back, {name}."
+- **"I used Pickd" checkbox** on add-bet forms → tags manual bets `source:'grid_build'` so
+  they count in MultiPick performance.
+- **Login bug fix**: `activePage` stuck on "auth" left the dashboard half-rendered → reset to
+  "app" on login.
+- **Dashboard login fix** + calibration block title ("MultiPick. hit rate").
+
+### 💰 Paywall + founding promo (revenue)
+- **Paywall modal** (`Paywall`) — free users hit it at the weekly limit (`previewMulti`
+  blocks when `gatedNow`; server `gated:true` also opens it). Gating was correct server-side
+  but the frontend never blocked.
+- **Founding promo — LIVE**: first **20 subscribers** lock in **A$4.99/wk forever** (then
+  A$6.99). Stripe coupon **`rxLndYx4`** (A$2.00 off AUD, duration forever, max 20 redemptions),
+  env var **`STRIPE_FOUNDING_COUPON=rxLndYx4`** is set in Vercel. `create-checkout-session`
+  applies it when active subs < 20; `entitlement` returns `foundingSpotsLeft` (gated on the
+  coupon env so the UI never over-promises). Paywall + landing show $4.99 ~~$6.99~~ + spots +
+  "🔒 Locked in forever".
+- Price corrected $4.99→$6.99 earlier (landing already had $6.99).
+
+### 🤖 pickd-content skill (`.claude/skills/pickd-content/`)
+On-brand social content generator: SKILL.md + references/brand-kit.md (tokens, AFL crest
+SVGs, component snippets) + references/formats.md (reel/carousel/story scaffolds, captions).
+Invoke `/pickd-content <request>`. **Compliance baked in: analysis tool not tips, 18+/helpline,
+no winnings claims. TikTok extra rule: NO money ladder/odds/$ — use a form "streak" instead;
+"leg"/"slip" OK.**
+
+### 🎬 Marketing assets (root .html, screen-record targets)
+`tiktok-launch-video.html` (promo reel, has odds — IG only), `instagram-launch-post.html`
+(4-slide carousel), `tiktok-formcheck-video.html`, `tiktok-form-ladder-w1.html`,
+`tiktok-form-streak.html` (TikTok-safe — form streak ladder, Crows v Cats real multi,
+head-to-head stats, AI-analytics intro, TikTok safe-zone layout, 🎬 record mode).
+Launch reel + IG carousel posted; TikTok promo was removed (gambling promo) then restored on
+appeal — pivoted TikTok content to **stats/form framing** (no odds/$/bet/multi).
+
+### Marketing learnings (important)
+- **TikTok bans gambling promotion** — money ladders ($10→$10k), odds, "build a multi" CTAs
+  get removed/banned. Frame as **sports stats / player form**; product is a "form tool",
+  betting lives behind the bio link.
+- **Paid ads are closed** (TikTok/Meta/Google need gambling-advertiser authorization/licence;
+  rejected on landing-page review; ban risk for the Stripe-linked business). **Creator/influencer
+  partnerships are the real paid lever.**
+- IG tolerated the betting-explicit reel; TikTok did not.
+
+### Pending / next
+- **Marketing grind**: shorter (12–18s) cuts, consistency, creator-page outreach (DM template
+  was the next ask), seed early engagement. New posts ~54 views/0 likes (cold-start + possible
+  post-strike throttle).
+- **Log all rated legs** to `grid_build_predictions` (widen calibration domain — the proper
+  #106 follow-up).
+- NBA Game Analysis (Phase 2); NBA calibration join; touch-targets.
+- `db/model_calibration.sql` + first recalibrate run still pending from 2026-06-01.
