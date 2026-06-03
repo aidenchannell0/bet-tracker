@@ -5836,6 +5836,47 @@ export default function BettingTrackerWebsite() {
                     </ResponsiveContainer>
                   ) : <div className="flex h-full items-center justify-center rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] text-sm text-[var(--text-3-new)]">Add your first bet to see the graph.</div>}
               </div>
+
+              {/* Fills the right-column gap under the chart with a recent-bets
+                  glance. lg-only: the 2/3 split (and the gap) only exist at lg+,
+                  and mobile already shows recent activity under the add-bet form. */}
+              {bets.length > 0 ? (
+                <div className="mt-8 hidden border-t border-[var(--border-new)] pt-6 lg:block">
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <div>
+                      <div className="text-[11px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Recent</div>
+                      <h2 className="mt-1 text-[20px] font-medium tracking-[-0.015em] text-[var(--text-new)]">Latest bets</h2>
+                    </div>
+                    <button type="button" onClick={() => setActivePage("tracker")} className="text-[11px] font-medium text-[var(--accent-new)] hover:opacity-80">View all →</button>
+                  </div>
+                  <div>
+                    {bets.slice(0, 5).map((bet) => {
+                      const isWin = bet.result === "win";
+                      const isLoss = bet.result === "loss";
+                      const pl = Number(bet.profitLoss || 0);
+                      return (
+                        <button
+                          key={bet.id}
+                          type="button"
+                          onClick={() => { setExpandedBetId(bet.id); setActivePage("tracker"); }}
+                          className="grid w-full grid-cols-[24px_1fr_auto] items-center gap-3 border-t border-[var(--border-new)] py-3 text-left transition-colors hover:bg-[var(--surface-new)]"
+                        >
+                          <div className={"grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold " + (isWin ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : isLoss ? "bg-[var(--danger-soft-new)] text-[var(--danger-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>{isWin ? "✓" : isLoss ? "✕" : "·"}</div>
+                          <div className="min-w-0">
+                            <div className="truncate text-[13px] font-medium text-[var(--text-new)]">{bet.notes || bet.betType || bet.sport || "Bet"}</div>
+                            <div className="mt-0.5 text-[11px] text-[var(--text-3-new)]"><span className="mono-nums">{bet.date}</span> · <span className="mono-nums">{formatCurrency(bet.stake)}</span> stake{bet.bookmaker ? <> · {bet.bookmaker}</> : null}</div>
+                          </div>
+                          {(isWin || isLoss) ? (
+                            <div className={"mono-nums text-[14px] font-semibold " + (pl >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{pl >= 0 ? "+" : ""}{formatCurrency(pl)}</div>
+                          ) : (
+                            <div className="text-[10px] uppercase tracking-[0.06em] text-[var(--warning-new)]">Pending</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </section>
           ) : null}
