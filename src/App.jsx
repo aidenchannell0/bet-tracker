@@ -1507,7 +1507,7 @@ function MultipickCheckbox({ checked, onChange }) {
       </span>
       <span className="min-w-0">
         <span className="block text-[13px] font-medium text-[var(--text-new)]">
-          I used <span className="brand-wordmark font-semibold">Pickd<span className="text-[var(--accent-new)]">.</span></span> for this bet
+          I used <span className="font-semibold text-[var(--text-new)]">MultiPick</span> for this bet
         </span>
         <span className="block text-[11px] text-[var(--text-3-new)]">Counts it toward your MultiPick performance stats</span>
       </span>
@@ -2115,7 +2115,11 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
   const [selectedGameId, setSelectedGameId] = useState("");
   // Deep-link prefill (from the dashboard mini-builder): the game to pre-select
   // once the sport's games have loaded. Applied exactly once.
-  const wantGameIdRef = useRef(prefill?.gameId || "");
+  // Games to build from on the deep-linked auto-build. Supports multiple — the
+  // dashboard mini-builder can pick several to spread the multi across.
+  const buildGameIdsRef = useRef(Array.isArray(prefill?.gameIds) ? prefill.gameIds.filter(Boolean) : (prefill?.gameId ? [prefill.gameId] : []));
+  // Pre-select the single Games dropdown only when exactly one was chosen.
+  const wantGameIdRef = useRef(buildGameIdsRef.current.length === 1 ? buildGameIdsRef.current[0] : "");
   const gameAppliedRef = useRef(false);
   const chatSectionRef = React.useRef(null);
   const outputPanelRef = React.useRef(null);
@@ -2251,19 +2255,26 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
     }
   };
 
-  const previewMulti = () => {
+  const previewMulti = (opts) => {
     if (edgeLoading) return;
     // Hard-stop free users at the weekly limit before spending a request, and
     // show the paywall. Server enforces this too (defence in depth), but this
     // gives instant feedback and the upgrade prompt.
     if (gatedNow) { setShowPaywall(true); return; }
     setAnalysisOutput(null);
+    // gameIds override (from the dashboard multi-select handoff) lets one build
+    // span several games; manual builds fall back to the single dropdown.
+    const gameIdsOverride = Array.isArray(opts?.gameIds) ? opts.gameIds.filter(Boolean) : null;
     const requestPart = request.trim() ? `. Focus: ${request.trim()}` : "";
     const riskPart = riskProfile !== "Balanced" ? ` with a ${riskProfile} risk profile` : "";
     const selectedGame = games.find((game) => game.id === selectedGameId);
-    const gamePart = selectedGame ? ` for the ${selectedGame.label} game` : "";
+    const gameLabels = gameIdsOverride && gameIdsOverride.length
+      ? games.filter((game) => gameIdsOverride.includes(game.id)).map((game) => game.label)
+      : (selectedGame ? [selectedGame.label] : []);
+    const gamePart = gameLabels.length === 1 ? ` for the ${gameLabels[0]} game`
+      : gameLabels.length > 1 ? ` spread across ${gameLabels.join(", ")}` : "";
     const prompt = `Build a ${displayedLegs}-leg ${sport} example multi${gamePart} targeting ${displayedTargetOdds}${riskPart}${requestPart}. Use real player form and current odds to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
-    sendChatMessage(prompt, { isBuild: true });
+    sendChatMessage(prompt, { isBuild: true, gameIds: gameIdsOverride });
     setTimeout(() => {
       outputPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
@@ -2278,7 +2289,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
     if (autoBuiltRef.current) return;
     autoBuiltRef.current = true;
     onPrefillConsumed?.();
-    previewMulti();
+    previewMulti({ gameIds: buildGameIdsRef.current });
   };
   useEffect(() => {
     if (autoBuiltRef.current || !prefill?.autoBuild) return;
@@ -2322,6 +2333,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
             bookmaker,
             request,
             gameId: selectedGameId,
+            gameIds: opts.gameIds && opts.gameIds.length ? opts.gameIds : (selectedGameId ? [selectedGameId] : undefined),
             previousEdgeContext: lastEdgeContext,
             currentMulti: multiOutput,
           },
@@ -2604,7 +2616,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                     <label className="space-y-1 text-sm font-medium">Optional request<Input value={request} onChange={(event) => setRequest(event.target.value)} placeholder="e.g. Disposals only, no same-game legs" /></label>
                     <div className="pt-2">
                       <button
-                        onClick={previewMulti}
+                        onClick={() => previewMulti()}
                         disabled={edgeLoading}
                         className="w-full rounded-md bg-[var(--accent-new)] py-3.5 text-[12px] font-bold uppercase tracking-[0.06em] text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -4143,7 +4155,7 @@ export default function BettingTrackerWebsite() {
   // single control row. "Make the multi" stashes the selection and smooth-
   // navigates to the MultiPick page, which auto-fires the build on arrival.
   const [mpSport, setMpSport] = useState("AFL");
-  const [mpGameId, setMpGameId] = useState("");
+  const [mpGameIds, setMpGameIds] = useState([]);
   const [mpLegs, setMpLegs] = useState("3");
   const [mpOdds, setMpOdds] = useState("$3.00");
   const [mpRisk, setMpRisk] = useState("Balanced");
@@ -4152,6 +4164,8 @@ export default function BettingTrackerWebsite() {
   const [mpGamesLoading, setMpGamesLoading] = useState(false);
   const [edgePrefill, setEdgePrefill] = useState(null);
   const [navigating, setNavigating] = useState(false);
+  // Add-bet manual form is collapsed by default; the betslip upload leads.
+  const [manualOpen, setManualOpen] = useState(false);
   // Weekly build allowance for the card's "X of N free builds left" nudge.
   const [entitlement, setEntitlement] = useState({ subscribed: false, usage: 0, limit: 3 });
 
@@ -4159,7 +4173,7 @@ export default function BettingTrackerWebsite() {
   useEffect(() => {
     let cancelled = false;
     setMpGames([]);
-    setMpGameId("");
+    setMpGameIds([]);
     setMpGamesLoading(true);
     fetch(`/api/odds?sport=${encodeURIComponent(mpSport)}&markets=h2h`)
       .then((response) => response.json())
@@ -4187,7 +4201,7 @@ export default function BettingTrackerWebsite() {
   // Smooth hand-off: stash the mini-builder selection, fade the dashboard out,
   // then switch to MultiPick (which fades in and auto-builds on arrival).
   const goBuildMulti = () => {
-    setEdgePrefill({ sport: mpSport, gameId: mpGameId, legs: mpLegs, targetOdds: mpOdds, riskProfile: mpRisk, bookmaker: mpBook, autoBuild: true });
+    setEdgePrefill({ sport: mpSport, gameIds: mpGameIds, legs: mpLegs, targetOdds: mpOdds, riskProfile: mpRisk, bookmaker: mpBook, autoBuild: true });
     setNavigating(true);
     setTimeout(() => { setActivePage("edge"); setNavigating(false); }, 220);
   };
@@ -4209,6 +4223,7 @@ export default function BettingTrackerWebsite() {
         return;
       }
       setBetslipExtract(data);
+      setManualOpen(true); // reveal the (now pre-filled) form so the user can review + save
       // Map OCR-extracted status/result to the form's `result` field. Default
       // is "pending" when the screenshot is unsettled (or the model couldn't
       // tell), NOT the previous "win" — that was the Task #N bug where a
@@ -5459,7 +5474,7 @@ export default function BettingTrackerWebsite() {
                     <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" /> MultiPick
                   </div>
                   <h3 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)]">Build a multi<span className="text-[var(--accent-new)]">.</span></h3>
-                  <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--text-2-new)]">Pick a game, set it up, and we’ll build it on real form + live odds.</p>
+                  <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--text-2-new)]">Pick one or more games, set it up, and we’ll build it on real form + live odds.</p>
 
                   {/* Upcoming-games scroller */}
                   <div className="mt-3.5 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 snap-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -5473,14 +5488,15 @@ export default function BettingTrackerWebsite() {
                       </div>
                     ) : (
                       mpGames.map((game) => {
-                        const selected = mpGameId === game.id;
+                        const selected = mpGameIds.includes(game.id);
                         return (
                           <button
                             key={game.id}
                             type="button"
-                            onClick={() => setMpGameId(selected ? "" : game.id)}
-                            className={"snap-start shrink-0 w-[150px] rounded-xl border p-2.5 text-center transition-colors " + (selected ? "border-[var(--accent-new)] bg-[var(--accent-soft-new)]" : "border-[var(--border-new)] bg-[var(--surface-new)] hover:border-[var(--border-strong-new)]")}
+                            onClick={() => setMpGameIds((prev) => prev.includes(game.id) ? prev.filter((id) => id !== game.id) : [...prev, game.id])}
+                            className={"relative snap-start shrink-0 w-[150px] rounded-xl border p-2.5 text-center transition-colors " + (selected ? "border-[var(--accent-new)] bg-[var(--accent-soft-new)]" : "border-[var(--border-new)] bg-[var(--surface-new)] hover:border-[var(--border-strong-new)]")}
                           >
+                            {selected ? <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-new)] text-[10px] font-bold leading-none text-[var(--bg-new)]">✓</span> : null}
                             <div className="mb-2 flex justify-center">
                               <span className="rounded-full bg-[var(--surface-2-new)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-[var(--text-2-new)]">{timeUntilGame(game.commenceTime)}</span>
                             </div>
@@ -5541,7 +5557,7 @@ export default function BettingTrackerWebsite() {
                   </label>
 
                   <Button onClick={goBuildMulti} className="mt-4 w-full py-3 text-[14px]">
-                    {mpGameId ? "Make this multi" : "Make the multi"} <span className="ml-0.5">→</span>
+                    {mpGameIds.length >= 2 ? `Make multi · ${mpGameIds.length} games` : mpGameIds.length === 1 ? "Make this multi" : "Make the multi"} <span className="ml-0.5">→</span>
                   </Button>
 
                   <div className="mt-2.5 text-center text-[11.5px] text-[var(--text-3-new)]">
@@ -5567,27 +5583,22 @@ export default function BettingTrackerWebsite() {
                   onDragOver={handleBetslipDragOver}
                   onDragLeave={handleBetslipDragLeave}
                   onDrop={handleBetslipDrop}
-                  className={"mb-6 rounded-xl border border-dashed px-4 py-4 transition-colors " + (betslipDragOver ? "border-[var(--accent-new)] bg-[var(--accent-soft-new)]" : "border-[var(--border-new)] bg-[var(--surface-new)]")}
+                  style={!betslipImage && !betslipParsing ? { background: "linear-gradient(180deg, var(--accent-soft-new), transparent)" } : undefined}
+                  className={"mb-4 rounded-2xl border-2 border-dashed px-5 py-6 transition-colors " + (betslipDragOver ? "border-[var(--accent-new)] bg-[var(--accent-soft-new)]" : !betslipImage && !betslipParsing ? "border-[var(--accent-new)]" : "border-[var(--border-new)] bg-[var(--surface-new)]")}
                 >
                   {!betslipImage && !betslipParsing ? (
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="pointer-events-none">
-                        <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Quick add · AI vision</div>
-                        <div className="mt-1.5 text-[13px] text-[var(--text-2-new)]">
-                          {betslipDragOver ? (
-                            <span className="text-[var(--accent-new)] font-medium">Drop the screenshot to read it</span>
-                          ) : (
-                            <>
-                              <span className="text-[var(--text-new)] font-medium">Drop, paste, or upload a betslip screenshot</span> — we'll read the stake, odds and legs and fill the form for you.
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <label className="cursor-pointer rounded-lg border border-[var(--border-new)] bg-transparent px-3.5 py-2 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-2-new)] hover:border-[var(--border-strong-new)] hover:text-[var(--text-new)]">
-                        Upload image
-                        <input type="file" accept="image/*" onChange={handleBetslipFile} className="hidden" />
-                      </label>
-                    </div>
+                    <label className="flex cursor-pointer flex-col items-center gap-3.5 text-center sm:flex-row sm:text-left">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-new)] text-[var(--bg-new)]">
+                        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13.5" r="3.5"/></svg>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-new)]">Quick add · AI vision</span>
+                        <span className="mt-1 block text-[15px] font-semibold text-[var(--text-new)]">{betslipDragOver ? "Drop it — we'll read it" : "Snap or upload your betslip"}</span>
+                        <span className="mt-0.5 block text-[12px] leading-relaxed text-[var(--text-2-new)]">Drop, paste, or tap to upload a screenshot from any bookie — AI reads the stake, odds and every leg and fills it in.</span>
+                      </span>
+                      <span className="shrink-0 rounded-lg bg-[var(--accent-new)] px-4 py-2.5 text-[13px] font-semibold text-[var(--bg-new)]">Upload</span>
+                      <input type="file" accept="image/*" onChange={handleBetslipFile} className="hidden" />
+                    </label>
                   ) : null}
                   {betslipParsing ? (
                     <div className="flex items-center gap-3 text-[13px] text-[var(--text-2-new)]">
@@ -5628,6 +5639,23 @@ export default function BettingTrackerWebsite() {
                 </div>
               ) : null}
 
+              {/* Manual entry is a collapsed extension — the betslip upload above
+                  leads. Forced open while editing, or after a slip pre-fills it. */}
+              {!editingBetId ? (
+                <button
+                  type="button"
+                  onClick={() => setManualOpen((open) => !open)}
+                  className="mb-4 flex w-full items-center justify-between rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 py-3 text-left transition-colors hover:border-[var(--border-strong-new)]"
+                >
+                  <span>
+                    <span className="block text-[13px] font-medium text-[var(--text-new)]">Or add manually</span>
+                    <span className="block text-[11px] text-[var(--text-3-new)]">Type the stake, odds and result yourself</span>
+                  </span>
+                  <svg viewBox="0 0 12 8" className={"h-3 w-3 shrink-0 text-[var(--text-3-new)] transition-transform " + (manualOpen ? "rotate-180" : "")} fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 1.5 L6 6.5 L11 1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+              ) : null}
+
+              {(editingBetId || manualOpen) ? (
               <form onSubmit={handleAddOrUpdateBet} className="space-y-5">
                 <div className="grid gap-5 sm:grid-cols-3">
                   <label className="block">
@@ -5677,6 +5705,7 @@ export default function BettingTrackerWebsite() {
                   <Button type="submit">{editingBetId ? "Update bet" : "Save bet"}</Button>
                 </div>
               </form>
+              ) : null}
             </div>
 
             <div className="lg:col-span-3">

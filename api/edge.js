@@ -3530,14 +3530,21 @@ ${buildAnalysisDataBlock(analysis)}`,
       // Choose which game(s) to build from: a specific game (selected in the form, or
       // named in the chat) if given; otherwise probe the first few upcoming games.
       const requestedGameId = getSafeString(context?.gameId, "");
+      // Multi-select: the dashboard mini-builder can hand off several game ids to
+      // spread one multi across. Falls back to the single id, then a chat-named game.
+      const requestedGameIds = Array.isArray(context?.gameIds)
+        ? context.gameIds.map((id) => getSafeString(id, "")).filter(Boolean)
+        : [];
       const teamsInMessage = detectAllTeamAliases(message);
       const namedGame =
-        !requestedGameId && teamsInMessage.length
+        !requestedGameId && !requestedGameIds.length && teamsInMessage.length
           ? findMatchingEvent(oddsContext.events, message, teamsInMessage)
           : null;
-      const specificGame = requestedGameId
-        ? oddsContext.events.find((e) => e.id === requestedGameId)
-        : namedGame;
+      const idsToResolve = requestedGameIds.length ? requestedGameIds : (requestedGameId ? [requestedGameId] : []);
+      const specificGames = idsToResolve
+        .map((id) => oddsContext.events.find((e) => e.id === id))
+        .filter(Boolean);
+      const specificGame = specificGames[0] || namedGame || null;
       // Keep props from the first games that actually return them (cap at 2 games when
       // probing). Limited to 3 to keep Odds API credit use down (charged per market).
       // For an edit, draw replacements from the same games as the current build so a
@@ -3550,12 +3557,12 @@ ${buildAnalysisDataBlock(analysis)}`,
           if (ev && !matched.find((m) => m.id === ev.id)) matched.push(ev);
         }
         candidateGames = matched.length
-          ? matched.slice(0, 3)
-          : specificGame
-          ? [specificGame]
+          ? matched.slice(0, 4)
+          : specificGames.length
+          ? specificGames.slice(0, 4)
           : oddsContext.events.slice(0, 3);
       } else {
-        candidateGames = specificGame ? [specificGame] : oddsContext.events.slice(0, 3);
+        candidateGames = specificGames.length ? specificGames.slice(0, 4) : oddsContext.events.slice(0, 3);
       }
 
       const eventMarketResults = await Promise.allSettled(
@@ -3567,7 +3574,7 @@ ${buildAnalysisDataBlock(analysis)}`,
       const allProps = [];
       let gamesUsed = 0;
       for (const result of eventMarketResults) {
-        if (gamesUsed >= 2) break;
+        if (gamesUsed >= Math.max(2, Math.min(specificGames.length, 4))) break;
         if (result.status === "fulfilled" && result.value?.event) {
           const gameProps = extractPlayerPropsFromEvent(result.value.event, preferredBook);
           if (gameProps.length > 0) {
