@@ -5387,56 +5387,6 @@ export default function BettingTrackerWebsite() {
                     under the stat row (desktop renders it in the left column). */}
                 {!isTracker ? <div className="mt-7">{multipickBuilderCard}</div> : null}
 
-                {/* Quick add panel — Dashboard only. Tracker doesn't need
-                    this because the bet list IS the page. */}
-                {!isTracker ? (
-                  <div className="mt-7 border-y border-[var(--border-new)] py-5">
-                    <div className="mb-3 flex items-baseline justify-between">
-                      <h3 className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Quick add</h3>
-                      <span className="text-[10px] text-[var(--text-3-new)]"><span className="mono-nums text-[var(--text-2-new)]">{bets.length}</span> bets logged</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <button type="button" onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="flex flex-col gap-1.5 rounded-xl bg-[var(--accent-new)] p-4 text-left text-[var(--bg-new)] active:opacity-90">
-                        <span className="text-[14px] leading-none">+</span>
-                        <span className="text-[13px] font-semibold leading-none">Add bet</span>
-                      </button>
-                      <button type="button" onClick={() => setActivePage("edge")} className="flex flex-col gap-1.5 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4 text-left text-[var(--text-new)] active:opacity-80">
-                        <span className="text-[14px] leading-none text-[var(--accent-new)]">✦</span>
-                        <span className="text-[13px] font-semibold leading-none">New multi</span>
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Recent activity feed — Dashboard only. Tracker has its
-                    own full bet list further down the page. */}
-                {!isTracker && bets.length > 0 ? (
-                  <div className={"mt-5 pb-3 " + (isTracker ? "" : "border-b border-[var(--border-new)]")}>
-                    <div className="mb-2 flex items-baseline justify-between">
-                      <h3 className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Recent activity</h3>
-                      <button type="button" onClick={() => setActivePage("tracker")} className="text-[11px] font-medium text-[var(--accent-new)]">View all →</button>
-                    </div>
-                    {bets.slice(0, 5).map((bet) => {
-                      const isWin = bet.result === "win";
-                      const isLoss = bet.result === "loss";
-                      const pl = Number(bet.profitLoss || 0);
-                      return (
-                        <div key={bet.id} className="grid grid-cols-[20px_1fr_auto] items-center gap-3 border-t border-[var(--border-new)] py-3">
-                          <div className={"grid h-4 w-4 place-items-center rounded-full text-[9px] font-bold " + (isWin ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : isLoss ? "bg-[var(--danger-soft-new)] text-[var(--danger-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>{isWin ? "✓" : isLoss ? "✕" : "·"}</div>
-                          <div className="min-w-0">
-                            <div className="truncate text-[13px] font-medium text-[var(--text-new)]">{bet.notes || bet.betType || bet.sport || "Bet"}</div>
-                            <div className="mt-0.5 text-[10px] text-[var(--text-3-new)]"><span className="mono-nums">{bet.date}</span> · <span className="mono-nums">{formatCurrency(bet.stake)}</span> stake</div>
-                          </div>
-                          {(isWin || isLoss) ? (
-                            <div className={"mono-nums text-[13px] font-semibold " + (pl >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{pl >= 0 ? "+" : ""}{formatCurrency(pl)}</div>
-                          ) : (
-                            <div className="text-[10px] uppercase tracking-[0.06em] text-[var(--warning-new)]">Pending</div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
               </section>
             );
           })()}
@@ -5711,6 +5661,36 @@ export default function BettingTrackerWebsite() {
                   <Button type="submit">{editingBetId ? "Update bet" : "Save bet"}</Button>
                 </div>
               </form>
+              ) : null}
+
+              {/* Recent activity — mobile only, sitting below the betslip + manual
+                  entry. Desktop keeps the full history on the Tracker page. */}
+              {bets.length > 0 ? (
+                <div className="mt-8 border-t border-[var(--border-new)] pt-6 md:hidden">
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <h3 className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Recent activity</h3>
+                    <button type="button" onClick={() => setActivePage("tracker")} className="text-[11px] font-medium text-[var(--accent-new)]">View all →</button>
+                  </div>
+                  {bets.slice(0, 5).map((bet) => {
+                    const isWin = bet.result === "win";
+                    const isLoss = bet.result === "loss";
+                    const pl = Number(bet.profitLoss || 0);
+                    return (
+                      <div key={bet.id} className="grid grid-cols-[20px_1fr_auto] items-center gap-3 border-t border-[var(--border-new)] py-3">
+                        <div className={"grid h-4 w-4 place-items-center rounded-full text-[9px] font-bold " + (isWin ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : isLoss ? "bg-[var(--danger-soft-new)] text-[var(--danger-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>{isWin ? "✓" : isLoss ? "✕" : "·"}</div>
+                        <div className="min-w-0">
+                          <div className="truncate text-[13px] font-medium text-[var(--text-new)]">{bet.notes || bet.betType || bet.sport || "Bet"}</div>
+                          <div className="mt-0.5 text-[10px] text-[var(--text-3-new)]"><span className="mono-nums">{bet.date}</span> · <span className="mono-nums">{formatCurrency(bet.stake)}</span> stake</div>
+                        </div>
+                        {(isWin || isLoss) ? (
+                          <div className={"mono-nums text-[13px] font-semibold " + (pl >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{pl >= 0 ? "+" : ""}{formatCurrency(pl)}</div>
+                        ) : (
+                          <div className="text-[10px] uppercase tracking-[0.06em] text-[var(--warning-new)]">Pending</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               ) : null}
             </div>
 
