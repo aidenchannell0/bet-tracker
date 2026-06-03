@@ -2590,7 +2590,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
           ) : null}
 
           <section className="grid items-start gap-12 lg:grid-cols-[280px_1fr]">
-            <div className="space-y-5">
+            <div className="min-w-0 space-y-5">
               {/* Controls — bare-underline editorial. No Card wrapper, no
                   cream backgrounds. Mode pill at top, fields stack below. */}
               <div className="grid grid-cols-2 rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] p-1 text-[12px] font-medium">
@@ -2747,7 +2747,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
             )}
             </div>
 
-            <div className="space-y-6" ref={outputPanelRef}>
+            <div className="min-w-0 space-y-6" ref={outputPanelRef}>
               {analysisOutput || analyzing ? (
                 <GameAnalysisOutput analysis={analysisOutput} loading={analyzing} />
               ) : (
@@ -5592,7 +5592,7 @@ export default function BettingTrackerWebsite() {
               The chart sits on the page background instead of in a card. */}
           {activePage === "app" ? (
           <section className="grid gap-10 border-b border-[var(--border-new)] py-10 lg:grid-cols-5">
-            <div className="lg:col-span-2" ref={formRef} onPaste={editingBetId ? undefined : handleBetslipPaste}>
+            <div className="min-w-0 lg:col-span-2" ref={formRef} onPaste={editingBetId ? undefined : handleBetslipPaste}>
               {/* Desktop: the builder card leads the left column (md+). On mobile
                   it's rendered up in the hero, under the stat row, instead. */}
               <div className="mb-6 hidden md:block">{multipickBuilderCard}</div>
