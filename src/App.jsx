@@ -4190,6 +4190,17 @@ export default function BettingTrackerWebsite() {
   const [showTour, setShowTour] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [message, setMessage] = useState("");
+  // Transient "bet saved" confirmation toast — { id, updated? } or null. Tapping
+  // it jumps to the bet in the Tracker; auto-dismisses after a few seconds.
+  const [savedToast, setSavedToast] = useState(null);
+  useEffect(() => {
+    if (!savedToast) return;
+    const timer = setTimeout(() => setSavedToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [savedToast]);
+  const viewSavedBet = () => {
+    if (savedToast) { setExpandedBetId(savedToast.id); setActivePage("tracker"); setSavedToast(null); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  };
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [activePage, setActivePage] = useState("app");
@@ -4859,7 +4870,7 @@ export default function BettingTrackerWebsite() {
       }
       const updatedBet = databaseRowToBet(data);
       setBets((current) => current.map((bet) => (bet.id === editingBetId ? updatedBet : bet)));
-      setMessage("Bet updated successfully.");
+      setSavedToast({ id: editingBetId, updated: true });
       resetBetForm();
       return;
     }
@@ -4869,8 +4880,10 @@ export default function BettingTrackerWebsite() {
       setMessage("Could not add bet: " + error.message);
       return;
     }
-    setBets((current) => [databaseRowToBet(data), ...current]);
+    const newBet = databaseRowToBet(data);
+    setBets((current) => [newBet, ...current]);
     resetBetForm();
+    setSavedToast({ id: newBet.id });
   };
 
   const deleteBet = async (id) => {
@@ -6593,6 +6606,26 @@ export default function BettingTrackerWebsite() {
       <Footer setActivePage={setActivePage} />
       <Analytics />
       <MobileBottomNav activePage={activePage} setActivePage={setActivePage} formRef={formRef} />
+      {/* Bet-saved confirmation toast — tappable, jumps to the bet in Tracker. */}
+      {savedToast ? createPortal(
+        <div className="fixed inset-x-0 bottom-[88px] z-[60] flex justify-center px-4 md:bottom-6">
+          <div className="toast-in flex items-center gap-2 rounded-full border border-[var(--border-strong-new)] bg-[var(--surface-new)] py-2 pl-2.5 pr-2 shadow-xl shadow-black/40">
+            <button type="button" onClick={viewSavedBet} className="flex items-center gap-3 text-left">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent-new)] text-[var(--bg-new)]">
+                <svg viewBox="0 0 12 12" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M2.5 6.2 L5 8.5 L9.5 3.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </span>
+              <span className="pr-1">
+                <span className="block text-[13px] font-semibold leading-tight text-[var(--text-new)]">{savedToast.updated ? "Bet updated" : "Bet saved"}</span>
+                <span className="block text-[11px] leading-tight text-[var(--text-3-new)]">Tap to see it in your tracker →</span>
+              </span>
+            </button>
+            <button type="button" onClick={() => setSavedToast(null)} aria-label="Dismiss" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--text-3-new)] transition-colors hover:bg-[var(--surface-2-new)] hover:text-[var(--text-new)]">
+              <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3l6 6M9 3l-6 6" strokeLinecap="round" /></svg>
+            </button>
+          </div>
+        </div>,
+        document.body
+      ) : null}
       {statDetail ? (
         <StatDetailModal
           statKey={statDetail}
