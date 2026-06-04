@@ -3796,8 +3796,8 @@ const STAT_META = {
   },
   winrate: {
     eyebrow: "Win rate",
-    title: "Rolling strike rate",
-    subtitle: "Last 10 settled bets, scanned forward",
+    title: "Win rate over time",
+    subtitle: "Each point = strike rate over the last 10 settled bets — recent form, not the overall figure above.",
   },
   roi: {
     eyebrow: "Return on stake",
@@ -3897,7 +3897,7 @@ function StatDetailModal({ statKey, onClose, stats, subStats, filteredBets, pend
             content={({ active, payload, label }) => active && payload && payload.length ? (
               <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-md">
                 <p className="font-semibold text-[#11203B]">{label}</p>
-                <p className="mt-0.5 font-medium text-[#11203B]">Win rate <span className="mono-nums">{payload[0].value}%</span></p>
+                <p className="mt-0.5 font-medium text-[#11203B]">Last-10 strike rate <span className="mono-nums">{payload[0].value}%</span></p>
               </div>
             ) : null}
           />
