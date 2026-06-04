@@ -4864,6 +4864,9 @@ export default function BettingTrackerWebsite() {
   const resetBetForm = () => {
     setEditingBetId(null);
     setMobileAddBetOpen(false);
+    // Clear any uploaded betslip too, so its legs don't carry onto the next bet.
+    setBetslipImage(null);
+    setBetslipExtract(null);
     setForm({ date: todayString(), sport: "AFL", stake: "", odds: "", result: "win", returnAmount: "", notes: "", bookmaker: "", betType: "", usedMultipick: false });
   };
 
@@ -4914,6 +4917,21 @@ export default function BettingTrackerWebsite() {
       // "I used MultiPick" checkbox → tag the bet so it counts toward the
       // MultiPick performance stats even when logged manually.
       source: form.usedMultipick ? "grid_build" : "manual",
+      // Carry the legs read from an uploaded betslip so the saved/pending bet
+      // shows its leg breakdown, just like a MultiPick-built multi. The OCR gives
+      // { player, line, odds, game }; we add a combined `name` ("Sam Berry 18+
+      // disposals") to match MultiPick's leg shape — the compact card renders
+      // `name`, the expanded view uses `player` + `line`. (On edit, legs are
+      // re-applied from the original bet below.)
+      legs: betslipExtract?.legs?.length
+        ? betslipExtract.legs.map((leg) => ({
+            name: [leg.player, leg.line].filter(Boolean).join(" ").trim() || leg.player || null,
+            player: leg.player || null,
+            line: leg.line ?? null,
+            odds: leg.odds ?? null,
+            game: leg.game || null,
+          }))
+        : null,
     });
 
     if (editingBetId) {
