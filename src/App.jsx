@@ -4871,6 +4871,9 @@ export default function BettingTrackerWebsite() {
   };
 
   const startEditingBet = (bet) => {
+    // The edit form lives on the dashboard, so switch to it — otherwise tapping
+    // Edit from the Tracker tab just sets the bet with no visible form.
+    setActivePage("app");
     setEditingBetId(bet.id);
     setMobileAddBetOpen(true);
     setForm({
@@ -4886,10 +4889,12 @@ export default function BettingTrackerWebsite() {
       usedMultipick: bet.source === "grid_build",
     });
     setMessage("Editing bet from " + bet.date + ". Make changes and click Update Bet.");
+    // Wait for the dashboard to render after the page switch, then scroll to the
+    // form (fall back to the desktop form ref if the mobile one isn't mounted).
     window.setTimeout(() => {
-      const target = window.innerWidth < 768 ? mobileFormRef.current : formRef.current;
+      const target = (window.innerWidth < 768 && mobileFormRef.current) ? mobileFormRef.current : formRef.current;
       target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
+    }, 90);
   };
 
   const handleAddOrUpdateBet = async (event) => {
