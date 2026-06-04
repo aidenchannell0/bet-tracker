@@ -569,15 +569,29 @@ function teamShort(name) {
 // Plain-English one-liner for the multi output ("In plain English" band).
 // Built from numbers already on the card — chance → "1-in-N", value → fair /
 // above-fair / good value, risk score → lower / balanced / higher variance.
+// Friendly but accurate "X in Y" for a probability percentage (0–100). Unlikely
+// side stays "1 in N" (37% → 1 in 3); likely side reduces a tenths fraction
+// (87% → 9 in 10, 80% → 4 in 5, 50% → 1 in 2) instead of the old clamp that
+// mislabelled 87% as "1 in 2".
+function chanceRatio(probPct) {
+  const p = Number(probPct) / 100;
+  if (!Number.isFinite(p) || p <= 0) return null;
+  if (p >= 0.99) return "~99 in 100";
+  if (p >= 0.95) return "~19 in 20";
+  if (p < 0.5) return `~1 in ${Math.round(1 / p)}`;
+  const num = Math.round(p * 10);
+  const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+  const g = gcd(num, 10) || 1;
+  return `~${num / g} in ${10 / g}`;
+}
+
 // Plain-English read of a multi as three glanceable, colour-coded pills
 // (Chance / Value / Risk). Tones: "green" good, "amber" caution, "neutral".
 function plainMultiPills(multi) {
   if (!multi) return [];
   const pills = [];
-  const prob = Number(multi.combinedProbPct);
-  if (Number.isFinite(prob) && prob > 0) {
-    pills.push({ label: "Chance", value: `~1 in ${Math.max(2, Math.round(100 / prob))}`, tone: "neutral" });
-  }
+  const chance = chanceRatio(multi.combinedProbPct);
+  if (chance) pills.push({ label: "Chance", value: chance, tone: "neutral" });
   const ev = Number(multi.evPct);
   if (Number.isFinite(ev)) {
     let value, tone;
