@@ -1158,14 +1158,21 @@ function matchStatsForProp(prop, statsMap) {
   const normName = String(prop.playerName || "").toLowerCase();
   const propWords = normName.split(" ").filter(Boolean);
   const propLast = propWords[propWords.length - 1];
-  const propFirst = propWords[0]?.[0];
+  const propFirst = propWords[0] || "";
+  if (!propLast || !propFirst) return null;
 
   for (const [key, stats] of statsMap.entries()) {
     const keyWords = key.split(" ").filter(Boolean);
     const keyLast = keyWords[keyWords.length - 1];
-    if (!keyLast || !propLast || keyLast !== propLast) continue;
-    const keyFirst = keyWords[0]?.[0];
-    if (!keyFirst || !propFirst || keyFirst === propFirst) return stats;
+    if (!keyLast || keyLast !== propLast) continue;
+    const keyFirst = keyWords[0] || "";
+    // Require the FULL first name to agree (or one to be a prefix of the other,
+    // covering "Matt"/"Matthew" and abbreviated feed names). Matching on the
+    // first initial alone wrongly tied e.g. Luke McDonald to another L. McDonald
+    // from a different club — giving the wrong crest AND the wrong form stats.
+    if (keyFirst === propFirst || keyFirst.startsWith(propFirst) || propFirst.startsWith(keyFirst)) {
+      return stats;
+    }
   }
   return null;
 }

@@ -1242,6 +1242,17 @@ function EdgeLegRow({ leg, index, sportContext }) {
 
   const toneColor = (t) => t === "fresh" ? "var(--positive-new)" : t === "ageing" ? "var(--warning-new)" : "var(--danger-new)";
 
+  // Guard the crest to the game's actual teams: if a leg's team tag isn't one of
+  // the two clubs in this game (a bad stats-name match), show a neutral crest
+  // rather than a wrong club (e.g. a Sydney crest in a North v Freo multi).
+  const crestTeam = (() => {
+    const legKey = teamKey(leg.team);
+    if (!legKey) return leg.team; // unresolved → TeamCrest falls back to a monogram
+    const gameTeams = String(leg.game || "").split(/\bvs\b/i);
+    if (gameTeams.length === 2 && !gameTeams.some((t) => teamKey(t) === legKey)) return null;
+    return leg.team;
+  })();
+
   return (
     <div className="reveal-part" style={{ animationDelay: `${0.12 + index * 0.08}s` }}>
       {/* COMPACT ROW — whole row taps to expand */}
@@ -1252,7 +1263,7 @@ function EdgeLegRow({ leg, index, sportContext }) {
         className="grid w-full grid-cols-[22px_36px_1fr_auto] items-center gap-x-4 py-4 text-left transition-colors hover:bg-[var(--surface-new)]/40 md:grid-cols-[22px_40px_1fr_84px_auto]"
       >
         <div className="mono-nums text-[12px] text-[var(--text-3-new)] tracking-[0.05em]">{String(index + 1).padStart(2, "0")}</div>
-        <TeamCrest team={leg.team} className="h-9 w-9 shrink-0" />
+        <TeamCrest team={crestTeam} className="h-9 w-9 shrink-0" />
         <div className="min-w-0">
           <div className="truncate text-[14px] md:text-[15px] font-medium tracking-[-0.01em] text-[var(--text-new)]">
             {playerName}
