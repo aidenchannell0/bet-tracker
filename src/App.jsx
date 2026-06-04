@@ -569,30 +569,33 @@ function teamShort(name) {
 // Plain-English one-liner for the multi output ("In plain English" band).
 // Built from numbers already on the card — chance → "1-in-N", value → fair /
 // above-fair / good value, risk score → lower / balanced / higher variance.
-function plainMultiSummary(multi) {
-  if (!multi) return null;
+// Plain-English read of a multi as three glanceable, colour-coded pills
+// (Chance / Value / Risk). Tones: "green" good, "amber" caution, "neutral".
+function plainMultiPills(multi) {
+  if (!multi) return [];
+  const pills = [];
   const prob = Number(multi.combinedProbPct);
-  if (!Number.isFinite(prob) || prob <= 0) return null;
-  const n = Math.max(2, Math.round(100 / prob));
+  if (Number.isFinite(prob) && prob > 0) {
+    pills.push({ label: "Chance", value: `~1 in ${Math.max(2, Math.round(100 / prob))}`, tone: "neutral" });
+  }
   const ev = Number(multi.evPct);
-  let value = null;
-  let valueClass = "text-[var(--text-new)]";
   if (Number.isFinite(ev)) {
-    if (ev >= 8) { value = "strong value vs the market"; valueClass = "text-[var(--positive-new)]"; }
-    else if (ev >= 2) { value = "a bit of value vs the market"; valueClass = "text-[var(--positive-new)]"; }
-    else if (ev > -2) { value = "priced about fair"; valueClass = "text-[var(--text-new)]"; }
-    else if (ev > -10) { value = "priced a little above fair value"; valueClass = "text-[var(--warning-new)]"; }
-    else { value = "priced above fair value"; valueClass = "text-[var(--warning-new)]"; }
+    let value, tone;
+    if (ev >= 8) { value = "Strong value"; tone = "green"; }
+    else if (ev >= 2) { value = "Good value"; tone = "green"; }
+    else if (ev > -2) { value = "About fair"; tone = "neutral"; }
+    else { value = "Below value"; tone = "amber"; }
+    pills.push({ label: "Value", value, tone });
   }
   const risk = Number(multi.risk);
-  const riskWord = !Number.isFinite(risk) ? null : risk <= 3 ? "lower-variance" : risk <= 6 ? "balanced" : "higher-variance";
-  return (
-    <>
-      About a <span className="font-semibold text-[var(--text-new)]">1-in-{n} chance</span>
-      {value ? <> — <span className={"font-medium " + valueClass}>{value}</span></> : null}
-      {riskWord ? <>, and <span className="font-semibold text-[var(--text-new)]">{riskWord}</span></> : null}.
-    </>
-  );
+  if (Number.isFinite(risk)) {
+    pills.push({
+      label: "Risk",
+      value: risk <= 3 ? "Lower variance" : risk <= 6 ? "Balanced" : "Higher variance",
+      tone: risk <= 3 ? "green" : risk <= 6 ? "neutral" : "amber",
+    });
+  }
+  return pills;
 }
 
 // DEV-ONLY sample fixtures for the dashboard game scroller. `/api/odds` only
@@ -2815,16 +2818,19 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                       : <>The example is illustrative. Click <span className="text-[var(--text-new)] font-medium">Build multi</span> to build from real {sport} stats and current market lines.</>}
                   </p>
 
-                  {/* Plain-English read (Style A) — one sentence translating the
-                      stat strip below. Only on a real build, not the example. */}
-                  {multiOutput ? (
-                    <div
-                      style={{ background: "linear-gradient(180deg, var(--accent-soft-new), transparent)", animationDelay: "0.02s" }}
-                      className="reveal-part relative mt-6 overflow-hidden rounded-2xl border border-[var(--border-new)] py-3.5 pl-5 pr-4"
-                    >
-                      <span className="absolute inset-y-3 left-0 w-[3px] rounded-full bg-[var(--accent-new)]" />
-                      <div className="text-[9.5px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-new)]">In plain English</div>
-                      <div className="mt-1.5 text-[15px] leading-relaxed text-[var(--text-2-new)] md:text-[16px]">{plainMultiSummary(multiOutput)}</div>
+                  {/* Plain-English read (Style C) — colour-coded pills that
+                      translate the stat strip below into a glance. Real builds only. */}
+                  {multiOutput && plainMultiPills(multiOutput).length ? (
+                    <div className="reveal-part mt-6 flex flex-wrap gap-2.5" style={{ animationDelay: "0.02s" }}>
+                      {plainMultiPills(multiOutput).map((pill) => (
+                        <div
+                          key={pill.label}
+                          className={"rounded-xl border border-[var(--border-new)] px-3.5 py-2.5 " + (pill.tone === "green" ? "bg-[var(--positive-soft-new)]" : pill.tone === "amber" ? "bg-[var(--warning-soft-new)]" : "bg-[var(--surface-new)]")}
+                        >
+                          <div className="text-[8.5px] font-semibold uppercase tracking-[0.1em] text-[var(--text-3-new)]">{pill.label}</div>
+                          <div className={"brand-wordmark mt-1 text-[14px] font-bold tracking-[-0.01em] " + (pill.tone === "green" ? "text-[var(--positive-new)]" : pill.tone === "amber" ? "text-[var(--warning-new)]" : "text-[var(--text-new)]")}>{pill.value}</div>
+                        </div>
+                      ))}
                     </div>
                   ) : null}
 
