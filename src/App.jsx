@@ -566,6 +566,35 @@ function teamShort(name) {
   return String(name || "").trim().split(/\s+/)[0].slice(0, 4).toUpperCase() || "?";
 }
 
+// Plain-English one-liner for the multi output ("In plain English" band).
+// Built from numbers already on the card — chance → "1-in-N", value → fair /
+// above-fair / good value, risk score → lower / balanced / higher variance.
+function plainMultiSummary(multi) {
+  if (!multi) return null;
+  const prob = Number(multi.combinedProbPct);
+  if (!Number.isFinite(prob) || prob <= 0) return null;
+  const n = Math.max(2, Math.round(100 / prob));
+  const ev = Number(multi.evPct);
+  let value = null;
+  let valueClass = "text-[var(--text-new)]";
+  if (Number.isFinite(ev)) {
+    if (ev >= 8) { value = "strong value vs the market"; valueClass = "text-[var(--positive-new)]"; }
+    else if (ev >= 2) { value = "a bit of value vs the market"; valueClass = "text-[var(--positive-new)]"; }
+    else if (ev > -2) { value = "priced about fair"; valueClass = "text-[var(--text-new)]"; }
+    else if (ev > -10) { value = "priced a little above fair value"; valueClass = "text-[var(--warning-new)]"; }
+    else { value = "priced above fair value"; valueClass = "text-[var(--warning-new)]"; }
+  }
+  const risk = Number(multi.risk);
+  const riskWord = !Number.isFinite(risk) ? null : risk <= 3 ? "lower-variance" : risk <= 6 ? "balanced" : "higher-variance";
+  return (
+    <>
+      About a <span className="font-semibold text-[var(--text-new)]">1-in-{n} chance</span>
+      {value ? <> — <span className={"font-medium " + valueClass}>{value}</span></> : null}
+      {riskWord ? <>, and <span className="font-semibold text-[var(--text-new)]">{riskWord}</span></> : null}.
+    </>
+  );
+}
+
 // DEV-ONLY sample fixtures for the dashboard game scroller. `/api/odds` only
 // runs on Vercel, so in `vite dev` the real fetch returns nothing — this lets
 // the card be developed/reviewed locally. `import.meta.env.DEV` is false in
@@ -2785,6 +2814,19 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                       ? <>Real form × current odds. Refine in chat below.</>
                       : <>The example is illustrative. Click <span className="text-[var(--text-new)] font-medium">Build multi</span> to build from real {sport} stats and current market lines.</>}
                   </p>
+
+                  {/* Plain-English read (Style A) — one sentence translating the
+                      stat strip below. Only on a real build, not the example. */}
+                  {multiOutput ? (
+                    <div
+                      style={{ background: "linear-gradient(180deg, var(--accent-soft-new), transparent)", animationDelay: "0.02s" }}
+                      className="reveal-part relative mt-6 overflow-hidden rounded-2xl border border-[var(--border-new)] py-3.5 pl-5 pr-4"
+                    >
+                      <span className="absolute inset-y-3 left-0 w-[3px] rounded-full bg-[var(--accent-new)]" />
+                      <div className="text-[9.5px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-new)]">In plain English</div>
+                      <div className="mt-1.5 text-[15px] leading-relaxed text-[var(--text-2-new)] md:text-[16px]">{plainMultiSummary(multiOutput)}</div>
+                    </div>
+                  ) : null}
 
                   {/* Editorial stat strip — Layout B. Hairline borders only,
                       massive 44px mono numerals on Combined, 28px on others. */}
