@@ -2505,8 +2505,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                     <span className="text-[11px] uppercase tracking-[0.06em]">
                       {gatedNow ? "Out of free builds" : `${buildsLeft} of ${entitlement.limit} free builds left`}
                     </span>
-                    <button type="button" onClick={startUpgrade} disabled={upgrading} className="text-[11px] uppercase tracking-[0.06em] text-[var(--accent-new)] hover:opacity-80 disabled:opacity-50">
-                      {upgrading ? "Starting…" : "Upgrade"}
+                    <button type="button" onClick={startUpgrade} disabled={upgrading} className="rounded-full bg-[var(--accent-new)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:opacity-50">
+                      {upgrading ? "Starting…" : "Go Pro"}
                     </button>
                   </>
                 )}
