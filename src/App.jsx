@@ -598,7 +598,7 @@ function plainMultiPills(multi) {
     if (ev >= 8) { value = "Strong value"; tone = "green"; }
     else if (ev >= 2) { value = "Good value"; tone = "green"; }
     else if (ev > -2) { value = "About fair"; tone = "neutral"; }
-    else { value = "Below value"; tone = "amber"; }
+    else { value = "Below fair"; tone = "amber"; }
     pills.push({ label: "Value", value, tone });
   }
   const risk = Number(multi.risk);
@@ -1260,7 +1260,7 @@ function EdgeLegRow({ leg, index, sportContext }) {
         type="button"
         onClick={() => setExpanded((e) => !e)}
         aria-expanded={expanded}
-        className="grid w-full grid-cols-[22px_36px_1fr_auto] items-center gap-x-4 py-4 text-left transition-colors hover:bg-[var(--surface-new)]/40 md:grid-cols-[22px_40px_1fr_84px_auto]"
+        className="group grid w-full grid-cols-[22px_36px_1fr_auto] items-center gap-x-4 rounded-lg py-4 text-left transition-colors hover:bg-[var(--surface-new)]/40 active:bg-[var(--surface-new)] md:grid-cols-[22px_40px_1fr_84px_auto]"
       >
         <div className="mono-nums text-[12px] text-[var(--text-3-new)] tracking-[0.05em]">{String(index + 1).padStart(2, "0")}</div>
         <TeamCrest team={crestTeam} className="h-9 w-9 shrink-0" />
@@ -1293,12 +1293,14 @@ function EdgeLegRow({ leg, index, sportContext }) {
               ) : null}
             </div>
           </div>
-          <svg
-            viewBox="0 0 12 12" className="h-3 w-3 shrink-0 text-[var(--text-3-new)] transition-transform"
-            style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }} fill="none" stroke="currentColor" strokeWidth="1.6"
+          <span
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--border-new)] text-[var(--text-2-new)] transition-all group-hover:border-[var(--border-strong-new)] group-hover:text-[var(--text-new)]"
+            style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
           >
-            <path d="M2.5 4.5 L6 8 L9.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+            <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M2.5 4.5 L6 8 L9.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
         </div>
       </button>
 
@@ -2888,7 +2890,11 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                       <div className={"mt-3.5 mono-nums text-[26px] md:text-[28px] font-semibold tracking-[-0.025em] leading-none " + (multiOutput && multiOutput.evPct > 0 ? "text-[var(--accent-new)]" : "text-[var(--text-2-new)]")}>
                         {multiOutput && typeof multiOutput.evPct === "number" ? `${multiOutput.evPct > 0 ? "+" : ""}${multiOutput.evPct}%` : "—"}
                       </div>
-                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{multiOutput && typeof multiOutput.valueLegs === "number" ? `${multiOutput.valueLegs} of ${multiOutput.legCount} +edge` : "Form vs odds"}</div>
+                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{multiOutput && typeof multiOutput.evPct === "number"
+                        ? (multiOutput.evPct > 0
+                            ? `${multiOutput.valueLegs} of ${multiOutput.legCount} +edge`
+                            : `Below fair value${multiOutput.sameGameNote ? " · same-game discount applied" : ""}`)
+                        : "Form vs odds"}</div>
                     </div>
                     <div className="md:pl-7">
                       <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Risk</div>
@@ -5867,7 +5873,10 @@ export default function BettingTrackerWebsite() {
                         {(isWin || isLoss) ? (
                           <div className={"mono-nums text-[13px] font-semibold " + (pl >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{pl >= 0 ? "+" : ""}{formatCurrency(pl)}</div>
                         ) : (
-                          <div className="text-[10px] uppercase tracking-[0.06em] text-[var(--warning-new)]">Pending</div>
+                          <div className="flex items-center gap-1.5">
+                            <button type="button" onClick={() => settlePendingBet(bet.id, "win")} className="rounded-md bg-[var(--positive-soft-new)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--positive-new)] active:opacity-80">Won</button>
+                            <button type="button" onClick={() => settlePendingBet(bet.id, "loss")} className="rounded-md bg-[var(--danger-soft-new)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--danger-new)] active:opacity-80">Lost</button>
+                          </div>
                         )}
                       </div>
                     );
@@ -5951,23 +5960,30 @@ export default function BettingTrackerWebsite() {
                       const isLoss = bet.result === "loss";
                       const pl = Number(bet.profitLoss || 0);
                       return (
-                        <button
+                        <div
                           key={bet.id}
-                          type="button"
-                          onClick={() => { setExpandedBetId(bet.id); setActivePage("tracker"); }}
-                          className="grid w-full grid-cols-[24px_1fr_auto] items-center gap-3 border-t border-[var(--border-new)] py-3 text-left transition-colors hover:bg-[var(--surface-new)]"
+                          className="grid w-full grid-cols-[1fr_auto] items-center gap-3 border-t border-[var(--border-new)] py-3"
                         >
-                          <div className={"grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold " + (isWin ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : isLoss ? "bg-[var(--danger-soft-new)] text-[var(--danger-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>{isWin ? "✓" : isLoss ? "✕" : "·"}</div>
-                          <div className="min-w-0">
-                            <div className="truncate text-[13px] font-medium text-[var(--text-new)]">{bet.notes || bet.betType || bet.sport || "Bet"}</div>
-                            <div className="mt-0.5 text-[11px] text-[var(--text-3-new)]"><span className="mono-nums">{bet.date}</span> · <span className="mono-nums">{formatCurrency(bet.stake)}</span> stake{bet.bookmaker ? <> · {bet.bookmaker}</> : null}</div>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { setExpandedBetId(bet.id); setActivePage("tracker"); }}
+                            className="grid min-w-0 grid-cols-[24px_1fr] items-center gap-3 text-left transition-opacity hover:opacity-80"
+                          >
+                            <div className={"grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold " + (isWin ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : isLoss ? "bg-[var(--danger-soft-new)] text-[var(--danger-new)]" : "bg-[var(--surface-2-new)] text-[var(--text-3-new)]")}>{isWin ? "✓" : isLoss ? "✕" : "·"}</div>
+                            <div className="min-w-0">
+                              <div className="truncate text-[13px] font-medium text-[var(--text-new)]">{bet.notes || bet.betType || bet.sport || "Bet"}</div>
+                              <div className="mt-0.5 text-[11px] text-[var(--text-3-new)]"><span className="mono-nums">{bet.date}</span> · <span className="mono-nums">{formatCurrency(bet.stake)}</span> stake{bet.bookmaker ? <> · {bet.bookmaker}</> : null}</div>
+                            </div>
+                          </button>
                           {(isWin || isLoss) ? (
                             <div className={"mono-nums text-[14px] font-semibold " + (pl >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{pl >= 0 ? "+" : ""}{formatCurrency(pl)}</div>
                           ) : (
-                            <div className="text-[10px] uppercase tracking-[0.06em] text-[var(--warning-new)]">Pending</div>
+                            <div className="flex items-center gap-1.5">
+                              <button type="button" onClick={() => settlePendingBet(bet.id, "win")} className="rounded-md bg-[var(--positive-soft-new)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--positive-new)] hover:opacity-80">Won</button>
+                              <button type="button" onClick={() => settlePendingBet(bet.id, "loss")} className="rounded-md bg-[var(--danger-soft-new)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--danger-new)] hover:opacity-80">Lost</button>
+                            </div>
                           )}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
