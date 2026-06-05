@@ -1280,7 +1280,7 @@ function EdgeLegRow({ leg, index, sportContext }) {
             ) : null}
           </div>
           {lineText ? (
-            <div className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[var(--text-2-new)]"><span className="mono-nums">{lineText}</span></div>
+            <div className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[var(--accent-new)]"><span className="mono-nums">{lineText}</span></div>
           ) : null}
           <div className="mt-0.5 truncate text-[11px] text-[var(--text-3-new)]">
             {avgN != null ? <>Avg <span className="mono-nums text-[var(--text-2-new)]">{avgN}</span></> : null}
