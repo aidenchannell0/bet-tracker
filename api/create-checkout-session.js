@@ -46,6 +46,22 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     let customerId = profile?.stripe_customer_id;
+    // Verify the stored customer still exists in THIS Stripe account/mode. A
+    // customer created under test keys (or since deleted) 404s after switching
+    // to live keys — which surfaced as "No such customer" at checkout. If it's
+    // gone, drop it and create a fresh one below.
+    if (customerId) {
+      try {
+        const existing = await stripe.customers.retrieve(customerId);
+        if (existing?.deleted) customerId = null;
+      } catch (lookupErr) {
+        if (lookupErr?.code === "resource_missing" || lookupErr?.statusCode === 404) {
+          customerId = null;
+        } else {
+          throw lookupErr;
+        }
+      }
+    }
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
