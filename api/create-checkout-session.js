@@ -106,6 +106,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ url: session.url });
   } catch (error) {
     console.error("create-checkout-session error:", error);
-    return res.status(500).json({ error: "Could not start checkout." });
+    // Surface the real Stripe message (e.g. "No such price", "Invalid API Key",
+    // coupon errors) so config issues are diagnosable from the client.
+    return res.status(500).json({ error: error?.message || "Could not start checkout." });
   }
 }
