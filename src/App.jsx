@@ -4341,6 +4341,30 @@ export default function BettingTrackerWebsite() {
   const [manualOpen, setManualOpen] = useState(false);
   // Weekly build allowance for the card's "X of N free builds left" nudge.
   const [entitlement, setEntitlement] = useState({ subscribed: false, usage: 0, limit: 3 });
+  const [upgrading, setUpgrading] = useState(false);
+  // Dismissible "Go Pro" strip on the dashboard — remembered per browser.
+  const [proStripDismissed, setProStripDismissed] = useState(() => {
+    try { return localStorage.getItem("proStripDismissed") === "1"; } catch { return false; }
+  });
+  const dismissProStrip = () => {
+    setProStripDismissed(true);
+    try { localStorage.setItem("proStripDismissed", "1"); } catch { /* ignore */ }
+  };
+  const startUpgrade = async () => {
+    if (upgrading) return;
+    setUpgrading(true);
+    try {
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      });
+      const data = await response.json();
+      if (data.url) window.location.href = data.url;
+      else setUpgrading(false);
+    } catch {
+      setUpgrading(false);
+    }
+  };
 
   // Upcoming games for the scroller, refetched whenever the sport toggles.
   useEffect(() => {
@@ -5497,6 +5521,20 @@ export default function BettingTrackerWebsite() {
               triggers a remount on page switch so the page-fade-in CSS
               animation re-fires every time the user navigates. */}
           <div key={activePage} className={"space-y-6 " + (navigating ? "page-leaving" : "page-fade-in")}>
+            {/* Dismissible "Go Pro" strip — dashboard only, free users only. */}
+            {activePage === "app" && !entitlement.subscribed && !proStripDismissed ? (
+              <div
+                style={{ background: "linear-gradient(90deg, var(--accent-soft-new), transparent)" }}
+                className="flex items-center gap-3 rounded-xl border border-[var(--border-new)] px-4 py-3"
+              >
+                <span className="shrink-0 text-[var(--accent-new)]">✦</span>
+                <span className="flex-1 text-[13px] leading-snug text-[var(--text-2-new)]">
+                  <span className="font-semibold text-[var(--text-new)]">Unlimited builds with Pickd Pro.</span> <span className="text-[var(--text-3-new)]">$4.99/wk · founding price.</span>
+                </span>
+                <Button onClick={startUpgrade} disabled={upgrading} className="shrink-0">{upgrading ? "Starting…" : "Go Pro"}</Button>
+                <button type="button" onClick={dismissProStrip} aria-label="Dismiss" className="shrink-0 text-[var(--text-3-new)] transition-colors hover:text-[var(--text-new)]">✕</button>
+              </div>
+            ) : null}
 
           {/* ───────────── MOBILE HERO + CAROUSEL (under md) ─────────────
               Concept #02 — Hero stat + horizontal scroll. Mobile gets a
