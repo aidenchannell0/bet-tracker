@@ -1224,10 +1224,18 @@ function EdgeLegRow({ leg, index, sportContext }) {
     const am = leg.reason.match(/averaging\s+([0-9.]+)/i);
     if (am) avgN = parseFloat(am[1]);
   }
-  let playerName = leg.name || "";
+  // Split the player from the line ("Blake Hardwick" + "12+ disposals") so the
+  // line gets its own row and is never truncated away on mobile. leg.name is
+  // "<player> <line>"; prefer the explicit leg.player, else the legacy em-dash.
+  let playerName = leg.player || leg.name || "";
   let lineText = "";
-  const dashIdx = playerName.indexOf("—");
-  if (dashIdx >= 0) { lineText = playerName.slice(dashIdx + 1).trim(); playerName = playerName.slice(0, dashIdx).trim(); }
+  if (leg.player && typeof leg.name === "string" && leg.name.toLowerCase().startsWith(leg.player.toLowerCase())) {
+    lineText = leg.name.slice(leg.player.length).trim();
+  } else if (typeof leg.name === "string" && leg.name.indexOf("—") >= 0) {
+    const dashIdx = leg.name.indexOf("—");
+    lineText = leg.name.slice(dashIdx + 1).trim();
+    playerName = leg.name.slice(0, dashIdx).trim();
+  }
   const lineNum = (() => {
     if (typeof leg.line === "number") return leg.line;
     const n = parseFloat(String(leg.line || lineText || "").replace(/[^0-9.]/g, ""));
@@ -1270,9 +1278,11 @@ function EdgeLegRow({ leg, index, sportContext }) {
             {leg.position ? (
               <span className="ml-2 inline-flex items-center rounded bg-[var(--surface-new)] px-1.5 py-0.5 align-middle text-[9px] font-semibold tracking-[0.08em] text-[var(--text-3-new)]">{leg.position}</span>
             ) : null}
-            {lineText ? <span className="font-normal text-[var(--text-3-new)]"> — <span className="mono-nums">{lineText}</span></span> : null}
           </div>
-          <div className="mt-0.5 truncate text-[12px] text-[var(--text-3-new)]">
+          {lineText ? (
+            <div className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[var(--text-2-new)]"><span className="mono-nums">{lineText}</span></div>
+          ) : null}
+          <div className="mt-0.5 truncate text-[11px] text-[var(--text-3-new)]">
             {avgN != null ? <>Avg <span className="mono-nums text-[var(--text-2-new)]">{avgN}</span></> : null}
             {totalN > 0 ? <>{avgN != null ? " · " : ""}<span className="mono-nums text-[var(--text-2-new)]">{hitN}/{totalN}</span> cleared</> : null}
           </div>
