@@ -85,7 +85,23 @@ export default async function handler(req, res) {
     } else {
       sessionParams.allow_promotion_codes = true;
     }
-    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams);
+    } catch (couponErr) {
+      // Don't let a bad founding coupon (expired / fully redeemed / deleted)
+      // block checkout — fall back to a standard session so users can still
+      // subscribe at the regular price.
+      if (foundingEligible) {
+        console.error("Founding coupon failed, retrying without it:", couponErr?.message);
+        delete sessionParams.discounts;
+        sessionParams.allow_promotion_codes = true;
+        session = await stripe.checkout.sessions.create(sessionParams);
+      } else {
+        throw couponErr;
+      }
+    }
 
     return res.status(200).json({ url: session.url });
   } catch (error) {

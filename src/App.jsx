@@ -4358,11 +4358,13 @@ export default function BettingTrackerWebsite() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
       });
-      const data = await response.json();
-      if (data.url) window.location.href = data.url;
-      else setUpgrading(false);
+      const data = await response.json().catch(() => ({}));
+      if (data.url) { window.location.href = data.url; return; }
+      setUpgrading(false);
+      setMessage(data.error || "Could not start checkout. Please try again.");
     } catch {
       setUpgrading(false);
+      setMessage("Could not start checkout. Please try again.");
     }
   };
 
