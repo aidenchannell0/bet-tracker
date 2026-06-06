@@ -1775,7 +1775,7 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // Best Chance treats combos within CHANCE_SLACK of the most likely buildable
   // combo as tied on chance (the model isn't precise to the percentage point),
   // then breaks that near-tie on CUSHION — see the branch below.
-  const CHANCE_SLACK = 0.03;
+  const CHANCE_SLACK = 0.05;
   const maxComboProb =
     riskProfile === "Best Chance" ? Math.max(0, ...pool.map((c) => c.prob ?? 0)) : 0;
   pool.sort((a, b) => {
