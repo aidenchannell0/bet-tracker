@@ -1129,22 +1129,48 @@ function weightedHitRate(values, line, decay = 0.85) {
 }
 
 // Clearance "z-score": how comfortably a player clears the line, accounting for
-// BOTH margin and consistency — (mean − line) / stdev over recent games. A high
-// value means the player sits well above the line with low game-to-game
-// variance (a safe leg); near 0 means they scrape over and one quiet game tips
-// them under. Hit rate alone can't tell a "10/10 by one disposal" leg from a
-// "10/10 by eight" leg — this can. Used by the Best Chance profile to prefer
-// cushiony legs among combos of near-equal combined chance. Clamped to ±5 so a
-// perfectly consistent player (stdev 0) doesn't produce an infinite score.
-function clearanceZ(values, line) {
+// BOTH margin and consistency — (mean − line) / stdev. A high value means the
+// player sits well above the line with low game-to-game variance (a safe leg);
+// near 0 means they scrape over and one quiet game tips them under. Hit rate
+// alone can't tell a "10/10 by one disposal" leg from a "10/10 by eight" leg —
+// this can. Roughly, Φ(−z) ≈ the chance of a down game (z≈1 → ~16%, z≈1.65 →
+// ~5%). Used to prefer cushiony legs (Best Chance) and shown per-leg in the UI.
+//
+// RECENCY-WEIGHTED: values are most-recent-first, so we weight recent games more
+// (exponential decay 0.85, the same the hit-rate streak logic uses) — a player
+// whose recent games hug the line scores lower even if older games padded his
+// average. Clamped to ±5 so a perfectly consistent player (stdev 0) doesn't
+// produce an infinite score.
+function clearanceZ(values, line, decay = 0.85) {
   if (line == null || !Array.isArray(values)) return null;
   const nums = values.map(Number).filter((v) => Number.isFinite(v));
   if (nums.length < 2) return null;
-  const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
-  const sd = Math.sqrt(nums.reduce((a, b) => a + (b - mean) ** 2, 0) / nums.length);
+  let wSum = 0;
+  let wMean = 0;
+  for (let i = 0; i < nums.length; i++) {
+    const w = Math.pow(decay, i);
+    wSum += w;
+    wMean += w * nums[i];
+  }
+  const mean = wMean / wSum;
+  let wVar = 0;
+  for (let i = 0; i < nums.length; i++) wVar += Math.pow(decay, i) * (nums[i] - mean) ** 2;
+  const sd = Math.sqrt(wVar / wSum);
   const clamp = (z) => Math.max(-5, Math.min(5, z));
   if (sd === 0) return clamp(mean > line ? 5 : mean < line ? -5 : 0);
   return clamp((mean - line) / sd);
+}
+
+// Plain-English cushion grade for a clearance z. Thresholds map to roughly the
+// chance of a "down game" (a game under the line): Comfortable ≲7%, Solid
+// ~7–16%, Slim ~16–27%, On the line >27%. Tuned for headline lines, which
+// bookmakers price near a player's average, so most legs land Slim–Solid.
+function cushionGrade(z) {
+  if (z == null) return null;
+  if (z >= 1.5) return "Comfortable";
+  if (z >= 1.0) return "Solid";
+  if (z >= 0.6) return "Slim";
+  return "On the line";
 }
 
 function parseOddsValue(targetOdds) {
@@ -1409,6 +1435,11 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
       restFactor,     // multiplier applied to empirical for rest adjustment
       edge,
       margin: ms.recentAvg != null ? Number((ms.recentAvg - prop.line).toFixed(1)) : null,
+      // Recency-weighted clearance z — how comfortably (margin + consistency)
+      // the player clears this line. Drives the Best Chance cushion preference
+      // and is surfaced per-leg in the UI. Computed once here so every consumer
+      // (selection AND display) reads the same number.
+      cushionZ: clearanceZ(ms.last10Values, prop.line),
     };
   });
 }
@@ -1537,7 +1568,7 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   const linesByPlayer = new Map();
   for (const p of candidates) {
     const arr = linesByPlayer.get(p.playerName) || [];
-    arr.push({ ...p, score: scoreOf(p), cushionZ: clearanceZ(p.last10Values, p.line) });
+    arr.push({ ...p, score: scoreOf(p) }); // cushionZ already carried from enrichProps
     linesByPlayer.set(p.playerName, arr);
   }
   const perPlayerLines = [];
@@ -2086,6 +2117,7 @@ function structureLegFromEnriched(p) {
   const l5 = p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : "N/A";
   const l10 = p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "N/A";
   const matchupPct = p.matchupFactor && p.matchupFactor !== 1 ? Math.round((p.matchupFactor - 1) * 100) : 0;
+  const cushion = cushionGrade(p.cushionZ);
 
   const details = [
     { label: "Market line", value: `${Math.ceil(Number(p.line))}+` },
@@ -2116,6 +2148,8 @@ function structureLegFromEnriched(p) {
     bookmaker: p.bookmaker || null,
     confidence: `${empPct}%`,
     edgePct, // form hit-rate minus odds-implied probability (the value signal)
+    cushionZ: p.cushionZ != null ? Number(p.cushionZ.toFixed(2)) : null, // recency-weighted clearance z
+    cushionGrade: cushion, // "Comfortable" | "Solid" | "Slim" | "On the line" | null
     reason: `Cleared this line in ${l10} recent games, averaging ${p.recentAvg}.`,
     details,
     last5Values: p.last5Values || [], // most-recent-first; UI highlights the latest game

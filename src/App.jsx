@@ -1249,6 +1249,13 @@ function EdgeLegRow({ leg, index, sportContext }) {
   }
 
   const toneColor = (t) => t === "fresh" ? "var(--positive-new)" : t === "ageing" ? "var(--warning-new)" : "var(--danger-new)";
+  // Cushion = how comfortably the player clears the line on recent form (margin
+  // + consistency). Green when there's room, amber/red when he hugs the line.
+  const cushionColor = (g) =>
+    g === "Comfortable" ? "var(--positive-new)"
+    : g === "Solid" ? "var(--positive-new)"
+    : g === "Slim" ? "var(--warning-new)"
+    : "var(--danger-new)";
 
   // Guard the crest to the game's actual teams: if a leg's team tag isn't one of
   // the two clubs in this game (a bad stats-name match), show a neutral crest
@@ -1354,6 +1361,16 @@ function EdgeLegRow({ leg, index, sportContext }) {
             {matchupPct !== null && leg.opponent ? (
               <span className="text-[12px] text-[var(--text-2-new)]">
                 Matchup <span className={matchupPct >= 0 ? "font-medium text-[var(--positive-new)]" : "font-medium text-[var(--danger-new)]"}><span className="mono-nums">{matchupPct >= 0 ? "+" : ""}{matchupPct}%</span></span> vs {leg.opponent}
+              </span>
+            ) : null}
+            {leg.cushionGrade ? (
+              <span
+                className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.08em]"
+                style={{ color: cushionColor(leg.cushionGrade) }}
+                title={`How comfortably he clears the line on recent form${leg.cushionZ != null ? ` (${leg.cushionZ}σ above the line)` : ""}`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: cushionColor(leg.cushionGrade) }} />
+                Cushion · {leg.cushionGrade}
               </span>
             ) : null}
           </div>
