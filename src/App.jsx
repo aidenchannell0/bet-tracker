@@ -4329,9 +4329,10 @@ export default function BettingTrackerWebsite() {
   // navigates to the MultiPick page, which auto-fires the build on arrival.
   const [mpSport, setMpSport] = useState("AFL");
   const [mpGameIds, setMpGameIds] = useState([]);
-  const [mpLegs, setMpLegs] = useState("3");
-  const [mpOdds, setMpOdds] = useState("$3.00");
-  const [mpRisk, setMpRisk] = useState("Balanced");
+  const [mpLegs, setMpLegs] = useState("Any");
+  const [mpOdds, setMpOdds] = useState("$2.00");
+  const [mpOddsCustom, setMpOddsCustom] = useState("2.50");
+  const [mpRisk, setMpRisk] = useState("Best Chance");
   const [mpBook, setMpBook] = useState("");
   const [mpGames, setMpGames] = useState([]);
   const [mpGamesLoading, setMpGamesLoading] = useState(false);
@@ -4400,7 +4401,8 @@ export default function BettingTrackerWebsite() {
   // Smooth hand-off: stash the mini-builder selection, fade the dashboard out,
   // then switch to MultiPick (which fades in and auto-builds on arrival).
   const goBuildMulti = () => {
-    setEdgePrefill({ sport: mpSport, gameIds: mpGameIds, legs: mpLegs, targetOdds: mpOdds, riskProfile: mpRisk, bookmaker: mpBook, autoBuild: true });
+    const targetOdds = mpOdds === "Custom" && mpOddsCustom ? `$${mpOddsCustom}` : mpOdds;
+    setEdgePrefill({ sport: mpSport, gameIds: mpGameIds, legs: mpLegs, targetOdds, riskProfile: mpRisk, bookmaker: mpBook, autoBuild: true });
     setNavigating(true);
     setTimeout(() => { setActivePage("edge"); setNavigating(false); }, 220);
   };
@@ -5231,9 +5233,9 @@ export default function BettingTrackerWebsite() {
       <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: "Sport", value: mpSport, set: setMpSport, options: ["AFL", "NBA"] },
-          { label: "Legs", value: mpLegs, set: setMpLegs, options: ["2", "3", "4", "5"] },
-          { label: "Odds", value: mpOdds, set: setMpOdds, options: ["$2.00", "$3.00", "$5.00"] },
-          { label: "Risk", value: mpRisk, set: setMpRisk, options: ["Safer", "Balanced", "Aggressive"] },
+          { label: "Legs", value: mpLegs, set: setMpLegs, options: ["Any", "2", "3", "4", "5"] },
+          { label: "Odds", value: mpOdds, set: setMpOdds, options: ["$2.00", "$3.00", "$5.00", "$10.00", "Custom"] },
+          { label: "Risk", value: mpRisk, set: setMpRisk, options: ["Safer", "Balanced", "Aggressive", "Best Chance"] },
         ].map((ctrl) => (
           <label key={ctrl.label} className="flex flex-col gap-1">
             <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">{ctrl.label}</span>
@@ -5247,6 +5249,22 @@ export default function BettingTrackerWebsite() {
           </label>
         ))}
       </div>
+
+      {mpOdds === "Custom" ? (
+        <label className="mt-2.5 flex flex-col gap-1">
+          <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Custom target odds</span>
+          <input
+            type="number"
+            min="1"
+            step="0.01"
+            inputMode="decimal"
+            value={mpOddsCustom}
+            onChange={(event) => setMpOddsCustom(event.target.value)}
+            placeholder="e.g. 4.50"
+            className="rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none hover:border-[var(--border-strong-new)] focus:border-[var(--text-new)] placeholder:text-[var(--text-3-new)]"
+          />
+        </label>
+      ) : null}
 
       <label className="mt-2.5 flex flex-col gap-1">
         <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Bookmaker</span>
