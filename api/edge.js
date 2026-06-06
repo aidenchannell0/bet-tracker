@@ -1128,6 +1128,25 @@ function weightedHitRate(values, line, decay = 0.85) {
   return { hits: wHits, total: wTotal, prob: wHits / wTotal };
 }
 
+// Clearance "z-score": how comfortably a player clears the line, accounting for
+// BOTH margin and consistency — (mean − line) / stdev over recent games. A high
+// value means the player sits well above the line with low game-to-game
+// variance (a safe leg); near 0 means they scrape over and one quiet game tips
+// them under. Hit rate alone can't tell a "10/10 by one disposal" leg from a
+// "10/10 by eight" leg — this can. Used by the Best Chance profile to prefer
+// cushiony legs among combos of near-equal combined chance. Clamped to ±5 so a
+// perfectly consistent player (stdev 0) doesn't produce an infinite score.
+function clearanceZ(values, line) {
+  if (line == null || !Array.isArray(values)) return null;
+  const nums = values.map(Number).filter((v) => Number.isFinite(v));
+  if (nums.length < 2) return null;
+  const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
+  const sd = Math.sqrt(nums.reduce((a, b) => a + (b - mean) ** 2, 0) / nums.length);
+  const clamp = (z) => Math.max(-5, Math.min(5, z));
+  if (sd === 0) return clamp(mean > line ? 5 : mean < line ? -5 : 0);
+  return clamp((mean - line) / sd);
+}
+
 function parseOddsValue(targetOdds) {
   const value = parseFloat(String(targetOdds).replace(/[^0-9.]/g, ""));
   return isNaN(value) ? null : value;
@@ -1469,13 +1488,16 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // minHitRate gates on *raw evidence* — the player's actual recent clears.
   // A leg can rate 88% confidence on 7/10 clears and pass the old confidence
   // gate; users picking "Safer" reasonably expect the data to back the leg,
-  // not just the model. Aggressive stays floor-free; Balanced requires 7/10+;
-  // Safer requires 9/10+. Both Safer and Balanced require ≥5 games of sample
-  // so small-sample noise (e.g. 3/3 perfect) can't sneak through.
+  // not just the model. Aggressive stays floor-free; Best Chance requires 6/10+;
+  // Balanced requires 7/10+; Safer requires 9/10+. Every profile WITH a floor
+  // also requires ≥5 games of sample (the `hr10.total < 5` reject below), so
+  // small-sample noise (e.g. 3/3 perfect) can't sneak through — that's how
+  // Best Chance picks up both its evidence floor and its 5-game minimum.
   const minHitRate =
     riskProfile === "Safer" ? 0.9
     : riskProfile === "Balanced" ? 0.7
-    : 0; // Aggressive AND Best Chance — no floor
+    : riskProfile === "Best Chance" ? 0.6
+    : 0; // Aggressive — no floor
 
   // Sanity gate: reject any leg the player has never cleared in their last 10
   // games. Catches the "Joel Amartey 6+ goals at $31, 0/10 hit, 67% confidence"
@@ -1515,7 +1537,7 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   const linesByPlayer = new Map();
   for (const p of candidates) {
     const arr = linesByPlayer.get(p.playerName) || [];
-    arr.push({ ...p, score: scoreOf(p) });
+    arr.push({ ...p, score: scoreOf(p), cushionZ: clearanceZ(p.last10Values, p.line) });
     linesByPlayer.set(p.playerName, arr);
   }
   const perPlayerLines = [];
@@ -1662,7 +1684,12 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       // penalised since same-team-pair is often the most-likely combo.
       const teamCapAllowed = Math.max(2, acc.length - 1);
       const teamPenalty = Math.max(0, teamDominance(acc) - teamCapAllowed);
-      const cand = { legs: [...acc], prob, diff, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc) };
+      // Cushion of the combo: the weakest leg's clearance z (a multi is only as
+      // safe as its shakiest leg) plus the total, used by the Best Chance sort.
+      const czs = acc.map((l) => (l.cushionZ == null ? 0 : l.cushionZ));
+      const minCushion = czs.length ? Math.min(...czs) : 0;
+      const sumCushion = czs.reduce((a, b) => a + b, 0);
+      const cand = { legs: [...acc], prob, diff, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, sumCushion };
       combos.push(cand);
       if (!closest || diff < closest.diff) closest = cand;
     }
@@ -1745,16 +1772,34 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // failure modes across all legs instead of riding on the one outlier.
   const preferProbOverBalance =
     riskProfile === "Balanced" || riskProfile === "Best Chance";
+  // Best Chance treats combos within CHANCE_SLACK of the most likely buildable
+  // combo as tied on chance (the model isn't precise to the percentage point),
+  // then breaks that near-tie on CUSHION — see the branch below.
+  const CHANCE_SLACK = 0.03;
+  const maxComboProb =
+    riskProfile === "Best Chance" ? Math.max(0, ...pool.map((c) => c.prob ?? 0)) : 0;
   pool.sort((a, b) => {
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
     if (riskProfile === "Best Chance") {
-      // Best chance FOR the chosen odds + legs: the pool is already constrained
-      // to the target-odds tolerance band (and requested leg count), so within
-      // it pick the HIGHEST combined chance — the most-likely combo at that
-      // price — rather than the one merely closest to the exact target.
-      // Closeness is only a final tiebreak.
+      // Best chance FOR the chosen odds + legs, made robust. The pool is already
+      // constrained to the target-odds tolerance band (and requested leg count).
+      // Among combos whose combined chance is within CHANCE_SLACK of the best,
+      // prefer the one that clears with the most CUSHION — its weakest leg sits
+      // furthest above the line with the least variance (a multi is only as safe
+      // as its shakiest leg), then total cushion, then raw chance. Combos more
+      // than CHANCE_SLACK below the max still rank purely by chance, so we never
+      // trade away meaningful win probability — only break near-ties on safety.
+      const aNear = (a.prob ?? 0) >= maxComboProb - CHANCE_SLACK;
+      const bNear = (b.prob ?? 0) >= maxComboProb - CHANCE_SLACK;
+      if (aNear !== bNear) return aNear ? -1 : 1;
+      if (aNear) {
+        if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;
+        if (b.sumCushion !== a.sumCushion) return b.sumCushion - a.sumCushion;
+        if (b.prob !== a.prob) return b.prob - a.prob;
+        if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;
+        return a.diff - b.diff;
+      }
       if (b.prob !== a.prob) return b.prob - a.prob;
-      if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;
       return a.diff - b.diff;
     }
     if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
