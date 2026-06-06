@@ -2038,11 +2038,11 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
 function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, prefill, onPrefillConsumed }) {
   const [mode, setMode] = useState("multi");
   const [sport, setSport] = useState(prefill?.sport || "AFL");
-  const [legs, setLegs] = useState(prefill?.legs || "3");
+  const [legs, setLegs] = useState(prefill?.legs || "Any");
   const [targetOdds, setTargetOdds] = useState(prefill?.targetOdds || "$2.00");
   const [customTargetOdds, setCustomTargetOdds] = useState("2.20");
   const [customLegs, setCustomLegs] = useState("6");
-  const [riskProfile, setRiskProfile] = useState(prefill?.riskProfile || "Balanced");
+  const [riskProfile, setRiskProfile] = useState(prefill?.riskProfile || "Best Chance");
   const [bookmaker, setBookmaker] = useState(prefill?.bookmaker || "");
   const [request, setRequest] = useState(prefill?.request || "");
   const [chatInput, setChatInput] = useState("");
@@ -2658,7 +2658,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
             document.body
           ) : null}
 
-          <section className="grid items-start gap-12 lg:grid-cols-[280px_1fr]">
+          <section className="grid items-start gap-12 lg:grid-cols-[460px_1fr]">
             <div className="min-w-0 space-y-5">
               {/* Controls — bare-underline editorial. No Card wrapper, no
                   cream backgrounds. Mode pill at top, fields stack below. */}
@@ -2668,11 +2668,9 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
               </div>
 
                 {mode === "multi" ? (
-                  <>
-                    {/* Mobile: card-style builder — games scroller (multi-select)
-                        + compact controls, replacing the stacked form. Desktop
-                        keeps the full form (Any/Custom legs, Optional request). */}
-                    <div className="space-y-3.5 md:hidden">
+                    /* Card-style builder — games scroller (multi-select) + compact
+                       controls, matching the dashboard mini-builder, on all sizes. */
+                    <div className="max-w-[460px] space-y-3.5">
                       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 snap-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                         {!games.length ? (
                           <div className="w-full rounded-xl border border-dashed border-[var(--border-new)] px-3 py-4 text-center text-[12px] text-[var(--text-3-new)]">No upcoming {sport} games right now — build across the slate below.</div>
@@ -2697,11 +2695,11 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                           );
                         })}
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                         {[
                           { label: "Sport", value: sport, set: setSport, options: ["AFL", "NBA"] },
                           { label: "Legs", value: legs, set: setLegs, options: ["Any", "2", "3", "4", "5"] },
-                          { label: "Odds", value: targetOdds, set: setTargetOdds, options: ["$1.50", "$2.00", "$3.00", "$5.00"] },
+                          { label: "Odds", value: targetOdds, set: setTargetOdds, options: ["$1.50", "$2.00", "$3.00", "$5.00", "Custom"] },
                           { label: "Risk", value: riskProfile, set: setRiskProfile, options: ["Safer", "Balanced", "Aggressive", "Best Chance"] },
                         ].map((ctrl) => (
                           <label key={ctrl.label} className="flex flex-col gap-1">
@@ -2724,6 +2722,16 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                           <option value="unibet">Unibet</option>
                         </select>
                       </label>
+                      {targetOdds === "Custom" ? (
+                        <label className="flex flex-col gap-1">
+                          <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Custom target odds</span>
+                          <input type="number" min="1" step="0.01" inputMode="decimal" value={customTargetOdds} onChange={(event) => setCustomTargetOdds(event.target.value)} placeholder="e.g. 4.50" className="rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none focus:border-[var(--text-new)] placeholder:text-[var(--text-3-new)]" />
+                        </label>
+                      ) : null}
+                      <label className="flex flex-col gap-1">
+                        <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Optional request</span>
+                        <input value={request} onChange={(event) => setRequest(event.target.value)} placeholder="e.g. Disposals only, no same-game legs" className="rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none focus:border-[var(--text-new)] placeholder:text-[var(--text-3-new)]" />
+                      </label>
                       <button
                         onClick={() => previewMulti({ gameIds: selectedGameIds })}
                         disabled={edgeLoading}
@@ -2732,40 +2740,6 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                         {edgeLoading ? "Building…" : selectedGameIds.length >= 2 ? `Build · ${selectedGameIds.length} games` : "Build multi"}
                       </button>
                     </div>
-                    <div className="hidden space-y-5 md:block">
-                    <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NBA"]} />
-                    <EdgeSelectField label="Games" value={selectedGameId} onChange={setSelectedGameId} options={[{ label: games.length ? "All upcoming games" : "Loading games…", value: "" }, ...games.map((game) => ({ label: game.label, value: game.id }))]} />
-                    <EdgeSelectField label="Number of legs" value={legs} onChange={setLegs} options={["Any", "2", "3", "4", "5", "Custom"]} />
-                    {legs === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom number of legs<Input type="number" min="1" step="1" value={customLegs} onChange={(event) => setCustomLegs(event.target.value)} placeholder="e.g. 6" /></label> : null}
-                    <EdgeSelectField label="Target odds" value={targetOdds} onChange={setTargetOdds} options={["$1.50", "$2.00", "$3.00", "$5.00", "Custom"]} />
-                    {targetOdds === "Custom" ? <label className="space-y-1 text-sm font-medium">Custom target odds<Input type="number" min="1" step="0.01" value={customTargetOdds} onChange={(event) => setCustomTargetOdds(event.target.value)} placeholder="e.g. 2.20" /></label> : null}
-                    <EdgeSelectField label="Risk profile" value={riskProfile} onChange={setRiskProfile} options={["Safer", "Balanced", "Aggressive", "Best Chance"]} />
-                    <EdgeSelectField
-                      label="Bookmaker"
-                      value={bookmaker}
-                      onChange={setBookmaker}
-                      options={[
-                        { label: "Best available", value: "" },
-                        { label: "Sportsbet", value: "sportsbet" },
-                        { label: "TAB", value: "tab" },
-                        { label: "Ladbrokes", value: "ladbrokes_au" },
-                        { label: "Neds", value: "neds" },
-                        { label: "PointsBet", value: "pointsbetau" },
-                        { label: "Unibet", value: "unibet" },
-                      ]}
-                    />
-                    <label className="space-y-1 text-sm font-medium">Optional request<Input value={request} onChange={(event) => setRequest(event.target.value)} placeholder="e.g. Disposals only, no same-game legs" /></label>
-                    <div className="pt-2">
-                      <button
-                        onClick={() => previewMulti()}
-                        disabled={edgeLoading}
-                        className="w-full rounded-md bg-[var(--accent-new)] py-3.5 text-[12px] font-bold uppercase tracking-[0.06em] text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {edgeLoading ? "Analysing…" : "Build multi"}
-                      </button>
-                    </div>
-                  </div>
-                  </>
                 ) : (
                   <div className="mt-6 space-y-5">
                     <EdgeSelectField label="Sport" value={sport} onChange={setSport} options={["AFL", "NBA"]} />
