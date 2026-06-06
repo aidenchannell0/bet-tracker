@@ -428,3 +428,88 @@ appeal — pivoted TikTok content to **stats/form framing** (no odds/$/bet/multi
   #106 follow-up).
 - NBA Game Analysis (Phase 2); NBA calibration join; touch-targets.
 - `db/model_calibration.sql` + first recalibrate run still pending from 2026-06-01.
+
+---
+
+## 2026-06-06 session (large — builder UX overhaul, billing fix, ML data, infra)
+
+Big UX + plumbing session. All shipped to `main`. Git now pushes over **SSH** (see Infra).
+
+### Dashboard mini-builder (the new front door to MultiPick)
+- **`multipickBuilderCard`** (const in App, rendered in two spots: mobile hero under the stat
+  row + desktop left column) — eyebrow + "Build a multi." + a horizontal **games scroller**
+  (`TeamCrest` + VS + tip-off + countdown from `/api/odds`, **multi-select** with a lime ✓) +
+  a compact **Sport / Legs / Odds / Risk** row + **Bookmaker** + "Make the multi".
+- **Smooth deep-link handoff**: `goBuildMulti` stashes `edgePrefill` ({sport, gameIds, legs,
+  targetOdds, riskProfile, bookmaker, autoBuild}), fades the dashboard out (`page-leaving`),
+  flips to EdgePage which lazy-inits from the prefill and **auto-fires the build** once games
+  load (ref-guarded, 4.5s fallback). `BuildingAnimation` sphere shows while building.
+- **DEV-only `devSampleGames(sport)`** seeds the scroller in `vite dev` (no `/api/odds` locally);
+  dead-code-eliminated from prod via `import.meta.env.DEV`.
+- Defaults now **Legs = Any, Odds = $2.00, Risk = Best Chance**. Odds has a **Custom** option →
+  free-type number input (`mpOddsCustom`).
+
+### MultiPick page (EdgePage) — now uses the same card
+- The old stacked `EdgeSelectField` form was **replaced by the dashboard-style card on all
+  breakpoints** (controls column widened to `lg:grid-cols-[460px_1fr]`, card `max-w-[460px]`,
+  `grid-cols-2 sm:grid-cols-4`). Custom odds + Optional request preserved inside the card.
+  `selectedGameIds` (multi-select) drives it; `previewMulti({gameIds})`.
+
+### Multi-game builds (api/edge.js)
+- Build spreads across **multiple chosen games**: `context.gameIds` resolved to `specificGames`
+  (up to 4), `gamesUsed` cap scales with the count. Single-game + "all slate" unchanged.
+
+### "Best Chance" = max combined chance (api/edge.js `selectLegsForProfile`)
+- Within the **target-odds tolerance band + chosen leg count**, sorts **prob-first** (highest
+  combined chance) instead of closest-to-target. (First tried ignoring odds entirely — reverted;
+  user wants best chance *for the odds/legs you pick*.)
+
+### Add-bet UX (src/App.jsx)
+- Betslip upload made **prominent** (lime card, camera icon, Upload button); manual entry
+  collapsed into an **"Or add manually"** expander (auto-opens on edit / after a slip parses).
+- **"I used MultiPick for this bet"** (was "Pickd."). **Betslip-uploaded bets now store legs**
+  (OCR `{player,line,odds,game}` → MultiPick leg shape w/ combined `name`), so pending bets show
+  the leg breakdown. Betslip cleared on `resetBetForm` so legs don't leak.
+- **"Bet saved · tap to see" toast** (portal, auto-dismiss 5s) → opens the bet in Tracker.
+- **Edit from Tracker** now `setActivePage("app")` first → jumps to the dashboard edit form.
+
+### Display / correctness
+- Wrong-team legs fixed: `matchStatsForProp` now needs **full first name** (not just initial —
+  was binding "Luke McDonald" to another "L. McDonald"); plus `EdgeLegRow` **crest guard** (only
+  render a club that's actually in the leg's game, else neutral).
+- Leg **line coloured lime** ("12+ disposals") and split from the player name so it isn't
+  truncated on mobile. Chance pill uses an accurate reduced ratio (`chanceRatio`: 87% → ~9 in 10).
+- Mobile: lifted builder card under the stat row, **deleted the Quick-add panel**, moved Recent
+  activity below Add-bet. `min-w-0` on builder grid columns fixed mobile horizontal-overflow zoom.
+
+### 💰 Billing / Pro upsells
+- **Stripe checkout was broken** ("No such customer: cus_…") — a **test-mode customer id** stored
+  in `profiles` from earlier testing 404'd under live keys. `create-checkout-session` now
+  **verifies the stored customer and recreates it** if missing/deleted; founding-coupon failure
+  **falls back** to a no-coupon session; real Stripe error is surfaced to the client.
+- **Dismissible "Go Pro" strip** on the dashboard (free users; `localStorage proStripDismissed`)
+  + MultiPick header **"Go Pro" pill** (was the plain "Upgrade" link). App-level `startUpgrade`.
+- **`1WEEKFREE` Stripe coupon** created (100% off, once, hand-out code for friends).
+
+### 🤖 ML data — log ALL rated legs (#105 / #106 follow-up — DONE)
+- Each build now logs the **full enriched pool** to `grid_build_predictions`, not just selected
+  legs — covers the model's low-confidence ratings, widening the calibration curve domain (was
+  only 60–100%, the cause of the old #106 clamping). Rows tagged **`selected`**.
+- **Display** (`/api/calibration`, the "picks hit rate") filters **`selected = true`** so the
+  headline stays about real picks; **recalibrate uses all rows**. Both have back-compat
+  fallbacks if the column is missing. **Migration run:** `db/grid_build_predictions_add_selected.sql`.
+- As of this session: **120 resolved / 325 logged** (selected). #105 ML model fires at ~500
+  *resolved*; full pool now accrues ~30–40 legs/build so it'll climb fast. To watch the full
+  set: `select count(*) total, count(*) filter (where selected) picks from grid_build_predictions;`
+
+### 🔧 Infra
+- **Git switched to SSH** (`git@github.com:aidenchannell0/bet-tracker.git`) — the classic PAT
+  `bet-tracker-token` was expiring. Key at `~/.ssh/id_ed25519` (no passphrase). PAT can lapse;
+  Actions + scrapers use repo secrets, not it.
+
+### Pending / next (carried + new)
+- Social posts (was wrapping up the session to do these fresh). Marketing grind continues.
+- NBA Game Analysis (Phase 2); NBA calibration join; touch-targets.
+- `db/model_calibration.sql` + first recalibrate run still pending from 2026-06-01.
+- Possible: friendlier "couldn't start checkout" copy (currently surfaces raw Stripe text);
+  add custom odds to wherever still preset-only; tune builder column width if 460px feels wide.
