@@ -176,12 +176,12 @@ function isoWeekKey(d = new Date()) {
 }
 
 // Log each rated leg (deduped to one per leg per round) for later calibration.
-async function recordPredictions(selected, season, userId) {
-  if (!supabaseAdmin || !selected?.length) return;
+async function recordPredictions(rated, selectedSet, season, userId) {
+  if (!supabaseAdmin || !rated?.length) return;
   try {
     const week = isoWeekKey();
-    const rows = selected
-      .filter((p) => p.playerName && p.metric && p.line != null && p.empirical != null)
+    const rows = rated
+      .filter((p) => p && p.playerName && p.metric && p.line != null && p.empirical != null)
       .map((p) => {
         const nk = nameKeyFromName(p.playerName);
         return {
@@ -194,11 +194,22 @@ async function recordPredictions(selected, season, userId) {
           odds: Number(p.odds) || null,
           game_label: p.gameLabel || null,
           season: season || null,
+          // Did this leg make it into the built multi? The calibration block shows
+          // selected-only ("picks hit rate"); recalibrate uses the whole pool so
+          // the fitted curve spans the full probability domain.
+          selected: selectedSet ? selectedSet.has(`${nk}|${p.metric}|${p.line}`) : true,
           dedupe_key: `${nk}|${p.metric}|${p.line}|${week}`,
         };
       });
     if (rows.length) {
-      await supabaseAdmin.from("grid_build_predictions").upsert(rows, { onConflict: "dedupe_key" });
+      const { error: upsertErr } = await supabaseAdmin.from("grid_build_predictions").upsert(rows, { onConflict: "dedupe_key" });
+      // Back-compat: if the `selected` column isn't migrated yet, fall back to the
+      // old behaviour — log only the selected legs, without the flag — so nothing
+      // breaks (and the display stays selected-only) until the migration runs.
+      if (upsertErr && /selected/i.test(upsertErr.message || "")) {
+        const legacyRows = rows.filter((r) => r.selected).map(({ selected, ...rest }) => rest);
+        if (legacyRows.length) await supabaseAdmin.from("grid_build_predictions").upsert(legacyRows, { onConflict: "dedupe_key" });
+      }
     }
   } catch (error) {
     console.error("record predictions error:", error);
@@ -3793,9 +3804,16 @@ ${buildAnalysisDataBlock(analysis)}`,
           usageAfter = access.usage + 1;
         }
 
-        // Log the rated legs for calibration (compare predictions vs outcomes later)
-        if (structuredMulti && computed.selected?.length) {
-          await recordPredictions(computed.selected, defenseContext?.season, access.userId);
+        // Log ALL rated legs for calibration/ML — not just the selected few — so
+        // the dataset covers the model's low-confidence ratings too (the legs it
+        // rejects), widening the curve domain. Each row is tagged `selected` so
+        // the user-facing "picks hit rate" still counts only the built legs.
+        if (structuredMulti) {
+          const ratedPool = enrichProps(allProps, statsContext, defenseFactors, calibrationCurve);
+          const selectedSet = new Set(
+            (computed.selected || []).map((p) => `${nameKeyFromName(p.playerName)}|${p.metric}|${p.line}`)
+          );
+          await recordPredictions(ratedPool, selectedSet, defenseContext?.season, access.userId);
         }
 
         return res.status(200).json({

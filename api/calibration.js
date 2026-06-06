@@ -24,11 +24,24 @@ export default async function handler(req, res) {
   if (!supabase) return res.status(200).json({ available: false });
 
   try {
-    const { data: preds, error } = await supabase
+    // The user-facing "picks hit rate" counts SELECTED legs only (the ones built
+    // into a multi) — the full rated pool is also logged (for recalibrate's curve
+    // domain) but isn't a "pick".
+    let { data: preds, error } = await supabase
       .from("grid_build_predictions")
       .select("created_at,name_key,metric,line,predicted_prob")
+      .eq("selected", true)
       .order("created_at", { ascending: true })
       .limit(5000);
+    // Back-compat: if the `selected` column isn't there yet (migration not run),
+    // fall back to all rows so the block still renders.
+    if (error && /selected/i.test(error.message || "")) {
+      ({ data: preds, error } = await supabase
+        .from("grid_build_predictions")
+        .select("created_at,name_key,metric,line,predicted_prob")
+        .order("created_at", { ascending: true })
+        .limit(5000));
+    }
     if (error) throw new Error(error.message);
 
     if (!preds?.length) {
