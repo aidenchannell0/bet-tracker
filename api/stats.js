@@ -51,15 +51,32 @@ const SPORT_CONFIG = {
   },
 };
 
-function nameKey(full) {
-  const words = String(full || "")
+function nameWords(full) {
+  return String(full || "")
     .toLowerCase()
     .replace(/[^a-z\s]/g, "")
     .trim()
     .split(/\s+/)
     .filter(Boolean);
+}
+
+function nameKey(full) {
+  const words = nameWords(full);
   if (!words.length) return "";
   return `${words[0][0]}_${words[words.length - 1]}`;
+}
+
+// Whether two names refer to the same player: last name identical, first name
+// equal or one a prefix of the other ("Matt"/"Matthew", abbreviated feeds).
+// Used to disambiguate players that collapse to the same coarse name_key.
+function sameFullName(a, b) {
+  const wa = nameWords(a);
+  const wb = nameWords(b);
+  if (!wa.length || !wb.length) return false;
+  if (wa[wa.length - 1] !== wb[wb.length - 1]) return false; // last name must match
+  const fa = wa[0];
+  const fb = wb[0];
+  return fa === fb || fa.startsWith(fb) || fb.startsWith(fa);
 }
 
 function avg(arr) {
@@ -123,7 +140,22 @@ export default async function handler(req, res) {
 
     let maxGames = 0;
     const playerSummaries = players.map((player) => {
-      const rows = byKey.get(nameKey(player)) || [];
+      // name_key is coarse (firstInitial_lastname), so distinct players such as
+      // "Joe Berry" and "Jarrod Berry" share a key. Using the whole pool would
+      // blend their game logs — the team becomes whoever played most recently
+      // and the last-5/10 form is a contaminated mix. Disambiguate by full name:
+      // prefer an exact match, then a first-name-prefix match ("Matt"/"Matthew",
+      // abbreviated feeds); only fall back to the whole pool when it holds a
+      // single player (covers nickname spellings like "Nick"/"Nicholas" that
+      // share the coarse key but have no teammate-of-a-name to be confused with).
+      const pooled = byKey.get(nameKey(player)) || [];
+      const want = nameWords(player).join(" ");
+      let rows = pooled.filter((r) => nameWords(r.player_name).join(" ") === want);
+      if (!rows.length) {
+        const prefix = pooled.filter((r) => sameFullName(player, r.player_name));
+        const distinct = new Set(pooled.map((r) => (r.player_name || "").toLowerCase()));
+        rows = prefix.length ? prefix : distinct.size <= 1 ? pooled : [];
+      }
       maxGames = Math.max(maxGames, rows.length);
 
       const metricsOut = {};
