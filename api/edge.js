@@ -1700,19 +1700,8 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // land closer to the target (e.g. a 3-leg combo within $0.20) would crowd out the
   // 4-leg combos the user actually asked for, since the tolerance band is chosen
   // before leg count. Only fall back to other counts if no wantCount combo exists.
-  let pool;
-  if (riskProfile === "Best Chance") {
-    // Best Chance = maximise COMBINED CHANCE, not closeness to the odds target.
-    // Use every generated combo (constrained to the requested leg count if one
-    // was given); the prob-first sort below picks the highest-chance one — which
-    // with "Any" legs is the fewest, safest legs (combined prob is highest with
-    // fewer multiplicands). The odds target becomes a non-constraint here.
-    pool = wantCount ? combos.filter((c) => c.legs.length === wantCount) : combos.slice();
-    if (!pool.length) pool = combos.slice();
-  } else {
-    pool = wantCount ? tightestPool((c) => c.legs.length === wantCount) : [];
-    if (!pool.length) pool = tightestPool(() => true);
-  }
+  let pool = wantCount ? tightestPool((c) => c.legs.length === wantCount) : [];
+  if (!pool.length) pool = tightestPool(() => true);
   if (!pool.length) pool = closest ? [closest] : [];
   if (!pool.length) return ordered.slice(0, wantCount || 3);
 
@@ -1748,9 +1737,11 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   pool.sort((a, b) => {
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
     if (riskProfile === "Best Chance") {
-      // Pure max combined chance — ignore closeness to the odds target. Among
-      // equal-prob combos prefer fewer legs (more chance per leg), then closer
-      // to target as a final, rarely-reached tiebreak.
+      // Best chance FOR the chosen odds + legs: the pool is already constrained
+      // to the target-odds tolerance band (and requested leg count), so within
+      // it pick the HIGHEST combined chance — the most-likely combo at that
+      // price — rather than the one merely closest to the exact target.
+      // Closeness is only a final tiebreak.
       if (b.prob !== a.prob) return b.prob - a.prob;
       if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;
       return a.diff - b.diff;
