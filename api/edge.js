@@ -1690,7 +1690,15 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   for (const arr of linesByPlayer.values()) {
     arr.sort((a, b) => b.score - a.score);
     bestPerPlayer.push(arr[0]);
-    perPlayerLines.push(...arr.slice(0, PER_PLAYER));
+    const kept = arr.slice(0, PER_PLAYER);
+    // Also keep each player's CHEAPEST (deepest-cushion) line. Top-by-score
+    // tends to hold the edgier MID lines, so a 5-leg/$2 build overshoots (each
+    // mid leg ~$1.24 → ~$2.59). Keeping the deep line lets the combo search
+    // compose many short, safe legs near a low target instead — the "lower-odds
+    // legs with a solid cushion" a deep multi needs.
+    const cheapest = arr.reduce((lo, x) => (Number(x.odds) < Number(lo.odds) ? x : lo), arr[0]);
+    if (!kept.includes(cheapest)) kept.push(cheapest);
+    perPlayerLines.push(...kept);
   }
 
   const ordered = [
@@ -1719,9 +1727,19 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // Resolution: bucket by odds and take top legs from each band. Near-locks
   // still dominate the cheap end (so Safer builds at low targets stay good)
   // but higher targets get genuine candidates at every price level.
-  const ranked = perPlayerLines.sort(
-    (a, b) => (b.empirical >= minHit) - (a.empirical >= minHit) || b.score - a.score
-  );
+  // Within each odds band the shortlist keeps the top legs. Best Chance ranks
+  // those by CUSHION (deepest first) rather than edge-score, so a player's deep
+  // cheap line beats his edgier mid line for a shortlist slot — without this the
+  // near-locks band fills with mid lines and low-target/many-leg builds can't
+  // find enough cheap legs to land near the target.
+  const ranked = perPlayerLines.sort((a, b) => {
+    const m = (b.empirical >= minHit) - (a.empirical >= minHit);
+    if (m) return m;
+    if (riskProfile === "Best Chance" && (b.cushionZ ?? 0) !== (a.cushionZ ?? 0)) {
+      return (b.cushionZ ?? 0) - (a.cushionZ ?? 0);
+    }
+    return b.score - a.score;
+  });
   const oddsBands = [
     { min: 1.0, max: 1.3, take: 6 },   // near-locks
     { min: 1.3, max: 1.6, take: 5 },   // strong favourites
