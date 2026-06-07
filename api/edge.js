@@ -1086,6 +1086,74 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
   return props;
 }
 
+// ── Game environment (pace + blowout) ──────────────────────────────────────
+// Counting stats scale with how a game flows. Two signals from the team markets
+// we already fetch:
+//   • total (combined points line) → pace. A higher-total game means more
+//     scoring/possessions, so more disposals/points to go round.
+//   • spread → blowout risk. A heavy favourite/underdog raises the chance of
+//     garbage time and star rest, which add downside + variance.
+// Folded into ONE gentle, clamped multiplier on the empirical probability
+// (±8% max) — a nudge like the matchup and rest factors, never a driver.
+// Baselines/elasticities are deliberately conservative and tunable; validate
+// the effect via scripts/backtest.mjs once it accrues data.
+const GAME_ENV = {
+  AFL: { baselineTotal: 165, paceElasticity: 0.25, blowoutSpread: 39, blowoutDamp: 0.97 },
+  NBA: { baselineTotal: 225, paceElasticity: 0.5, blowoutSpread: 13, blowoutDamp: 0.97 },
+};
+
+// Pull the total (points line) + each team's spread from an event's team
+// markets. Median across books for robustness.
+function extractGameEnv(event) {
+  const totals = [];
+  const spreadsByTeam = {};
+  for (const bm of event?.bookmakers || []) {
+    for (const m of bm.markets || []) {
+      if (m.key === "totals") {
+        for (const o of m.outcomes || []) if (o.point != null) totals.push(Number(o.point));
+      } else if (m.key === "spreads") {
+        for (const o of m.outcomes || []) {
+          if (o.name && o.point != null) (spreadsByTeam[o.name] ||= []).push(Number(o.point));
+        }
+      }
+    }
+  }
+  const median = (arr) => {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  };
+  const spreads = {};
+  for (const [team, pts] of Object.entries(spreadsByTeam)) spreads[team] = median(pts);
+  return { total: median(totals), spreads };
+}
+
+// The spread for the side a player is on. matchedTeam is the afltables name;
+// the spreads map is keyed by Odds API names, so match loosely (one is usually
+// a substring of the other: "West Coast" ⊂ "West Coast Eagles").
+function sideSpread(env, prop, matchedTeam) {
+  if (!env?.spreads || !matchedTeam) return null;
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z]/g, "");
+  const t = norm(matchedTeam);
+  for (const side of [prop.homeTeam, prop.awayTeam]) {
+    const ns = norm(side);
+    if (ns && (ns.includes(t) || t.includes(ns))) return env.spreads[side] ?? null;
+  }
+  return null;
+}
+
+// Single clamped multiplier from pace (total) + blowout (spread). env carries
+// the sport so we pick the right baseline. Returns 1 (no-op) when env is absent.
+function computeGameEnvFactor(env, prop, matchedTeam) {
+  const cfg = env && GAME_ENV[env.sport];
+  if (!cfg || env.total == null) return 1;
+  let f = 1 + cfg.paceElasticity * (env.total / cfg.baselineTotal - 1);
+  const sp = sideSpread(env, prop, matchedTeam);
+  if (sp != null && Math.abs(sp) >= cfg.blowoutSpread) f *= cfg.blowoutDamp;
+  return Math.max(0.92, Math.min(1.08, f));
+}
+
 function impliedProbFromOdds(odds) {
   const value = Number(odds);
   return value > 1 ? 1 / value : null;
@@ -1234,7 +1302,7 @@ function matchStatsForProp(prop, statsMap) {
 }
 
 // Attach probability, edge and recent-form numbers to each prop
-function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
+function enrichProps(props, aflStats, factors = null, calibrationCurve = null, gameEnv = null) {
   const statsMap = new Map();
   for (const ps of aflStats?.players || []) {
     statsMap.set(String(ps.player || "").toLowerCase(), ps);
@@ -1365,6 +1433,13 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
       empirical = Math.max(0.02, Math.min(0.98, empirical * restFactor));
     }
 
+    // Game environment: nudge for pace (game total) + blowout risk (spread).
+    const env = gameEnv && typeof gameEnv.get === "function" ? gameEnv.get(prop.gameLabel) : null;
+    const gameEnvFactor = computeGameEnvFactor(env, prop, matched?.team);
+    if (gameEnvFactor !== 1 && empirical != null) {
+      empirical = Math.max(0.02, Math.min(0.98, empirical * gameEnvFactor));
+    }
+
     // Evidence ceiling: when the player has cleared the line in zero of the
     // last N games (N ≥ 5), the EB shrinkage shouldn't be allowed to keep
     // confidence high just because the prior says so. Hard-cap empirical at
@@ -1433,6 +1508,8 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null) {
       calibrated: calibratedKind,  // "per-market" | "global" | null
       restDays,       // days since the player's last logged game
       restFactor,     // multiplier applied to empirical for rest adjustment
+      gameEnvFactor,  // pace (total) + blowout (spread) multiplier on empirical
+      gameTotal: env?.total ?? null,
       edge,
       margin: ms.recentAvg != null ? Number((ms.recentAvg - prop.line).toFixed(1)) : null,
       // Recency-weighted clearance z — how comfortably (margin + consistency)
@@ -2083,8 +2160,8 @@ function detectMultiMetricFilter(message, context) {
 }
 
 // Shared computation: enrich props, select legs, compute combined metrics + risk
-function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile, factors = null, calibrationCurve = null) {
-  const enriched = enrichProps(props, aflStats, factors, calibrationCurve);
+function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile, factors = null, calibrationCurve = null, gameEnv = null) {
+  const enriched = enrichProps(props, aflStats, factors, calibrationCurve, gameEnv);
   const targetOddsValue = parseOddsValue(targetOdds);
   const selected = selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile);
   const srcLabel = aflStats?.source || "Stats";
@@ -2131,6 +2208,13 @@ function structureLegFromEnriched(p) {
     details.push({
       label: "Matchup",
       value: `vs ${p.opponent}: concedes ${matchupPct >= 0 ? "+" : ""}${matchupPct}% ${metricLabel(p.metric)}`,
+    });
+  }
+  if (p.gameEnvFactor && Math.abs(p.gameEnvFactor - 1) >= 0.02) {
+    const gp = Math.round((p.gameEnvFactor - 1) * 100);
+    details.push({
+      label: "Game pace",
+      value: `${gp >= 0 ? "+" : ""}${gp}%${p.gameTotal != null ? ` · total ${p.gameTotal}` : ""}`,
     });
   }
 
@@ -3672,20 +3756,27 @@ ${buildAnalysisDataBlock(analysis)}`,
         candidateGames = specificGames.length ? specificGames.slice(0, 4) : oddsContext.events.slice(0, 3);
       }
 
+      // Fetch player props PLUS the team markets (totals + spreads) in one call
+      // so we can read each game's pace + blowout risk. The event-odds cache
+      // dedupes repeated builds; +2 markets is marginal on top of the player set.
+      const buildMarkets = { ...playerMarkets, markets: [...playerMarkets.markets, "totals", "spreads"] };
       const eventMarketResults = await Promise.allSettled(
         candidateGames.map((game) =>
-          fetchEventOddsContext(req, sport, game.id, playerMarkets)
+          fetchEventOddsContext(req, sport, game.id, buildMarkets)
         )
       );
 
       const allProps = [];
+      const gameEnvByLabel = new Map(); // gameLabel → { total, spreads, sport }
       let gamesUsed = 0;
       for (const result of eventMarketResults) {
         if (gamesUsed >= Math.max(2, Math.min(specificGames.length, 4))) break;
         if (result.status === "fulfilled" && result.value?.event) {
-          const gameProps = extractPlayerPropsFromEvent(result.value.event, preferredBook);
+          const ev = result.value.event;
+          const gameProps = extractPlayerPropsFromEvent(ev, preferredBook);
           if (gameProps.length > 0) {
             allProps.push(...gameProps);
+            gameEnvByLabel.set(`${ev.homeTeam} vs ${ev.awayTeam}`, { ...extractGameEnv(ev), sport });
             gamesUsed += 1;
           }
         }
@@ -3798,7 +3889,7 @@ ${buildAnalysisDataBlock(analysis)}`,
 
         // Edit path: refine the current build in place using the fresh pool, no GPT call.
         if (editAction) {
-          const enrichedPool = enrichProps(allProps, statsContext, defenseFactors, calibrationCurve);
+          const enrichedPool = enrichProps(allProps, statsContext, defenseFactors, calibrationCurve, gameEnvByLabel);
           const editResult = editAFLMulti(enrichedPool, currentMulti, editAction, { sport });
           if (!editResult.ok) {
             return res.status(200).json({
@@ -3840,7 +3931,8 @@ ${buildAnalysisDataBlock(analysis)}`,
           targetOdds,
           riskProfile,
           defenseFactors,
-          calibrationCurve
+          calibrationCurve,
+          gameEnvByLabel
         );
         const dataBlock = buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile, sport);
         const structuredMulti = buildStructuredMulti(computed, sport, targetOdds);
@@ -3888,7 +3980,7 @@ ${buildAnalysisDataBlock(analysis)}`,
         // rejects), widening the curve domain. Each row is tagged `selected` so
         // the user-facing "picks hit rate" still counts only the built legs.
         if (structuredMulti) {
-          const ratedPool = enrichProps(allProps, statsContext, defenseFactors, calibrationCurve);
+          const ratedPool = enrichProps(allProps, statsContext, defenseFactors, calibrationCurve, gameEnvByLabel);
           const selectedSet = new Set(
             (computed.selected || []).map((p) => `${nameKeyFromName(p.playerName)}|${p.metric}|${p.line}`)
           );
