@@ -1660,6 +1660,18 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     : 0.45; // Best Chance — same low confidence floor as Aggressive (the 0/10 hard reject still applies as a sanity gate)
   const scoreOf = (p) => (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5;
 
+  // Best Chance holds a HARD "Solid+" cushion floor (cushionZ >= 1.0). Users pick
+  // it expecting safe, comfortably-cleared legs, so we don't pad the multi with
+  // line-huggers — better to build fewer Solid legs than more Slim ones. Only
+  // relax (back to the full pool) when the chosen game(s) can't even supply 2
+  // Solid legs, so we still build something rather than nothing; the cushion chip
+  // flags any Slim leg that slips through in that rare fallback.
+  let selectionPool = candidates;
+  if (riskProfile === "Best Chance") {
+    const solid = candidates.filter((p) => (p.cushionZ ?? -99) >= 1.0);
+    if (new Set(solid.map((p) => p.playerName)).size >= 2) selectionPool = solid;
+  }
+
   // Keep up to a few candidate LINES per player (not just the single highest-score
   // one). A player's top-score line is often an ultra-short deep line (e.g. a mid
   // Over 16.5 disposals @ $1.03) that can't combine toward a normal target, which
@@ -1668,7 +1680,7 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // A multi still never repeats a player.
   const PER_PLAYER = 3;
   const linesByPlayer = new Map();
-  for (const p of candidates) {
+  for (const p of selectionPool) {
     const arr = linesByPlayer.get(p.playerName) || [];
     arr.push({ ...p, score: scoreOf(p) }); // cushionZ already carried from enrichProps
     linesByPlayer.set(p.playerName, arr);
@@ -3975,6 +3987,19 @@ ${buildAnalysisDataBlock(analysis)}`,
             structuredMulti.bookmakerNote = `Only ${structuredMulti.legCount} of ${wantLegs} legs are available at ${bookLabelUsed} for these games — switch the bookmaker to “Best available” for more options.`;
           } else if (altLegs > 0) {
             structuredMulti.bookmakerNote = `Some legs use alternate lines — confirm they're listed at ${bookLabelUsed} before betting.`;
+          }
+        }
+
+        // Best Chance keeps a hard Solid-cushion floor. Explain when a game can't
+        // fully honour it — either we built fewer legs than asked (all Solid), or
+        // (rare) the game had <2 Solid legs so the safest available were used.
+        if (structuredMulti && riskProfile === "Best Chance") {
+          const wantLegs = parseInt(targetLegs, 10);
+          const slimLegs = (computed.selected || []).filter((p) => (p.cushionZ ?? 99) < 1.0).length;
+          if (slimLegs > 0) {
+            structuredMulti.cushionNote = `This game didn't have enough Solid-cushion legs, so ${slimLegs} ${slimLegs === 1 ? "leg sits" : "legs sit"} below it (see the cushion tags). Pick a game with more in-form players for an all-Solid build.`;
+          } else if (Number.isFinite(wantLegs) && structuredMulti.legCount < wantLegs) {
+            structuredMulti.cushionNote = `Built ${structuredMulti.legCount} of ${wantLegs} legs — only these cleared a Solid cushion in this game. Add another game, or pick one with more in-form players, for a longer multi.`;
           }
         }
 

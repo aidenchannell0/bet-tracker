@@ -2975,6 +2975,11 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                       {multiOutput.bookmakerNote}
                     </div>
                   ) : null}
+                  {multiOutput?.cushionNote ? (
+                    <div className="mt-3 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
+                      <span className="text-[var(--text-new)] font-medium">Cushion floor.</span> {multiOutput.cushionNote}
+                    </div>
+                  ) : null}
 
                   {edgeLoading ? (
                     <div className="mt-4 flex items-center gap-3 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 py-3 text-sm text-[var(--text-2-new)]">
