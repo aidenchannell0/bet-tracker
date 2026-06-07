@@ -1596,15 +1596,20 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // minHitRate gates on *raw evidence* — the player's actual recent clears.
   // A leg can rate 88% confidence on 7/10 clears and pass the old confidence
   // gate; users picking "Safer" reasonably expect the data to back the leg,
-  // not just the model. Aggressive stays floor-free; Best Chance requires 6/10+;
+  // not just the model. Aggressive stays floor-free; Best Chance requires 7/10+;
   // Balanced requires 7/10+; Safer requires 9/10+. Every profile WITH a floor
   // also requires ≥5 games of sample (the `hr10.total < 5` reject below), so
-  // small-sample noise (e.g. 3/3 perfect) can't sneak through — that's how
-  // Best Chance picks up both its evidence floor and its 5-game minimum.
+  // small-sample noise (e.g. 3/3 perfect) can't sneak through.
+  //
+  // Best Chance is the "high floor + deep cushion" model: a 7/10 raw floor only
+  // exists on lines a player clears comfortably, so this naturally pushes it
+  // toward elite, rarely-quiet players on safe lines — exactly the same-game
+  // build style that wins by hand. (It also embraces same-game/same-metric
+  // stacks: the team- and metric-diversity penalties are skipped for it below.)
   const minHitRate =
     riskProfile === "Safer" ? 0.9
     : riskProfile === "Balanced" ? 0.7
-    : riskProfile === "Best Chance" ? 0.6
+    : riskProfile === "Best Chance" ? 0.7
     : 0; // Aggressive — no floor
 
   // Sanity gate: reject any leg the player has never cleared in their last 10
@@ -1882,8 +1887,10 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     riskProfile === "Balanced" || riskProfile === "Best Chance";
   // Best Chance treats combos within CHANCE_SLACK of the most likely buildable
   // combo as tied on chance (the model isn't precise to the percentage point),
-  // then breaks that near-tie on CUSHION — see the branch below.
-  const CHANCE_SLACK = 0.05;
+  // then breaks that near-tie on CUSHION — the "deep cushion" lever. Wider =
+  // leans harder into cushion (trades a little raw chance for safer-clearing
+  // legs), which is the high-floor model users win with by hand.
+  const CHANCE_SLACK = 0.08;
   const maxComboProb =
     riskProfile === "Best Chance" ? Math.max(0, ...pool.map((c) => c.prob ?? 0)) : 0;
   pool.sort((a, b) => {
