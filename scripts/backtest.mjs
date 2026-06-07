@@ -60,12 +60,17 @@ function metricColumn(sport, metric) {
 
 // ── Data loading (paged) ───────────────────────────────────────────────────
 async function fetchAllPredictions() {
+  // closing_odds is a later migration — tolerate its absence so the scorecard
+  // still runs (the CLV section just reports nothing) before it's applied.
+  const probe = await supabase.from("grid_build_predictions").select("closing_odds").limit(1);
+  const cols = "created_at,name_key,metric,line,predicted_prob,odds,selected" + (probe.error ? "" : ",closing_odds");
+
   const all = [];
   const PAGE = 1000;
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from("grid_build_predictions")
-      .select("created_at,name_key,metric,line,predicted_prob,odds,selected")
+      .select(cols)
       .order("created_at", { ascending: true })
       .range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
@@ -206,6 +211,28 @@ function scoreBlock(label, samples) {
   console.log(`  Sharpness         ${(sharp * 100).toFixed(1)}%   (spread of predictions; ~0 = always guessing the average)`);
 }
 
+// CLV (Closing Line Value). Doesn't need the game result — it's available the
+// moment closing odds are captured, so it's the fastest read on whether the
+// model finds real edge. "Beating the close" = your build price was higher than
+// the price the market closed at (you locked better value). Consistently
+// beating the close (>~53% + positive avg CLV) is the strongest signal that the
+// +EV is real and not noise.
+function clvReport(label, rows) {
+  const withBoth = rows.filter((r) => Number(r.odds) > 1 && Number(r.closing_odds) > 1);
+  if (!withBoth.length) {
+    console.log(`\n${label}: no closing odds yet — run db/grid_build_predictions_add_closing.sql, then the capture job fills them near kickoff.`);
+    return;
+  }
+  const clvs = withBoth.map((r) => Number(r.odds) / Number(r.closing_odds) - 1); // fraction
+  const beat = withBoth.filter((r) => Number(r.odds) > Number(r.closing_odds)).length;
+  const avg = mean(clvs) * 100;
+  const beatPct = (beat / withBoth.length) * 100;
+  console.log(`\n${label}`);
+  console.log(`  legs w/ closing   ${withBoth.length}`);
+  console.log(`  beat the close    ${beatPct.toFixed(1)}%   (locked a better price than the market closed at)`);
+  console.log(`  avg CLV           ${avg >= 0 ? "+" : ""}${avg.toFixed(2)}%   ${avg > 0 ? "✓ beating the market" : "✗ behind the market"}`);
+}
+
 function reliabilityTable(label, samples) {
   if (samples.length < 20) return;
   const { rows } = reliability(samples, (s) => s.pred);
@@ -257,6 +284,14 @@ async function main() {
   console.log("═".repeat(64));
   scoreBlock("Selected picks", selected);
   reliabilityTable("Selected picks", selected);
+
+  // CLV — uses build vs closing odds directly (no game result needed), so it
+  // covers ALL logged predictions, not just the resolved ones.
+  console.log("\n" + "═".repeat(64));
+  console.log("CLV — did we beat the market's closing price?");
+  console.log("═".repeat(64));
+  clvReport("All rated legs", preds);
+  clvReport("Selected picks", preds.filter((p) => p.selected !== false));
 
   // Per sport
   for (const sport of ["AFL", "NBA"]) {

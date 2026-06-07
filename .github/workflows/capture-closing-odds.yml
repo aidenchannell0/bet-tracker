@@ -1,0 +1,31 @@
+name: Capture closing odds (CLV)
+# Near-kickoff sweep: every 2 hours, captures the latest market price for any
+# logged prediction whose game starts within the next ~4 hours, into
+# grid_build_predictions.closing_odds. Re-running refreshes the value until the
+# game begins, so the final write ≈ the true closing line. Only fetches the
+# markets a game actually needs, so Odds API credit use stays small.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+#   ODDS_API_KEY
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch: {}
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: node scripts/capture-closing-odds.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          CLV_WINDOW_HOURS: "4"
