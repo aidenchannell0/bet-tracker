@@ -5641,6 +5641,9 @@ export default function BettingTrackerWebsite() {
                   <h1 className="brand-wordmark mt-2 text-[22px] font-semibold tracking-[-0.025em] text-[var(--text-new)]">Hey, {firstName || "there"}.</h1>
                   <div className={"mono-nums mt-5 text-[64px] font-semibold leading-[0.9] tracking-[-0.045em] " + heroTone}>{heroNumber}</div>
                   <div className="mt-3 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">{heroLabel}</div>
+                  {!isTracker && showUnits ? (
+                    <div className="mt-1.5 mono-nums text-[16px] font-medium text-[var(--text-3-new)]">{formatCurrency(stats.totalProfit)}</div>
+                  ) : null}
                   {!isTracker ? (
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[var(--text-3-new)]">
                       <span>
@@ -5785,6 +5788,9 @@ export default function BettingTrackerWebsite() {
               <StatHoverPreview statKey="pl" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} fmtMoney={fmtMoney} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Profit / loss" : selectedSportFilter + " P/L"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
               <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{fmtMoney(stats.totalProfit)}</div>
+              {showUnits ? (
+                <div className="mt-1.5 mono-nums text-[15px] font-medium text-[var(--text-3-new)]">{formatCurrency(stats.totalProfit)}</div>
+              ) : null}
               <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
                 <span className={subStats.weekProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>{subStats.weekProfit >= 0 ? "▲ +" : "▼ "}<span className="mono-nums">{formatCurrency(subStats.weekProfit).replace("-", "")}</span></span>
                 <span className="text-[var(--text-3-new)]">this week</span>
