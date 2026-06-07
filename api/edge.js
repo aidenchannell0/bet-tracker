@@ -1204,15 +1204,26 @@ function weightedHitRate(values, line, decay = 0.85) {
 // this can. Roughly, Φ(−z) ≈ the chance of a down game (z≈1 → ~16%, z≈1.65 →
 // ~5%). Used to prefer cushiony legs (Best Chance) and shown per-leg in the UI.
 //
-// RECENCY-WEIGHTED: values are most-recent-first, so we weight recent games more
-// (exponential decay 0.85, the same the hit-rate streak logic uses) — a player
-// whose recent games hug the line scores lower even if older games padded his
-// average. Clamped to ±5 so a perfectly consistent player (stdev 0) doesn't
-// produce an infinite score.
+// Returns the MORE CONSERVATIVE of two views, so a leg only scores well if BOTH
+// hold:
+//   1. SPREAD view — recency-weighted (mean − line) / stdev (decay 0.85, the
+//      same the hit-rate streak logic uses): a comfortable average with low
+//      game-to-game variance.
+//   2. RECENT-FLOOR view — how far the WORST of the last 3 games sits above the
+//      line, relative to the line. This catches players who clear on average but
+//      have been HUGGING THE LINE lately (e.g. 17,17,19 on a 17+ line): the
+//      spread view looks fine because older big games prop it up, but the recent
+//      downside is thin and one quiet game tips them under.
+// Without the floor view, "Adam Cerra 17+ (recent 17,17,19)" graded the same as
+// a player clearing by 5 every week — which is the false comfort this fixes.
+// Clamped to ±5. Values are most-recent-first.
 function clearanceZ(values, line, decay = 0.85) {
   if (line == null || !Array.isArray(values)) return null;
   const nums = values.map(Number).filter((v) => Number.isFinite(v));
   if (nums.length < 2) return null;
+  const clamp = (z) => Math.max(-5, Math.min(5, z));
+
+  // Spread view (recency-weighted z).
   let wSum = 0;
   let wMean = 0;
   for (let i = 0; i < nums.length; i++) {
@@ -1224,9 +1235,18 @@ function clearanceZ(values, line, decay = 0.85) {
   let wVar = 0;
   for (let i = 0; i < nums.length; i++) wVar += Math.pow(decay, i) * (nums[i] - mean) ** 2;
   const sd = Math.sqrt(wVar / wSum);
-  const clamp = (z) => Math.max(-5, Math.min(5, z));
-  if (sd === 0) return clamp(mean > line ? 5 : mean < line ? -5 : 0);
-  return clamp((mean - line) / sd);
+  const spreadZ = sd === 0 ? clamp(mean > line ? 5 : mean < line ? -5 : 0) : clamp((mean - line) / sd);
+
+  // Recent-floor view: worst of the last 3 games vs the line, as a % of the
+  // line, mapped onto the same z scale as the grades (≥10% ≈ Comfortable,
+  // ≥6% ≈ Solid, ≥3% ≈ Slim, below that / a recent miss ≈ On the line).
+  if (line > 0) {
+    const recentLow = Math.min(...nums.slice(0, 3));
+    const fm = (recentLow - line) / line;
+    const floorZ = fm >= 0.10 ? 1.5 : fm >= 0.06 ? 1.0 : fm >= 0.03 ? 0.6 : fm >= 0 ? 0.3 : clamp(fm * 10);
+    return Math.min(spreadZ, floorZ);
+  }
+  return spreadZ;
 }
 
 // Plain-English cushion grade for a clearance z. Thresholds map to roughly the
