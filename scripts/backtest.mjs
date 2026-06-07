@@ -23,6 +23,22 @@
 // Run: node scripts/backtest.mjs
 
 import { createClient } from "@supabase/supabase-js";
+import { readFileSync } from "node:fs";
+
+// Local convenience: load .env so `npm run backtest` works without sourcing it
+// first. Skipped when the vars are already set (e.g. CI passes them as real env
+// vars and may have no .env file). Never overrides an existing value.
+if (!process.env.SUPABASE_URL && !process.env.VITE_SUPABASE_URL) {
+  try {
+    for (const line of readFileSync(new URL("../.env", import.meta.url), "utf8").split("\n")) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (!m || process.env[m[1]]) continue;
+      let v = m[2].trim();
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+      process.env[m[1]] = v;
+    }
+  } catch { /* no .env — rely on real env vars */ }
+}
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
