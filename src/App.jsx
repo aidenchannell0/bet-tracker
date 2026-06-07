@@ -34,6 +34,18 @@ function formatCompactCurrency(value) {
   return `${sign}$${Math.round(abs)}`;
 }
 
+// A dollar amount expressed in betting units (1 unit = the user's chosen $
+// value). e.g. "+12.5u", "-1.7u", or unsigned "8.0u" for staked totals. Returns
+// "—" when no unit size is set so we never divide by zero. Bets always store
+// dollars; units are purely a display lens computed at render time, so changing
+// the unit size re-expresses all history without touching any saved bet.
+function formatUnits(value, unitSize, signed = true) {
+  if (!(Number(unitSize) > 0)) return "—";
+  const u = Number(value || 0) / Number(unitSize);
+  const sign = signed && u >= 0 ? "+" : "";
+  return `${sign}${u.toFixed(1)}u`;
+}
+
 // Odds always show two decimals ($1.40, not $1.4). Leaves non-numeric values as-is.
 function formatOdds(value) {
   const n = Number(value);
@@ -1065,7 +1077,7 @@ function Footer({ setActivePage }) {
   );
 }
 
-function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode, onReplayTour }) {
+function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode, onReplayTour, unitSize, setUnitSize, showUnits, setShowUnits }) {
   return (
     <div className="page-fade-in min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
@@ -1107,9 +1119,48 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
               </div>
             </section>
 
+            {/* Units */}
+            <section className="py-7 md:py-9">
+              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">02 — Units</p>
+              <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Track in units</h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">Show profit/loss and staked totals as betting units instead of dollars. Your bets are still stored in dollars — this only changes how results are displayed, so you can change the unit size anytime without affecting your history.</p>
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowUnits(false)}
+                  className={"rounded-xl px-4 py-3 text-[14px] font-medium transition active:opacity-80 " + (!showUnits ? "bg-[var(--text-new)] text-[var(--bg-new)]" : "border border-[var(--border-new)] bg-[var(--surface-new)] text-[var(--text-2-new)]")}
+                >
+                  Dollars
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowUnits(true)}
+                  className={"rounded-xl px-4 py-3 text-[14px] font-medium transition active:opacity-80 " + (showUnits ? "bg-[var(--text-new)] text-[var(--bg-new)]" : "border border-[var(--border-new)] bg-[var(--surface-new)] text-[var(--text-2-new)]")}
+                >
+                  Units
+                </button>
+              </div>
+              <div className="mt-3.5 flex items-center justify-between gap-4 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 py-3">
+                <span className="text-[13px] text-[var(--text-2-new)] md:text-[14px]">1 unit equals</span>
+                <span className="inline-flex items-center gap-0.5">
+                  <span className="text-[14px] text-[var(--text-3-new)]">$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="decimal"
+                    value={unitSize}
+                    onChange={(e) => setUnitSize(Math.max(0, Number(e.target.value) || 0))}
+                    className="mono-nums w-20 bg-transparent text-right text-[15px] font-semibold text-[var(--text-new)] outline-none"
+                    aria-label="Dollar value of one unit"
+                  />
+                </span>
+              </div>
+            </section>
+
             {/* Export */}
             <section className="py-7 md:py-9">
-              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">02 — Export</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">03 — Export</p>
               <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Download your data</h2>
               <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">CSV for spreadsheets, JSON for personal backups. Your bet history is portable — never locked in.</p>
               <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
@@ -1120,7 +1171,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
 
             {/* Import */}
             <section className="py-7 md:py-9">
-              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">03 — Import</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">04 — Import</p>
               <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Restore a backup</h2>
               <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">Import a Pickd JSON backup. Imported bets get added to your online account.</p>
               <div className="mt-5">
@@ -1132,7 +1183,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
             {/* Help & tour */}
             {onReplayTour ? (
               <section className="border-b border-[var(--border-new)] py-7 md:py-9">
-                <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">04 — Help</p>
+                <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">05 — Help</p>
                 <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Replay the tour</h2>
                 <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">Walk through the main features again — MultiPick, the tracker, and how the model track record works.</p>
                 <div className="mt-5">
@@ -1143,7 +1194,7 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
 
             {/* Danger zone */}
             <section className="py-7 md:py-9">
-              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--danger-new)]">05 — Danger zone</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--danger-new)]">06 — Danger zone</p>
               <h2 className="brand-wordmark mt-2 text-[20px] font-semibold tracking-[-0.02em] text-[var(--text-new)] md:text-[22px]">Delete all bets</h2>
               <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)] md:text-[14px]">Removes every bet entry from this account. Your account itself stays — but the bet history is gone for good. Export a backup first if you want a copy.</p>
               <div className="mt-5">
@@ -2052,7 +2103,7 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
   );
 }
 
-function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, prefill, onPrefillConsumed }) {
+function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, prefill, onPrefillConsumed, fmtMoney = formatCurrency }) {
   const [mode, setMode] = useState("multi");
   const [sport, setSport] = useState(prefill?.sport || "AFL");
   const [legs, setLegs] = useState(prefill?.legs || "Any");
@@ -2789,7 +2840,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                   </div>
                   <div className="border-t border-[var(--border-new)] pt-4">
                     <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Profit / loss</div>
-                    <div className={"mt-1 mono-nums text-[22px] font-semibold tracking-[-0.02em] leading-none " + (gridBuildStats.profit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(gridBuildStats.profit)}</div>
+                    <div className={"mt-1 mono-nums text-[22px] font-semibold tracking-[-0.02em] leading-none " + (gridBuildStats.profit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{fmtMoney(gridBuildStats.profit)}</div>
                   </div>
                   <div className="border-l border-t border-[var(--border-new)] pl-4 pt-4">
                     <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">ROI</div>
@@ -3818,7 +3869,7 @@ const STAT_META = {
   },
 };
 
-function StatDetailModal({ statKey, onClose, stats, subStats, filteredBets, pendingBets, cumulativeData }) {
+function StatDetailModal({ statKey, onClose, stats, subStats, filteredBets, pendingBets, cumulativeData, fmtMoney = formatCurrency }) {
   // Lock scroll while open + close on Escape.
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -3840,13 +3891,13 @@ function StatDetailModal({ statKey, onClose, stats, subStats, filteredBets, pend
   let headlineTone = "text-[var(--text-new)]";
 
   if (statKey === "pl") {
-    headline = formatCurrency(stats.totalProfit);
+    headline = fmtMoney(stats.totalProfit);
     headlineTone = stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]";
     summary = [
       { label: "This week", value: (subStats.weekProfit >= 0 ? "+" : "") + formatCurrency(subStats.weekProfit), tone: subStats.weekProfit >= 0 ? "pos" : "neg" },
       { label: "Settled", value: subStats.settledCount },
-      { label: "Biggest win", value: formatCurrency(stats.biggestWin), tone: "pos" },
-      { label: "Biggest loss", value: formatCurrency(stats.biggestLoss), tone: "neg" },
+      { label: "Biggest win", value: fmtMoney(stats.biggestWin), tone: "pos" },
+      { label: "Biggest loss", value: fmtMoney(stats.biggestLoss), tone: "neg" },
       { label: "Longest win streak", value: stats.longestWinningStreak },
       { label: "Longest loss streak", value: stats.longestLosingStreak },
     ];
@@ -3934,8 +3985,8 @@ function StatDetailModal({ statKey, onClose, stats, subStats, filteredBets, pend
     const bestMonth = monthly.length ? monthly.reduce((best, m) => (m.roi > best.roi ? m : best)) : null;
     const worstMonth = monthly.length ? monthly.reduce((worst, m) => (m.roi < worst.roi ? m : worst)) : null;
     summary = [
-      { label: "Total staked", value: formatCurrency(stats.totalStaked) },
-      { label: "Net profit", value: formatCurrency(stats.totalProfit), tone: stats.totalProfit >= 0 ? "pos" : "neg" },
+      { label: "Total staked", value: fmtMoney(stats.totalStaked, false) },
+      { label: "Net profit", value: fmtMoney(stats.totalProfit), tone: stats.totalProfit >= 0 ? "pos" : "neg" },
       { label: "Mo / mo", value: subStats.roiDelta != null ? (subStats.roiDelta >= 0 ? "+" : "") + subStats.roiDelta.toFixed(1) + "pp" : "—", tone: subStats.roiDelta != null ? (subStats.roiDelta >= 0 ? "pos" : "neg") : null },
       { label: "Settled", value: subStats.settledCount },
       { label: "Best month", value: bestMonth ? bestMonth.label + " · " + (bestMonth.roi >= 0 ? "+" : "") + bestMonth.roi + "%" : "—", tone: bestMonth && bestMonth.roi >= 0 ? "pos" : null },
@@ -4103,7 +4154,7 @@ function StatDetailModal({ statKey, onClose, stats, subStats, filteredBets, pend
 // renders a tab-appropriate visual so users get a quick read before
 // committing to click. Positioned via .stat-cell-preview CSS — fades in
 // + lifts on parent :hover.
-function StatHoverPreview({ statKey, stats, subStats, filteredBets, pendingBets, cumulativeData }) {
+function StatHoverPreview({ statKey, stats, subStats, filteredBets, pendingBets, cumulativeData, fmtMoney = formatCurrency }) {
   const meta = STAT_META[statKey] || STAT_META.pl;
   let chart = null;
   let footer = null;
@@ -4128,7 +4179,7 @@ function StatHoverPreview({ statKey, stats, subStats, filteredBets, pendingBets,
     footer = (
       <>
         <span>{data.length} period{data.length === 1 ? "" : "s"}</span>
-        <span className="mono-nums">{formatCurrency(stats.totalProfit)}</span>
+        <span className="mono-nums">{fmtMoney(stats.totalProfit)}</span>
       </>
     );
   } else if (statKey === "winrate") {
@@ -4259,6 +4310,19 @@ export default function BettingTrackerWebsite() {
       /* ignore storage errors */
     }
   };
+
+  // Units: a display lens over the dollar figures. `unitSize` is the dollar
+  // value of 1 unit; `showUnits` flips the P/L + staked numbers between $ and
+  // units. Both persist to localStorage like the theme. fmtMoney() is the single
+  // formatter every P/L/staked render site uses so the toggle is consistent.
+  const [unitSize, setUnitSize] = useState(() => {
+    const v = Number(localStorage.getItem("pickd-unit-size"));
+    return v > 0 ? v : 10;
+  });
+  const [showUnits, setShowUnits] = useState(() => localStorage.getItem("pickd-show-units") === "1");
+  useEffect(() => { try { localStorage.setItem("pickd-unit-size", String(unitSize)); } catch (e) { /* ignore */ } }, [unitSize]);
+  useEffect(() => { try { localStorage.setItem("pickd-show-units", showUnits ? "1" : "0"); } catch (e) { /* ignore */ } }, [showUnits]);
+  const fmtMoney = (value, signed = true) => (showUnits ? formatUnits(value, unitSize, signed) : formatCurrency(value));
 
   const [session, setSession] = useState(null);
   const [authMode, setAuthMode] = useState("login");
@@ -5158,8 +5222,8 @@ export default function BettingTrackerWebsite() {
   }
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
-  if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} gridBuildStats={gridBuildStats} prefill={edgePrefill} onPrefillConsumed={() => setEdgePrefill(null)} />;
-  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} onReplayTour={replayTour} />;
+  if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} gridBuildStats={gridBuildStats} prefill={edgePrefill} onPrefillConsumed={() => setEdgePrefill(null)} fmtMoney={fmtMoney} />;
+  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} onReplayTour={replayTour} unitSize={unitSize} setUnitSize={setUnitSize} showUnits={showUnits} setShowUnits={setShowUnits} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} firstName={firstName} setFirstName={setFirstName} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
@@ -5562,7 +5626,7 @@ export default function BettingTrackerWebsite() {
               .split(" ")[0]
               .replace(/^./, (c) => c.toUpperCase());
             const isTracker = activePage === "tracker";
-            const heroNumber = isTracker ? String(bets.length) : formatCurrency(stats.totalProfit);
+            const heroNumber = isTracker ? String(bets.length) : fmtMoney(stats.totalProfit);
             const heroLabel = isTracker ? "Bets logged" : "Profit / loss";
             const heroTone = isTracker
               ? "text-[var(--text-new)]"
@@ -5612,7 +5676,7 @@ export default function BettingTrackerWebsite() {
                   <button type="button" onClick={() => openStatDetail("roi")} className="snap-start shrink-0 w-[160px] rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4 text-left active:opacity-80">
                     <div className="text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Return on stake</div>
                     <div className={"mono-nums mt-2.5 text-[24px] font-semibold leading-none " + (stats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{(stats.roi >= 0 ? "+" : "") + stats.roi.toFixed(1)}%</div>
-                    <div className="mt-2.5 text-[10px] text-[var(--text-3-new)]"><span className="mono-nums text-[var(--text-2-new)]">{formatCurrency(stats.totalStaked)}</span> staked</div>
+                    <div className="mt-2.5 text-[10px] text-[var(--text-3-new)]"><span className="mono-nums text-[var(--text-2-new)]">{fmtMoney(stats.totalStaked, false)}</span> staked</div>
                   </button>
                   <button type="button" onClick={() => openStatDetail("inflight")} className="snap-start shrink-0 w-[160px] rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4 text-left active:opacity-80">
                     <div className="text-[9px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">In flight</div>
@@ -5718,9 +5782,9 @@ export default function BettingTrackerWebsite() {
               covers these stats with a more thumb-friendly layout. */}
           <section className="hidden grid-cols-2 border-y border-[var(--border-new)] py-9 md:grid lg:grid-cols-4">
             <button type="button" onClick={() => openStatDetail("pl")} className="stat-cell relative px-0 pr-7 text-left lg:border-r lg:border-[var(--border-new)]">
-              <StatHoverPreview statKey="pl" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} />
+              <StatHoverPreview statKey="pl" stats={stats} subStats={subStats} filteredBets={filteredBets} pendingBets={pendingBets} cumulativeData={cumulativeData} fmtMoney={fmtMoney} />
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5 flex items-center gap-1.5">{selectedSportFilter === "All sports" ? "Profit / loss" : selectedSportFilter + " P/L"}<span className="stat-cell-hint text-[var(--text-3-new)]">↗</span></div>
-              <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(stats.totalProfit)}</div>
+              <div className={"mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{fmtMoney(stats.totalProfit)}</div>
               <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--text-3-new)]">
                 <span className={subStats.weekProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>{subStats.weekProfit >= 0 ? "▲ +" : "▼ "}<span className="mono-nums">{formatCurrency(subStats.weekProfit).replace("-", "")}</span></span>
                 <span className="text-[var(--text-3-new)]">this week</span>
@@ -5747,7 +5811,7 @@ export default function BettingTrackerWebsite() {
                 {subStats.roiDelta != null ? (
                   <span className={subStats.roiDelta >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]"}>{subStats.roiDelta >= 0 ? "▲ +" : "▼ "}<span className="mono-nums">{Math.abs(subStats.roiDelta).toFixed(1)}pp</span></span>
                 ) : <span>—</span>}
-                <span><span className="mono-nums">{formatCurrency(stats.totalStaked)}</span> staked</span>
+                <span><span className="mono-nums">{fmtMoney(stats.totalStaked, false)}</span> staked</span>
               </div>
             </button>
             <button type="button" onClick={() => openStatDetail("inflight")} className="stat-cell relative px-7 mt-9 text-left lg:mt-0 lg:pl-7 lg:pr-0">
@@ -6059,12 +6123,12 @@ export default function BettingTrackerWebsite() {
           <section className="grid grid-cols-2 border-y border-[var(--border-new)] py-9 lg:grid-cols-4">
             <div className="relative px-0 pr-7 lg:border-r lg:border-[var(--border-new)]">
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">Biggest win</div>
-              <div className="mono-nums text-[28px] md:text-[36px] font-semibold tracking-[-0.03em] leading-none text-[var(--positive-new)]">{formatCurrency(stats.biggestWin)}</div>
+              <div className="mono-nums text-[28px] md:text-[36px] font-semibold tracking-[-0.03em] leading-none text-[var(--positive-new)]">{fmtMoney(stats.biggestWin)}</div>
               <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Top single-bet result</div>
             </div>
             <div className="relative px-7 lg:border-r lg:border-[var(--border-new)]">
               <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)] mb-3.5">Biggest loss</div>
-              <div className={"mono-nums text-[28px] md:text-[36px] font-semibold tracking-[-0.03em] leading-none " + (stats.biggestLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-2-new)]")}>{formatCurrency(stats.biggestLoss)}</div>
+              <div className={"mono-nums text-[28px] md:text-[36px] font-semibold tracking-[-0.03em] leading-none " + (stats.biggestLoss < 0 ? "text-[var(--danger-new)]" : "text-[var(--text-2-new)]")}>{fmtMoney(stats.biggestLoss)}</div>
               <div className="mt-3.5 text-xs text-[var(--text-3-new)]">Worst single-bet result</div>
             </div>
             <div className="relative px-0 pr-7 mt-9 lg:mt-0 lg:px-7 lg:border-r lg:border-[var(--border-new)]">
@@ -6107,7 +6171,7 @@ export default function BettingTrackerWebsite() {
                     </div>
                     <div className="text-right">
                       <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Current</div>
-                      <div className={"mono-nums mt-1 text-[20px] font-semibold leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(stats.totalProfit)}</div>
+                      <div className={"mono-nums mt-1 text-[20px] font-semibold leading-none " + (stats.totalProfit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{fmtMoney(stats.totalProfit)}</div>
                     </div>
                   </div>
                   <div className="h-[280px]">
@@ -6212,7 +6276,7 @@ export default function BettingTrackerWebsite() {
                       </div>
                       <div className="md:border-l md:border-[var(--border-new)] md:pl-6">
                         <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Profit / loss</div>
-                        <div className={"mono-nums mt-2 text-[24px] font-semibold leading-none " + (gridBuildStats.profit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{formatCurrency(gridBuildStats.profit)}</div>
+                        <div className={"mono-nums mt-2 text-[24px] font-semibold leading-none " + (gridBuildStats.profit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{fmtMoney(gridBuildStats.profit)}</div>
                       </div>
                       <div className="md:border-l md:border-[var(--border-new)] md:pl-6">
                         <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">ROI</div>
@@ -6847,6 +6911,7 @@ export default function BettingTrackerWebsite() {
           filteredBets={filteredBets}
           pendingBets={pendingBets}
           cumulativeData={cumulativeData}
+          fmtMoney={fmtMoney}
         />
       ) : null}
     </div>
