@@ -1638,8 +1638,11 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // minHitRate gates on *raw evidence* — the player's actual recent clears.
   // A leg can rate 88% confidence on 7/10 clears and pass the old confidence
   // gate; users picking "Safer" reasonably expect the data to back the leg,
-  // not just the model. Aggressive stays floor-free; Best Chance requires 7/10+;
-  // Balanced requires 7/10+; Safer requires 9/10+. Every profile WITH a floor
+  // not just the model. Aggressive stays floor-free; Balanced requires 8/10+;
+  // Safer requires 9/10+. Best Chance's nominal floor is only 7/10 because it
+  // ALSO enforces a hard cushion gate (cushionZ >= 1.0) below, which in practice
+  // keeps its legs at 8/10+ anyway — so it stays the safest tier overall even
+  // though this one number reads lower than Balanced. Every profile WITH a floor
   // also requires ≥5 games of sample (the `hr10.total < 5` reject below), so
   // small-sample noise (e.g. 3/3 perfect) can't sneak through.
   //
@@ -1650,8 +1653,8 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // stacks: the team- and metric-diversity penalties are skipped for it below.)
   const minHitRate =
     riskProfile === "Safer" ? 0.9
-    : riskProfile === "Balanced" ? 0.7
-    : riskProfile === "Best Chance" ? 0.7
+    : riskProfile === "Balanced" ? 0.8   // 8/10 recent clears (user-requested form floor)
+    : riskProfile === "Best Chance" ? 0.7 // backstop only — the cushionZ>=1.0 gate dominates
     : 0; // Aggressive — no floor
 
   // Sanity gate: reject any leg the player has never cleared in their last 10
