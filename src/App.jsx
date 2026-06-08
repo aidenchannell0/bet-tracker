@@ -2113,6 +2113,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
   const [riskProfile, setRiskProfile] = useState(prefill?.riskProfile || "Best Chance");
   const [bookmaker, setBookmaker] = useState(prefill?.bookmaker || "");
   const [request, setRequest] = useState(prefill?.request || "");
+  const [showMultiNumbers, setShowMultiNumbers] = useState(false); // collapse the raw %s; pills carry the plain read
   const [chatInput, setChatInput] = useState("");
   const [edgeLoading, setEdgeLoading] = useState(false);
   // True only while the "Build multi" button is running a fresh build (not a
@@ -2913,73 +2914,82 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                     </div>
                   ) : null}
 
-                  {/* Editorial stat strip — Layout B. Hairline borders only,
-                      massive 44px mono numerals on Combined, 28px on others. */}
-                  <div className="reveal-part mt-7 grid grid-cols-2 md:grid-cols-4 gap-y-7 gap-x-0 border-b border-[var(--border-new)] py-7 md:py-9" style={{ animationDelay: "0.05s" }}>
-                    <div className="md:pr-7 md:border-r md:border-[var(--border-new)]">
-                      <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined</div>
-                      <div className="mt-3.5 mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">${multiOutput ? formatOdds(multiOutput.combinedOdds) : displayedTargetOdds.replace("$", "")}</div>
-                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{(() => {
-                        if (!multiOutput) return "Target";
-                        // parseFloat returns NaN for un-parseable strings, which is falsy
-                        // when used with !target, so no need for a separate gate. Previously
-                        // we had `parseOddsValue ? parseFloat(...) : null` referencing an
-                        // undefined symbol — ReferenceError crashed the page on Build multi.
-                        const target = parseFloat(String(displayedTargetOdds).replace(/[^0-9.]/g, ""));
-                        const combined = Number(multiOutput.combinedOdds);
-                        if (!target || !combined) return `Target ${displayedTargetOdds}`;
-                        const closeness = Math.abs((combined - target) / target * 100);
-                        return <>Target <span className="mono-nums">{displayedTargetOdds}</span> · within <span className="mono-nums">{closeness.toFixed(1)}%</span></>;
-                      })()}</div>
-                    </div>
-                    <div className="md:px-7 md:border-r md:border-[var(--border-new)]">
-                      <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined chance</div>
-                      <div className="mt-3.5 mono-nums text-[26px] md:text-[28px] font-semibold tracking-[-0.025em] leading-none text-[var(--text-new)]">{multiOutput ? `${multiOutput.combinedProbPct}%` : "—"}</div>
-                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{multiOutput && multiOutput.correlated && typeof multiOutput.independentProbPct === "number" ? `Adjusted vs ${multiOutput.independentProbPct}% independent` : "Correlation-adjusted"}</div>
-                    </div>
-                    <div className="md:px-7 md:border-r md:border-[var(--border-new)]">
-                      <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Value vs market</div>
-                      <div className={"mt-3.5 mono-nums text-[26px] md:text-[28px] font-semibold tracking-[-0.025em] leading-none " + (multiOutput && multiOutput.evPct > 0 ? "text-[var(--accent-new)]" : "text-[var(--text-2-new)]")}>
-                        {multiOutput && typeof multiOutput.evPct === "number" ? `${multiOutput.evPct > 0 ? "+" : ""}${multiOutput.evPct}%` : "—"}
+                  {/* Combined odds (always) + a toggle to reveal the raw numbers.
+                      The plain-English pills above already translate chance / value
+                      / risk at a glance, so the %s are collapsed by default. */}
+                  <div className="reveal-part mt-7 border-b border-[var(--border-new)] py-7 md:py-9" style={{ animationDelay: "0.05s" }}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined</div>
+                        <div className="mt-3.5 mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">${multiOutput ? formatOdds(multiOutput.combinedOdds) : displayedTargetOdds.replace("$", "")}</div>
+                        <div className="mt-3 text-xs text-[var(--text-3-new)]">{(() => {
+                          if (!multiOutput) return "Target";
+                          const target = parseFloat(String(displayedTargetOdds).replace(/[^0-9.]/g, ""));
+                          const combined = Number(multiOutput.combinedOdds);
+                          if (!target || !combined) return `Target ${displayedTargetOdds}`;
+                          const closeness = Math.abs((combined - target) / target * 100);
+                          return <>Target <span className="mono-nums">{displayedTargetOdds}</span> · within <span className="mono-nums">{closeness.toFixed(1)}%</span></>;
+                        })()}</div>
                       </div>
-                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{multiOutput && typeof multiOutput.evPct === "number"
-                        ? (multiOutput.evPct > 0
-                            ? `${multiOutput.valueLegs} of ${multiOutput.legCount} +edge`
-                            : `Below fair value${multiOutput.sameGameNote ? " · same-game discount applied" : ""}`)
-                        : "Form vs odds"}</div>
+                      {multiOutput ? (
+                        <button type="button" onClick={() => setShowMultiNumbers((v) => !v)} className="shrink-0 text-[11px] font-medium text-[var(--text-3-new)] underline-offset-2 hover:text-[var(--text-2-new)] hover:underline">
+                          {showMultiNumbers ? "Hide numbers ▴" : "Show the numbers ▾"}
+                        </button>
+                      ) : null}
                     </div>
-                    <div className="md:pl-7">
-                      <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Risk</div>
-                      <div className="mt-3.5 mono-nums text-[26px] md:text-[28px] font-semibold tracking-[-0.025em] leading-none text-[var(--warning-new)]">{multiOutput ? multiOutput.risk : 6}<span className="text-sm text-[var(--text-3-new)] font-normal"> / 10</span></div>
-                      <div className="mt-3 text-xs text-[var(--text-3-new)]">{(multiOutput?.risk ?? 6) <= 3 ? "Conservative" : (multiOutput?.risk ?? 6) <= 6 ? "Balanced exposure" : "Higher variance"}</div>
-                    </div>
+                    {multiOutput && showMultiNumbers ? (
+                      <div className="mt-7 grid grid-cols-1 gap-y-6 border-t border-[var(--border-new)] pt-6 sm:grid-cols-3 sm:gap-x-0">
+                        <div className="sm:pr-7 sm:border-r sm:border-[var(--border-new)]">
+                          <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined chance</div>
+                          <div className="mt-3 mono-nums text-[24px] font-semibold tracking-[-0.025em] leading-none text-[var(--text-new)]">{multiOutput.combinedProbPct}%</div>
+                          <div className="mt-2 text-xs text-[var(--text-3-new)]">{multiOutput.correlated && typeof multiOutput.independentProbPct === "number" ? `Adjusted vs ${multiOutput.independentProbPct}% independent` : "Correlation-adjusted"}</div>
+                        </div>
+                        <div className="sm:px-7 sm:border-r sm:border-[var(--border-new)]">
+                          <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Value vs market</div>
+                          <div className={"mt-3 mono-nums text-[24px] font-semibold tracking-[-0.025em] leading-none " + (multiOutput.evPct > 0 ? "text-[var(--accent-new)]" : "text-[var(--text-2-new)]")}>
+                            {typeof multiOutput.evPct === "number" ? `${multiOutput.evPct > 0 ? "+" : ""}${multiOutput.evPct}%` : "—"}
+                          </div>
+                          <div className="mt-2 text-xs text-[var(--text-3-new)]">{typeof multiOutput.evPct === "number"
+                            ? (multiOutput.evPct > 0 ? `${multiOutput.valueLegs} of ${multiOutput.legCount} +edge` : `Below fair value${multiOutput.sameGameNote ? " · same-game discount applied" : ""}`)
+                            : "Form vs odds"}</div>
+                        </div>
+                        <div className="sm:pl-7">
+                          <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Risk</div>
+                          <div className="mt-3 mono-nums text-[24px] font-semibold tracking-[-0.025em] leading-none text-[var(--warning-new)]">{multiOutput.risk}<span className="text-sm text-[var(--text-3-new)] font-normal"> / 10</span></div>
+                          <div className="mt-2 text-xs text-[var(--text-3-new)]">{multiOutput.risk <= 3 ? "Conservative" : multiOutput.risk <= 6 ? "Balanced exposure" : "Higher variance"}</div>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
-                  {/* Notes (SGM / odds / bookmaker) — left-bordered slab style */}
-                  {multiOutput?.sameGameNote ? (
-                    <div className="mt-4 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
-                      <span className="text-[var(--text-new)] font-medium">Same-game caveat.</span> {multiOutput.sameGameNote}
-                    </div>
-                  ) : null}
-                  {multiOutput?.oddsNote ? (
-                    <div className="mt-3 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
-                      {multiOutput.oddsNote}
-                    </div>
-                  ) : null}
-                  {multiOutput?.profileNote ? (
-                    <div className="mt-3 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}
-                         dangerouslySetInnerHTML={{ __html: multiOutput.profileNote.replace(/\*\*(.+?)\*\*/g, '<span class="text-[var(--text-new)] font-medium">$1</span>') }} />
-                  ) : null}
-                  {multiOutput?.bookmakerNote ? (
-                    <div className="mt-3 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
-                      {multiOutput.bookmakerNote}
-                    </div>
-                  ) : null}
-                  {multiOutput?.cushionNote ? (
-                    <div className="mt-3 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
-                      <span className="text-[var(--text-new)] font-medium">Cushion floor.</span> {multiOutput.cushionNote}
-                    </div>
-                  ) : null}
+                  {/* Heads up — every caveat (same-game / odds / profile / book /
+                      cushion) consolidated into ONE card so they don't stack into a
+                      wall of amber banners. */}
+                  {(() => {
+                    if (!multiOutput) return null;
+                    const notes = [];
+                    if (multiOutput.sameGameNote) notes.push({ label: "Same game", text: multiOutput.sameGameNote });
+                    if (multiOutput.oddsNote) notes.push({ text: multiOutput.oddsNote });
+                    if (multiOutput.profileNote) notes.push({ html: multiOutput.profileNote.replace(/\*\*(.+?)\*\*/g, '<span class="text-[var(--text-new)] font-medium">$1</span>') });
+                    if (multiOutput.bookmakerNote) notes.push({ text: multiOutput.bookmakerNote });
+                    if (multiOutput.cushionNote) notes.push({ label: "Cushion", text: multiOutput.cushionNote });
+                    if (!notes.length) return null;
+                    return (
+                      <div className="mt-4 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3.5 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--warning-new)]">Heads up</div>
+                        <ul className="mt-2 space-y-1.5">
+                          {notes.map((n, i) => (
+                            <li key={i} className="flex gap-2">
+                              <span className="mt-0.5 shrink-0 text-[var(--warning-new)]">·</span>
+                              {n.html
+                                ? <span dangerouslySetInnerHTML={{ __html: (n.label ? `<span class="text-[var(--text-new)] font-medium">${n.label}: </span>` : "") + n.html }} />
+                                : <span>{n.label ? <span className="text-[var(--text-new)] font-medium">{n.label}: </span> : null}{n.text}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })()}
 
                   {edgeLoading ? (
                     <div className="mt-4 flex items-center gap-3 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 py-3 text-sm text-[var(--text-2-new)]">
