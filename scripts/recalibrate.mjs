@@ -184,12 +184,20 @@ function fitCurve(samples, minSamples = 30) {
     b.hits += s.y;
     b.total += 1;
   }
+  // Shrink each bin's raw hit-rate toward the identity line (predicted = actual)
+  // by a pseudo-count. A bin with only a handful of samples — typically the top
+  // bins, where a few high-prob legs all happen to hit — stays near its
+  // predicted x instead of snapping to 1.0. Dense bins keep their empirical
+  // rate and still correct genuine overconfidence. This is the source-side fix
+  // for the "85% leg fitted as a 99% lock" inflation; edge.js adds a matching
+  // apply-time rail (never inflate above 0.80) as defence in depth.
+  const SHRINK_K = 20;
   const binPoints = [...bins.entries()]
-    .map(([idx, b]) => ({
-      x: idx * BIN_SIZE + BIN_SIZE / 2,
-      y: b.hits / b.total,
-      w: b.total,
-    }))
+    .map(([idx, b]) => {
+      const x = idx * BIN_SIZE + BIN_SIZE / 2;
+      const y = (b.hits + SHRINK_K * x) / (b.total + SHRINK_K);
+      return { x, y, w: b.total };
+    })
     .sort((a, b) => a.x - b.x);
   const curve = isotonicFit(binPoints);
   let sumSq = 0;
@@ -200,7 +208,7 @@ function fitCurve(samples, minSamples = 30) {
   return { curve, rmse: Math.sqrt(sumSq / samples.length), samples: samples.length, bins: binPoints.length };
 }
 
-async function fitCurveForSport(sport, allPreds, minSamples = 30) {
+async function fitCurveForSport(sport, allPreds, minSamples = 120) {
   console.log(`\n— Fitting ${sport} —`);
 
   // Filter predictions to this sport
@@ -224,8 +232,9 @@ async function fitCurveForSport(sport, allPreds, minSamples = 30) {
   console.log(`  GLOBAL ${sport}: ${global.samples} samples · ${global.bins} bins · curve has ${global.curve.length} points · RMSE ${(global.rmse * 100).toFixed(2)}%`);
 
   // Per-market fits — each gets its own curve when it has enough resolved
-  // samples on its own (≥50 — slightly higher than the global threshold
-  // because per-market data is noisier).
+  // samples on its own (≥150 — higher than the global 120 because per-market
+  // data is noisier and its top bins are the sparsest, where overconfident
+  // inflation creeps in).
   const byMarket = new Map();
   for (const s of samples) {
     if (!byMarket.has(s.metric)) byMarket.set(s.metric, []);
@@ -233,12 +242,12 @@ async function fitCurveForSport(sport, allPreds, minSamples = 30) {
   }
   const marketFits = [];
   for (const [market, marketSamples] of byMarket) {
-    const fit = fitCurve(marketSamples, 50);
+    const fit = fitCurve(marketSamples, 150);
     if (fit) {
       console.log(`    · ${market}: ${fit.samples} samples · ${fit.curve.length} points · RMSE ${(fit.rmse * 100).toFixed(2)}%`);
       marketFits.push({ market, ...fit });
     } else {
-      console.log(`    · ${market}: only ${marketSamples.length} samples (need ≥50). Falling back to global curve.`);
+      console.log(`    · ${market}: only ${marketSamples.length} samples (need ≥150). Falling back to global curve.`);
     }
   }
 
@@ -294,9 +303,16 @@ async function main() {
   console.log("\nDone.");
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error("Recalibration failed:", error);
-    process.exit(1);
-  });
+// Run only when invoked directly (node scripts/recalibrate.mjs). When imported
+// — e.g. by a test that exercises fitCurve on synthetic samples — main() and
+// its DB writes stay dormant.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error("Recalibration failed:", error);
+      process.exit(1);
+    });
+}
+
+export { fitCurve, isotonicFit };

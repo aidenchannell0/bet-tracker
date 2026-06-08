@@ -15,11 +15,18 @@ const supabaseAdmin =
 
 // In-memory cache for the latest isotonic recalibration curves per sport.
 // scripts/recalibrate.mjs writes new rows to model_calibration weekly — one
-// global per sport plus one per market that has ≥50 resolved samples. This
+// global per sport (≥120 resolved samples) plus one per market (≥150). This
 // loader returns a { global, markets } bundle so enrichProps can prefer the
 // per-market curve and fall back to the global when a market doesn't have
 // enough data yet. Lambda cold starts naturally pick up new curves; if you
 // ever need a faster refresh, clear the cache after curve writes.
+//
+// Trust floor: even a stored curve is ignored below CAL_MIN_TRUST_SAMPLES.
+// A curve fitted on too few resolved samples is noise — its top isotonic bins
+// flatten toward 1.0 (a few high-prob legs all happened to hit) and inflate
+// every high-confidence leg. Below the floor we drop it and fall back to the
+// raw model probability, which is strictly safer than a bad curve.
+const CAL_MIN_TRUST_SAMPLES = 120;
 const calibrationCache = new Map();
 async function loadCalibrationCurve(sport) {
   if (!supabaseAdmin || !sport) return null;
@@ -42,10 +49,14 @@ async function loadCalibrationCurve(sport) {
     const bundle = { global: null, markets: {} };
     for (const row of data) {
       const k = row.market || "__global__";
-      if (seen.has(k)) continue;
+      if (seen.has(k)) continue; // only the latest fit per market
       seen.add(k);
       const curve = Array.isArray(row.curve_points) ? row.curve_points : null;
       if (!curve) continue;
+      // Trust floor — a curve fitted on too few resolved samples is noise.
+      // Drop it (data only grows, so the latest fit has the most samples; if
+      // it's below the floor, older fits are too) and fall back to raw.
+      if ((row.n_samples ?? 0) < CAL_MIN_TRUST_SAMPLES) continue;
       if (row.market) bundle.markets[row.market] = curve;
       else bundle.global = curve;
     }
@@ -64,31 +75,42 @@ function pickCurveForMetric(bundle, metric) {
   if (metric && bundle.markets && bundle.markets[metric]) return bundle.markets[metric];
   return bundle.global || null;
 }
+// Above this confidence, calibration may only pull a probability DOWN, never
+// up. Small-sample isotonic curves flatten their top bins toward 1.0 (a handful
+// of high-prob legs all happen to hit), which inflates an 85% leg into a "99%
+// lock". In a safety-first product that's the worst failure mode — it makes
+// Best Chance legs look like certainties. So at the top end we still let
+// calibration correct overconfidence (down) but never manufacture it (up).
+const CAL_NO_INFLATE_ABOVE = 0.80;
+
 // Linear interpolation between adjacent isotonic curve points. Returns the
 // raw value when no curve is loaded (model_calibration empty until the first
-// recalibrate run lands).
+// recalibrate run lands). Two safety rails are baked in:
 //
-// Critically: returns x unchanged for inputs OUTSIDE the fitted range. The
-// recalibrate script only sees predictions that the selection layer logged
-// (empirical ≥ minHit ≈ 0.58), so the curve's x domain is narrow — typically
-// [~0.6, ~0.97]. Clamping out-of-range inputs to the boundary y (the old
-// behavior) was the actual Task #106 bug: any low-confidence leg (raw
-// empirical 0.02–0.6) got clamped to curve[0].y ≈ 0.67–0.80, which is how a
-// 0/10-hit $31 long-shot wound up displayed at 67%. Out-of-range = no data
-// to calibrate with → trust the raw value.
+//   1. Out-of-range → return x unchanged. The recalibrate script only sees
+//      predictions the selection layer logged (empirical ≥ minHit ≈ 0.58), so
+//      the curve's x domain is narrow — typically [~0.6, ~0.97]. Clamping
+//      out-of-range inputs to the boundary y (the old behavior) was the Task
+//      #106 bug: a 0/10-hit $31 long-shot (raw 0.02–0.6) got clamped up to
+//      curve[0].y ≈ 0.7 and displayed at 67%. No data out there → trust x.
+//   2. Above CAL_NO_INFLATE_ABOVE, never return y > x (see the constant above).
 function applyCalibrationCurve(curve, x) {
   if (!curve || !curve.length || x == null) return x;
   if (x < curve[0].x) return x;
   if (x > curve[curve.length - 1].x) return x;
+  let y = x;
   for (let i = 0; i < curve.length - 1; i += 1) {
     if (x >= curve[i].x && x <= curve[i + 1].x) {
       const span = curve[i + 1].x - curve[i].x;
-      if (span <= 0) return curve[i].y;
-      const t = (x - curve[i].x) / span;
-      return curve[i].y + t * (curve[i + 1].y - curve[i].y);
+      y = span <= 0
+        ? curve[i].y
+        : curve[i].y + ((x - curve[i].x) / span) * (curve[i + 1].y - curve[i].y);
+      break;
     }
   }
-  return x;
+  // Rail 2: high-confidence legs can be corrected down, never inflated up.
+  if (x >= CAL_NO_INFLATE_ABOVE && y > x) return x;
+  return y;
 }
 
 const FREE_BUILDS_PER_WEEK = 3;
