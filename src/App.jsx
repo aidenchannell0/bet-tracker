@@ -2768,7 +2768,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                           { label: "Sport", value: sport, set: setSport, options: ["AFL", "NBA"] },
                           { label: "Legs", value: legs, set: setLegs, options: ["Any", "2", "3", "4", "5"] },
                           { label: "Odds", value: targetOdds, set: setTargetOdds, options: ["$1.50", "$2.00", "$3.00", "$5.00", "Custom"] },
-                          { label: "Risk", value: riskProfile, set: setRiskProfile, options: ["Safer", "Balanced", "Aggressive", "Best Chance"] },
+                          { label: "Risk", value: riskProfile, set: setRiskProfile, options: ["Best Chance", "Balanced", "Aggressive"] },
                         ].map((ctrl) => (
                           <label key={ctrl.label} className="flex flex-col gap-1">
                             <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">{ctrl.label}</span>
@@ -5298,7 +5298,7 @@ export default function BettingTrackerWebsite() {
           { label: "Sport", value: mpSport, set: setMpSport, options: ["AFL", "NBA"] },
           { label: "Legs", value: mpLegs, set: setMpLegs, options: ["Any", "2", "3", "4", "5"] },
           { label: "Odds", value: mpOdds, set: setMpOdds, options: ["$2.00", "$3.00", "$5.00", "$10.00", "Custom"] },
-          { label: "Risk", value: mpRisk, set: setMpRisk, options: ["Safer", "Balanced", "Aggressive", "Best Chance"] },
+          { label: "Risk", value: mpRisk, set: setMpRisk, options: ["Best Chance", "Balanced", "Aggressive"] },
         ].map((ctrl) => (
           <label key={ctrl.label} className="flex flex-col gap-1">
             <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">{ctrl.label}</span>
