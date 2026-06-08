@@ -1654,6 +1654,70 @@ function MultipickCheckbox({ checked, onChange }) {
 
 // Paywall shown when a free user hits the weekly build limit. Portal-rendered
 // over a blurred backdrop, brand-styled, with the Pro benefits + upgrade CTA.
+// Checkout consent gate. Users must scroll through the Terms and tick to agree
+// before we start a Stripe Checkout session — a "clickwrap" (scroll + an
+// affirmative tick) is far more enforceable than a passive "by subscribing you
+// agree". Shown whenever an upgrade is initiated; records acceptance locally.
+function TermsGateModal({ onAccept, onClose, accepting }) {
+  const [scrolledEnd, setScrolledEnd] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const boxRef = useRef(null);
+  // If the terms fit without scrolling (tall screen), there's no scroll event to
+  // unlock the checkbox — so check on mount and don't trap the user at checkout.
+  useEffect(() => {
+    const el = boxRef.current;
+    if (el && el.scrollHeight - el.clientHeight < 56) setScrolledEnd(true);
+  }, []);
+  const onScroll = (e) => {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 56) setScrolledEnd(true);
+  };
+  const proceed = () => {
+    if (!agreed || accepting) return;
+    try {
+      localStorage.setItem("pickd-terms-accepted", JSON.stringify({ at: new Date().toISOString(), version: TERMS_CONTENT.updated }));
+    } catch { /* ignore storage errors */ }
+    onAccept();
+  };
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Terms of Use" onClick={onClose}>
+      <div className="flex max-h-[88vh] w-full max-w-[520px] flex-col overflow-hidden rounded-3xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] shadow-[0_40px_120px_rgba(0,0,0,0.6)]" onClick={(e) => e.stopPropagation()}>
+        <div className="border-b border-[var(--border-new)] px-6 py-5">
+          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent-new)]">Before you subscribe</div>
+          <h2 className="mt-1.5 text-[20px] font-bold tracking-[-0.02em] text-[var(--text-new)]">{TERMS_CONTENT.title}</h2>
+          <p className="mt-1 text-[12px] text-[var(--text-3-new)]">Please read these and scroll to the bottom, then tick to agree.</p>
+        </div>
+        <div ref={boxRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto px-6 py-4 text-[13px] leading-relaxed text-[var(--text-2-new)]">
+          {TERMS_CONTENT.updated ? <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">{TERMS_CONTENT.updated}</p> : null}
+          {TERMS_CONTENT.intro ? <p className="mt-2">{TERMS_CONTENT.intro}</p> : null}
+          {TERMS_CONTENT.sections.map((s) => (
+            <div key={s.h} className="mt-4">
+              <h3 className="text-[13px] font-semibold text-[var(--text-new)]">{s.h}</h3>
+              {s.p.map((par) => <p key={par} className="mt-1.5">{par}</p>)}
+            </div>
+          ))}
+          <p className="mt-5 text-[11px] italic text-[var(--text-3-new)]">— End of Terms —</p>
+        </div>
+        <div className="border-t border-[var(--border-new)] px-6 py-4">
+          <label className={"flex items-start gap-3 text-[13px] " + (scrolledEnd ? "cursor-pointer text-[var(--text-new)]" : "cursor-not-allowed text-[var(--text-3-new)]")}>
+            <input type="checkbox" disabled={!scrolledEnd} checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent-new)]" />
+            <span>
+              I confirm I am 18+ and I agree to the Terms of Use and Privacy Policy.
+              {!scrolledEnd ? <span className="mt-0.5 block text-[11px] text-[var(--text-3-new)]">Scroll to the bottom of the terms to enable this.</span> : null}
+            </span>
+          </label>
+          <button type="button" onClick={proceed} disabled={!agreed || accepting} className="mt-4 w-full rounded-xl bg-[var(--accent-new)] py-3.5 text-[14px] font-bold text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:opacity-40">
+            {accepting ? "Starting checkout…" : "Agree & continue to secure checkout"}
+          </button>
+          <button type="button" onClick={onClose} className="mt-2 w-full py-2 text-[13px] font-semibold text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Cancel</button>
+          <p className="mt-2 text-center text-[11px] text-[var(--text-3-new)]">18+ · Gamble responsibly · Payments processed securely by Stripe</p>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function Paywall({ usage = 3, limit = 3, foundingSpotsLeft = null, onUpgrade, upgrading, onClose }) {
   const founding = typeof foundingSpotsLeft === "number" && foundingSpotsLeft > 0;
   const benefits = [
@@ -2190,8 +2254,13 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
     };
   }, [accessToken]);
 
-  const startUpgrade = async () => {
+  const [termsGateOpen, setTermsGateOpen] = useState(false);
+  // Clicking any upgrade entry point opens the Terms gate; doCheckout runs only
+  // after the user scrolls + ticks agree.
+  const startUpgrade = () => { if (!upgrading) setTermsGateOpen(true); };
+  const doCheckout = async () => {
     if (upgrading) return;
+    setTermsGateOpen(false);
     setUpgrading(true);
     try {
       const response = await fetch("/api/create-checkout-session", {
@@ -2529,6 +2598,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
           <TopNav activePage="edge" setActivePage={setActivePage} />
 
           {showPaywall ? <Paywall usage={entitlement.usage} limit={entitlement.limit} foundingSpotsLeft={entitlement.foundingSpotsLeft} onUpgrade={startUpgrade} upgrading={upgrading} onClose={() => setShowPaywall(false)} /> : null}
+          {termsGateOpen ? <TermsGateModal onAccept={doCheckout} onClose={() => setTermsGateOpen(false)} accepting={upgrading} /> : null}
           {propsStatus && propsStatus.propsAvailable && propsStatus.roundKey !== propsDismissedRound ? (
             <div className="flex items-center gap-3 rounded-2xl border border-[#2E7D5B]/40 bg-[#2E7D5B]/10 px-4 py-3 text-sm">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#2E7D5B]" />
@@ -3710,6 +3780,80 @@ function LandingPage({ setActivePage, setAuthMode }) {
   );
 }
 
+// Canonical Terms of Use — single source shared by the Terms page (LegalPage)
+// and the checkout acceptance gate, so users tick the exact text shown to them.
+const TERMS_CONTENT = {
+  title: "Terms of Use",
+  updated: "Last updated: [INSERT DATE]",
+  intro: "These Terms of Use (\"Terms\") are a binding agreement between you and [INSERT LEGAL ENTITY NAME / ABN] (\"Pickd\", \"we\", \"us\", \"our\"), and govern your access to and use of the Pickd website and app at pickd.tech and bettracker.tech, including MultiPick and the bet tracker (together, the \"Service\"). By creating an account or using the Service, you confirm you have read, understood and agree to these Terms. If you do not agree, do not use the Service.",
+  sections: [
+    { h: "1. Eligibility — you must be 18+", p: [
+      "You must be at least 18 years old and old enough to legally gamble where you live. The Service is intended for users in Australia, and you are responsible for complying with the laws that apply to you.",
+      "You must not use the Service if you are currently self-excluded from gambling, or if you are using it on behalf of someone who is. We may ask you to verify your age, and may suspend or close accounts we reasonably believe belong to a minor or breach this clause.",
+    ] },
+    { h: "2. What Pickd is — and what it is not", p: [
+      "Pickd is an informational sports-statistics, analysis and bet-tracking tool. It helps you record your own bets and review historical player and team statistics, and it generates illustrative, statistically-derived example multis (\"MultiPick\").",
+      "Pickd is NOT a bookmaker, wagering operator or betting exchange. We do not accept, place, process or settle bets, and we never handle wagering funds.",
+      "Pickd is NOT a tipping service, and does not provide betting, financial, investment or other professional advice. MultiPick outputs, confidence percentages, \"value\" and \"edge\" indicators, cushion grades and any analysis are statistical illustrations only — not recommendations, tips, or predictions of any outcome.",
+      "Nothing in the Service is a guarantee, representation or promise of any betting outcome, profit or result.",
+    ] },
+    { h: "3. No advice — your decisions, your risk", p: [
+      "All betting and financial decisions are yours alone, and you bet entirely at your own risk. Sports outcomes are inherently uncertain, and past performance or historical statistics do not guarantee future results.",
+      "Data, models, probabilities, edges and analysis may be incomplete, delayed or wrong. Always verify information independently before relying on anything in the Service.",
+    ] },
+    { h: "4. Responsible gambling", p: [
+      "Gambling can be harmful. Only ever bet what you can afford to lose, set your limits in advance, and never chase losses. The Service is for people aged 18 and over.",
+      "If gambling is causing you or someone you know harm, free and confidential support is available 24/7 in Australia from Gambling Help Online — 1800 858 858 or gamblinghelponline.org.au. If you are outside Australia, please contact the relevant support service in your country.",
+    ] },
+    { h: "5. Your account", p: [
+      "You must provide accurate information and keep your login details secure. You are responsible for all activity that occurs under your account. One account per person — do not share, sell or transfer your account.",
+      "Tell us promptly if you suspect unauthorised use. We may suspend or terminate accounts that breach these Terms or that we reasonably believe are being misused.",
+    ] },
+    { h: "6. Free tier, subscriptions and billing", p: [
+      "Free tier: the Service includes a limited number of MultiPick builds per week (currently 3). These limits may change.",
+      "Pickd Pro: a paid subscription billed in advance on a recurring basis (currently weekly) in Australian dollars at the price shown when you subscribe ([INSERT CURRENT PRICE]). Founding-offer and promotional prices, where offered, apply on the terms shown at checkout (for example, a locked-in founding rate available to a limited number of subscribers).",
+      "Payments are processed by our third-party payment provider, Stripe. By subscribing, you authorise us, through Stripe, to charge your nominated payment method for each billing period until you cancel.",
+      "Auto-renewal: your subscription renews automatically at the end of each billing period until you cancel.",
+      "Cancellation: you can cancel at any time from the in-app billing portal or Settings. Cancelling stops future renewals; your Pro access continues until the end of the period you have already paid for.",
+      "Price and plan changes: we may change prices, features or limits. We will give reasonable notice, and changes apply from your next billing period. Locked-in founding rates are honoured as described at checkout. Promotional codes are subject to their stated conditions and may be withdrawn.",
+    ] },
+    { h: "7. Refunds and your Australian Consumer Law rights", p: [
+      "Except where required by law, subscription fees are non-refundable, including for partial billing periods or change of mind.",
+      "Nothing in these Terms excludes, restricts or modifies any consumer guarantee, right or remedy you may have under the Australian Consumer Law or any other law that cannot lawfully be excluded. Where a consumer guarantee applies and cannot be excluded, but can be limited, our liability is limited (to the extent permitted) to resupplying the relevant service or paying the cost of resupply.",
+      "For any billing question or refund request, contact us at [INSERT SUPPORT EMAIL].",
+    ] },
+    { h: "8. Acceptable use", p: [
+      "Use the Service only for your own lawful, personal, non-commercial use. You must not: scrape, harvest or use any automated means to access the Service or its data; copy, resell, redistribute or otherwise commercialise our odds, statistics, outputs or other content; reverse engineer or attempt to extract source code; circumvent usage limits, paywalls or security measures; use the Service for any unlawful purpose or to facilitate illegal gambling; or interfere with the operation or security of the Service.",
+    ] },
+    { h: "9. Third-party data and availability", p: [
+      "The Service relies on third-party data, including betting odds (via The Odds API) and player and team statistics (for example AFL Tables and balldontlie). We do not control and do not guarantee the accuracy, completeness or timeliness of this data, which may be delayed or contain errors.",
+      "The Service is provided on an \"as is\" and \"as available\" basis. It may change, be unavailable, or contain bugs, and some features are experimental. We do not guarantee uninterrupted or error-free operation.",
+    ] },
+    { h: "10. Intellectual property", p: [
+      "Pickd and its content, branding, design, software and outputs are owned by us or our licensors and are protected by law. We grant you a limited, personal, non-exclusive, non-transferable and revocable licence to use the Service in accordance with these Terms.",
+      "If you send us feedback or suggestions, you grant us a perpetual, worldwide, royalty-free licence to use them without any obligation to you.",
+    ] },
+    { h: "11. Disclaimers and limitation of liability", p: [
+      "To the maximum extent permitted by law, we disclaim all warranties, express or implied, including as to accuracy, fitness for a particular purpose, and that using information from the Service will be profitable. This does not exclude any consumer guarantee that cannot lawfully be excluded.",
+      "To the maximum extent permitted by law, we are not liable for any betting or gambling losses, or for any indirect, incidental, special or consequential loss, arising from your use of the Service. Where our liability cannot be excluded but can be limited, our total liability to you is limited to the amount you paid us for the Service in the 3 months before the relevant claim. Nothing in these Terms limits liability that cannot be limited under law, including under the Australian Consumer Law.",
+    ] },
+    { h: "12. Indemnity", p: [
+      "You agree to indemnify us against any claims, losses, damages and costs (including reasonable legal costs) arising from your breach of these Terms, your misuse of the Service, or your betting or other activities.",
+    ] },
+    { h: "13. Privacy", p: [
+      "How we handle your personal information is set out in our Privacy Policy. By using the Service you consent to that handling. We store account and bet-tracking data using infrastructure providers such as Supabase and Vercel, and process payments via Stripe.",
+    ] },
+    { h: "14. Changes, suspension and termination", p: [
+      "We may modify the Service or these Terms. If we make material changes to these Terms, we will take reasonable steps to notify you (for example, in the app or by email), and your continued use after the changes take effect means you accept the updated Terms.",
+      "You may stop using the Service and close your account at any time. We may suspend or terminate your access if you breach these Terms or where reasonably necessary. Clauses that by their nature should survive termination (including intellectual property, disclaimers, limitation of liability and indemnity) will survive.",
+    ] },
+    { h: "15. Governing law and contact", p: [
+      "These Terms are governed by the laws of [INSERT STATE], Australia, and you submit to the non-exclusive jurisdiction of the courts of that State. Questions about these Terms can be sent to [INSERT SUPPORT EMAIL].",
+      "Important: this is a draft prepared for an early-stage business and is not legal advice. Because Pickd involves gambling-related content and paid subscriptions, you should have these Terms (and your Privacy Policy) reviewed by an Australian lawyer, and confirm your obligations under gambling-advertising and consumer-protection laws, before relying on them.",
+    ] },
+  ],
+};
+
 function LegalPage({ page, setActivePage }) {
   const content = {
     disclaimer: {
@@ -3736,77 +3880,7 @@ function LegalPage({ page, setActivePage }) {
         "Data is stored using third-party infrastructure providers such as Supabase and Vercel. As the product develops, this policy should be reviewed and replaced with a full legal privacy policy before wider public marketing.",
       ],
     },
-    terms: {
-      title: "Terms of Use",
-      updated: "Last updated: [INSERT DATE]",
-      intro: "These Terms of Use (\"Terms\") are a binding agreement between you and [INSERT LEGAL ENTITY NAME / ABN] (\"Pickd\", \"we\", \"us\", \"our\"), and govern your access to and use of the Pickd website and app at pickd.tech and bettracker.tech, including MultiPick and the bet tracker (together, the \"Service\"). By creating an account or using the Service, you confirm you have read, understood and agree to these Terms. If you do not agree, do not use the Service.",
-      sections: [
-        { h: "1. Eligibility — you must be 18+", p: [
-          "You must be at least 18 years old and old enough to legally gamble where you live. The Service is intended for users in Australia, and you are responsible for complying with the laws that apply to you.",
-          "You must not use the Service if you are currently self-excluded from gambling, or if you are using it on behalf of someone who is. We may ask you to verify your age, and may suspend or close accounts we reasonably believe belong to a minor or breach this clause.",
-        ] },
-        { h: "2. What Pickd is — and what it is not", p: [
-          "Pickd is an informational sports-statistics, analysis and bet-tracking tool. It helps you record your own bets and review historical player and team statistics, and it generates illustrative, statistically-derived example multis (\"MultiPick\").",
-          "Pickd is NOT a bookmaker, wagering operator or betting exchange. We do not accept, place, process or settle bets, and we never handle wagering funds.",
-          "Pickd is NOT a tipping service, and does not provide betting, financial, investment or other professional advice. MultiPick outputs, confidence percentages, \"value\" and \"edge\" indicators, cushion grades and any analysis are statistical illustrations only — not recommendations, tips, or predictions of any outcome.",
-          "Nothing in the Service is a guarantee, representation or promise of any betting outcome, profit or result.",
-        ] },
-        { h: "3. No advice — your decisions, your risk", p: [
-          "All betting and financial decisions are yours alone, and you bet entirely at your own risk. Sports outcomes are inherently uncertain, and past performance or historical statistics do not guarantee future results.",
-          "Data, models, probabilities, edges and analysis may be incomplete, delayed or wrong. Always verify information independently before relying on anything in the Service.",
-        ] },
-        { h: "4. Responsible gambling", p: [
-          "Gambling can be harmful. Only ever bet what you can afford to lose, set your limits in advance, and never chase losses. The Service is for people aged 18 and over.",
-          "If gambling is causing you or someone you know harm, free and confidential support is available 24/7 in Australia from Gambling Help Online — 1800 858 858 or gamblinghelponline.org.au. If you are outside Australia, please contact the relevant support service in your country.",
-        ] },
-        { h: "5. Your account", p: [
-          "You must provide accurate information and keep your login details secure. You are responsible for all activity that occurs under your account. One account per person — do not share, sell or transfer your account.",
-          "Tell us promptly if you suspect unauthorised use. We may suspend or terminate accounts that breach these Terms or that we reasonably believe are being misused.",
-        ] },
-        { h: "6. Free tier, subscriptions and billing", p: [
-          "Free tier: the Service includes a limited number of MultiPick builds per week (currently 3). These limits may change.",
-          "Pickd Pro: a paid subscription billed in advance on a recurring basis (currently weekly) in Australian dollars at the price shown when you subscribe ([INSERT CURRENT PRICE]). Founding-offer and promotional prices, where offered, apply on the terms shown at checkout (for example, a locked-in founding rate available to a limited number of subscribers).",
-          "Payments are processed by our third-party payment provider, Stripe. By subscribing, you authorise us, through Stripe, to charge your nominated payment method for each billing period until you cancel.",
-          "Auto-renewal: your subscription renews automatically at the end of each billing period until you cancel.",
-          "Cancellation: you can cancel at any time from the in-app billing portal or Settings. Cancelling stops future renewals; your Pro access continues until the end of the period you have already paid for.",
-          "Price and plan changes: we may change prices, features or limits. We will give reasonable notice, and changes apply from your next billing period. Locked-in founding rates are honoured as described at checkout. Promotional codes are subject to their stated conditions and may be withdrawn.",
-        ] },
-        { h: "7. Refunds and your Australian Consumer Law rights", p: [
-          "Except where required by law, subscription fees are non-refundable, including for partial billing periods or change of mind.",
-          "Nothing in these Terms excludes, restricts or modifies any consumer guarantee, right or remedy you may have under the Australian Consumer Law or any other law that cannot lawfully be excluded. Where a consumer guarantee applies and cannot be excluded, but can be limited, our liability is limited (to the extent permitted) to resupplying the relevant service or paying the cost of resupply.",
-          "For any billing question or refund request, contact us at [INSERT SUPPORT EMAIL].",
-        ] },
-        { h: "8. Acceptable use", p: [
-          "Use the Service only for your own lawful, personal, non-commercial use. You must not: scrape, harvest or use any automated means to access the Service or its data; copy, resell, redistribute or otherwise commercialise our odds, statistics, outputs or other content; reverse engineer or attempt to extract source code; circumvent usage limits, paywalls or security measures; use the Service for any unlawful purpose or to facilitate illegal gambling; or interfere with the operation or security of the Service.",
-        ] },
-        { h: "9. Third-party data and availability", p: [
-          "The Service relies on third-party data, including betting odds (via The Odds API) and player and team statistics (for example AFL Tables and balldontlie). We do not control and do not guarantee the accuracy, completeness or timeliness of this data, which may be delayed or contain errors.",
-          "The Service is provided on an \"as is\" and \"as available\" basis. It may change, be unavailable, or contain bugs, and some features are experimental. We do not guarantee uninterrupted or error-free operation.",
-        ] },
-        { h: "10. Intellectual property", p: [
-          "Pickd and its content, branding, design, software and outputs are owned by us or our licensors and are protected by law. We grant you a limited, personal, non-exclusive, non-transferable and revocable licence to use the Service in accordance with these Terms.",
-          "If you send us feedback or suggestions, you grant us a perpetual, worldwide, royalty-free licence to use them without any obligation to you.",
-        ] },
-        { h: "11. Disclaimers and limitation of liability", p: [
-          "To the maximum extent permitted by law, we disclaim all warranties, express or implied, including as to accuracy, fitness for a particular purpose, and that using information from the Service will be profitable. This does not exclude any consumer guarantee that cannot lawfully be excluded.",
-          "To the maximum extent permitted by law, we are not liable for any betting or gambling losses, or for any indirect, incidental, special or consequential loss, arising from your use of the Service. Where our liability cannot be excluded but can be limited, our total liability to you is limited to the amount you paid us for the Service in the 3 months before the relevant claim. Nothing in these Terms limits liability that cannot be limited under law, including under the Australian Consumer Law.",
-        ] },
-        { h: "12. Indemnity", p: [
-          "You agree to indemnify us against any claims, losses, damages and costs (including reasonable legal costs) arising from your breach of these Terms, your misuse of the Service, or your betting or other activities.",
-        ] },
-        { h: "13. Privacy", p: [
-          "How we handle your personal information is set out in our Privacy Policy. By using the Service you consent to that handling. We store account and bet-tracking data using infrastructure providers such as Supabase and Vercel, and process payments via Stripe.",
-        ] },
-        { h: "14. Changes, suspension and termination", p: [
-          "We may modify the Service or these Terms. If we make material changes to these Terms, we will take reasonable steps to notify you (for example, in the app or by email), and your continued use after the changes take effect means you accept the updated Terms.",
-          "You may stop using the Service and close your account at any time. We may suspend or terminate your access if you breach these Terms or where reasonably necessary. Clauses that by their nature should survive termination (including intellectual property, disclaimers, limitation of liability and indemnity) will survive.",
-        ] },
-        { h: "15. Governing law and contact", p: [
-          "These Terms are governed by the laws of [INSERT STATE], Australia, and you submit to the non-exclusive jurisdiction of the courts of that State. Questions about these Terms can be sent to [INSERT SUPPORT EMAIL].",
-          "Important: this is a draft prepared for an early-stage business and is not legal advice. Because Pickd involves gambling-related content and paid subscriptions, you should have these Terms (and your Privacy Policy) reviewed by an Australian lawyer, and confirm your obligations under gambling-advertising and consumer-protection laws, before relying on them.",
-        ] },
-      ],
-    },
+    terms: TERMS_CONTENT,
   };
 
   const selected = content[page] || content.disclaimer;
@@ -4486,8 +4560,11 @@ export default function BettingTrackerWebsite() {
     setProStripDismissed(true);
     try { localStorage.setItem("proStripDismissed", "1"); } catch { /* ignore */ }
   };
-  const startUpgrade = async () => {
+  const [termsGateOpen, setTermsGateOpen] = useState(false);
+  const startUpgrade = () => { if (!upgrading) setTermsGateOpen(true); };
+  const doCheckout = async () => {
     if (upgrading) return;
+    setTermsGateOpen(false);
     setUpgrading(true);
     try {
       const response = await fetch("/api/create-checkout-session", {
@@ -6998,6 +7075,7 @@ export default function BettingTrackerWebsite() {
           fmtMoney={fmtMoney}
         />
       ) : null}
+      {termsGateOpen ? <TermsGateModal onAccept={doCheckout} onClose={() => setTermsGateOpen(false)} accepting={upgrading} /> : null}
     </div>
   );
 }
