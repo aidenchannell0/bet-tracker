@@ -1901,9 +1901,22 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // land closer to the target (e.g. a 3-leg combo within $0.20) would crowd out the
   // 4-leg combos the user actually asked for, since the tolerance band is chosen
   // before leg count. Only fall back to other counts if no wantCount combo exists.
-  let pool = wantCount ? tightestPool((c) => c.legs.length === wantCount) : [];
-  if (!pool.length) pool = tightestPool(() => true);
-  if (!pool.length) pool = closest ? [closest] : [];
+  let pool;
+  if (riskProfile === "Best Chance" && targetOddsValue) {
+    // Best Chance optimises for combined CHANCE + cushion, NOT for hitting the
+    // exact target odds — landing within ~20% either way is fine. So take a wide
+    // odds window and let the sort below pick the highest-chance, deepest-cushion
+    // build in it, instead of snapping to whatever lands closest to target (which
+    // used to drop a safe 6-leg build for a thinner 2-leg combo a few cents nearer).
+    const tol = targetOddsValue * 0.20;
+    pool = combos.filter((c) => c.diff <= tol && (!wantCount || c.legs.length === wantCount));
+    if (!pool.length && wantCount) pool = combos.filter((c) => c.legs.length === wantCount);
+    if (!pool.length) pool = closest ? [closest] : [];
+  } else {
+    pool = wantCount ? tightestPool((c) => c.legs.length === wantCount) : [];
+    if (!pool.length) pool = tightestPool(() => true);
+    if (!pool.length) pool = closest ? [closest] : [];
+  }
   if (!pool.length) return ordered.slice(0, wantCount || 3);
 
   // Prefer requested leg count, then closeness-to-target (bucketed so form
