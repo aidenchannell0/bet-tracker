@@ -3784,8 +3784,8 @@ function LandingPage({ setActivePage, setAuthMode }) {
 // and the checkout acceptance gate, so users tick the exact text shown to them.
 const TERMS_CONTENT = {
   title: "Terms of Use",
-  updated: "Last updated: [INSERT DATE]",
-  intro: "These Terms of Use (\"Terms\") are a binding agreement between you and [INSERT LEGAL ENTITY NAME / ABN] (\"Pickd\", \"we\", \"us\", \"our\"), and govern your access to and use of the Pickd website and app at pickd.tech and bettracker.tech, including MultiPick and the bet tracker (together, the \"Service\"). By creating an account or using the Service, you confirm you have read, understood and agree to these Terms. If you do not agree, do not use the Service.",
+  updated: "Last updated: 9 June 2026",
+  intro: "These Terms of Use (\"Terms\") are a binding agreement between you and Aiden Channell, trading as Pickd (\"Pickd\", \"we\", \"us\", \"our\"), and govern your access to and use of the Pickd website and app at pickd.tech and bettracker.tech, including MultiPick and the bet tracker (together, the \"Service\"). By creating an account or using the Service, you confirm you have read, understood and agree to these Terms. If you do not agree, do not use the Service.",
   sections: [
     { h: "1. Eligibility — you must be 18+", p: [
       "You must be at least 18 years old and old enough to legally gamble where you live. The Service is intended for users in Australia, and you are responsible for complying with the laws that apply to you.",
@@ -3811,7 +3811,7 @@ const TERMS_CONTENT = {
     ] },
     { h: "6. Free tier, subscriptions and billing", p: [
       "Free tier: the Service includes a limited number of MultiPick builds per week (currently 3). These limits may change.",
-      "Pickd Pro: a paid subscription billed in advance on a recurring basis (currently weekly) in Australian dollars at the price shown when you subscribe ([INSERT CURRENT PRICE]). Founding-offer and promotional prices, where offered, apply on the terms shown at checkout (for example, a locked-in founding rate available to a limited number of subscribers).",
+      "Pickd Pro: a paid subscription billed in advance on a recurring basis (currently weekly) in Australian dollars at the price shown when you subscribe (A$6.99 per week, or A$4.99 per week under the founding offer). Founding-offer and promotional prices, where offered, apply on the terms shown at checkout (for example, a locked-in founding rate available to a limited number of subscribers).",
       "Payments are processed by our third-party payment provider, Stripe. By subscribing, you authorise us, through Stripe, to charge your nominated payment method for each billing period until you cancel.",
       "Auto-renewal: your subscription renews automatically at the end of each billing period until you cancel.",
       "Cancellation: you can cancel at any time from the in-app billing portal or Settings. Cancelling stops future renewals; your Pro access continues until the end of the period you have already paid for.",
@@ -3820,7 +3820,7 @@ const TERMS_CONTENT = {
     { h: "7. Refunds and your Australian Consumer Law rights", p: [
       "Except where required by law, subscription fees are non-refundable, including for partial billing periods or change of mind.",
       "Nothing in these Terms excludes, restricts or modifies any consumer guarantee, right or remedy you may have under the Australian Consumer Law or any other law that cannot lawfully be excluded. Where a consumer guarantee applies and cannot be excluded, but can be limited, our liability is limited (to the extent permitted) to resupplying the relevant service or paying the cost of resupply.",
-      "For any billing question or refund request, contact us at [INSERT SUPPORT EMAIL].",
+      "For any billing question or refund request, contact us at aidenchannell0@gmail.com.",
     ] },
     { h: "8. Acceptable use", p: [
       "Use the Service only for your own lawful, personal, non-commercial use. You must not: scrape, harvest or use any automated means to access the Service or its data; copy, resell, redistribute or otherwise commercialise our odds, statistics, outputs or other content; reverse engineer or attempt to extract source code; circumvent usage limits, paywalls or security measures; use the Service for any unlawful purpose or to facilitate illegal gambling; or interfere with the operation or security of the Service.",
@@ -3848,7 +3848,7 @@ const TERMS_CONTENT = {
       "You may stop using the Service and close your account at any time. We may suspend or terminate your access if you breach these Terms or where reasonably necessary. Clauses that by their nature should survive termination (including intellectual property, disclaimers, limitation of liability and indemnity) will survive.",
     ] },
     { h: "15. Governing law and contact", p: [
-      "These Terms are governed by the laws of [INSERT STATE], Australia, and you submit to the non-exclusive jurisdiction of the courts of that State. Questions about these Terms can be sent to [INSERT SUPPORT EMAIL].",
+      "These Terms are governed by the laws of the Australian Capital Territory, Australia, and you submit to the non-exclusive jurisdiction of the courts of that Territory. Questions about these Terms can be sent to aidenchannell0@gmail.com.",
       "Important: this is a draft prepared for an early-stage business and is not legal advice. Because Pickd involves gambling-related content and paid subscriptions, you should have these Terms (and your Privacy Policy) reviewed by an Australian lawyer, and confirm your obligations under gambling-advertising and consumer-protection laws, before relying on them.",
     ] },
   ],
