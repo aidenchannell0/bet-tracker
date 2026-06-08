@@ -1959,20 +1959,20 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   pool.sort((a, b) => {
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
     if (riskProfile === "Best Chance") {
-      // Best chance FOR the chosen odds + legs, made robust. The pool is already
-      // constrained to the target-odds tolerance band (and requested leg count).
-      // Among combos whose combined chance is within CHANCE_SLACK of the best,
-      // prefer the one that clears with the most CUSHION — its weakest leg sits
-      // furthest above the line with the least variance (a multi is only as safe
-      // as its shakiest leg), then total cushion, then raw chance. Combos more
-      // than CHANCE_SLACK below the max still rank purely by chance, so we never
-      // trade away meaningful win probability — only break near-ties on safety.
+      // The pool is a wide ±20% odds window of Solid-cushion combos. First gate
+      // to combos whose combined chance is within CHANCE_SLACK of the best — this
+      // drops thin low-chance combos (e.g. a 2-leg with a coin-flip goal leg).
+      // THEN, among those genuinely-safe high-chance builds, prefer the one
+      // CLOSEST to the target odds (so 6 legs ≈ $2.00 beats 7 legs ≈ $2.29 — we
+      // don't pile on extra legs for the sake of it), then the deepest weakest-leg
+      // cushion, then raw chance, then fewer legs. (No total-cushion term — it
+      // rewarded adding legs, which lowered chance and overshot the odds.)
       const aNear = (a.prob ?? 0) >= maxComboProb - CHANCE_SLACK;
       const bNear = (b.prob ?? 0) >= maxComboProb - CHANCE_SLACK;
       if (aNear !== bNear) return aNear ? -1 : 1;
       if (aNear) {
+        if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
         if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;
-        if (b.sumCushion !== a.sumCushion) return b.sumCushion - a.sumCushion;
         if (b.prob !== a.prob) return b.prob - a.prob;
         if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;
         return a.diff - b.diff;
