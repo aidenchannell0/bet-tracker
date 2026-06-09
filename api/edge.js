@@ -1988,17 +1988,21 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       // Every leg in the pool already clears the Solid cushion floor, so we no
       // longer need a combined-chance gate to keep risky "hit the odds with a
       // coin-flip leg" combos out — the floor guarantees every leg is safe. So
-      // among these all-Solid combos, just get as CLOSE to the target as we can.
-      // That's what lets the build ADD another Solid leg when it tightens the gap
-      // (a 3-leg at $1.66 should lose to a 4-leg at $1.89 for a $2.00 target), and
-      // the same closeness test still stops over-stacking (6 legs ≈ $2.00 beats
-      // 7 ≈ $2.29 — the closer one wins). Ties (combos within one odds bucket of
-      // the target) break on deepest weakest-leg cushion, then combined chance,
-      // then fewer legs.
+      // among these all-Solid combos, get as CLOSE to the target as we can
+      // (this is what lets the build add a Solid leg when it tightens the gap,
+      // and it still stops over-stacking — a closer 6-leg beats a 7-leg).
+      //
+      // Then, among combos that are equally close (within one odds bucket of the
+      // target), prefer the HIGHEST combined chance. Because every leg is already
+      // Solid, that means reaching the target with FEWER, slightly-longer Solid
+      // legs instead of a long chain of near-locks: a 4-leg at $2.01 (~70%) beats
+      // a 7-leg at $1.92 (~54%) — same odds and same cushion guarantee, but far
+      // more likely to actually land. Deepest cushion is only a final tiebreak
+      // now; chasing it (above) just padded extra legs on and sank the chance.
       if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
-      if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;
       if (b.prob !== a.prob) return b.prob - a.prob;
       if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;
+      if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;
       return a.diff - b.diff;
     }
     if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
