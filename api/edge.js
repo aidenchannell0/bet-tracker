@@ -1980,36 +1980,23 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // failure modes across all legs instead of riding on the one outlier.
   const preferProbOverBalance =
     riskProfile === "Balanced" || riskProfile === "Best Chance";
-  // Best Chance treats combos within CHANCE_SLACK of the most likely buildable
-  // combo as tied on chance (the model isn't precise to the percentage point),
-  // then breaks that near-tie on CUSHION — the "deep cushion" lever. Wider =
-  // leans harder into cushion (trades a little raw chance for safer-clearing
-  // legs), which is the high-floor model users win with by hand.
-  const CHANCE_SLACK = 0.08;
-  const maxComboProb =
-    riskProfile === "Best Chance" ? Math.max(0, ...pool.map((c) => c.prob ?? 0)) : 0;
   pool.sort((a, b) => {
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
     if (riskProfile === "Best Chance") {
-      // The pool is a wide ±20% odds window of Solid-cushion combos. First gate
-      // to combos whose combined chance is within CHANCE_SLACK of the best — this
-      // drops thin low-chance combos (e.g. a 2-leg with a coin-flip goal leg).
-      // THEN, among those genuinely-safe high-chance builds, prefer the one
-      // CLOSEST to the target odds (so 6 legs ≈ $2.00 beats 7 legs ≈ $2.29 — we
-      // don't pile on extra legs for the sake of it), then the deepest weakest-leg
-      // cushion, then raw chance, then fewer legs. (No total-cushion term — it
-      // rewarded adding legs, which lowered chance and overshot the odds.)
-      const aNear = (a.prob ?? 0) >= maxComboProb - CHANCE_SLACK;
-      const bNear = (b.prob ?? 0) >= maxComboProb - CHANCE_SLACK;
-      if (aNear !== bNear) return aNear ? -1 : 1;
-      if (aNear) {
-        if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
-        if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;
-        if (b.prob !== a.prob) return b.prob - a.prob;
-        if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;
-        return a.diff - b.diff;
-      }
+      // Every leg in the pool already clears the Solid cushion floor, so we no
+      // longer need a combined-chance gate to keep risky "hit the odds with a
+      // coin-flip leg" combos out — the floor guarantees every leg is safe. So
+      // among these all-Solid combos, just get as CLOSE to the target as we can.
+      // That's what lets the build ADD another Solid leg when it tightens the gap
+      // (a 3-leg at $1.66 should lose to a 4-leg at $1.89 for a $2.00 target), and
+      // the same closeness test still stops over-stacking (6 legs ≈ $2.00 beats
+      // 7 ≈ $2.29 — the closer one wins). Ties (combos within one odds bucket of
+      // the target) break on deepest weakest-leg cushion, then combined chance,
+      // then fewer legs.
+      if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
+      if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;
       if (b.prob !== a.prob) return b.prob - a.prob;
+      if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;
       return a.diff - b.diff;
     }
     if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
