@@ -1259,20 +1259,22 @@ function clearanceZ(values, line, decay = 0.85) {
   const sd = Math.sqrt(wVar / wSum);
   const spreadZ = sd === 0 ? clamp(mean > line ? 5 : mean < line ? -5 : 0) : clamp((mean - line) / sd);
 
-  // Recent-floor view: the worst of the last 5 games vs the line, as a % of the
-  // line, mapped onto the same z scale as the grades. Calibrated to the rule a
-  // user described as a genuinely safe cushion — "the line should sit ~2 below
-  // the smallest hit in the last 5" (e.g. line 15 with a last-5 low of 17). On a
-  // typical 15–20 disposal line that ~2-unit margin is ~10%, so Solid (the Best
-  // Chance floor) now means "~2 below the recent worst", not merely under it:
-  //   ≥15% ≈ Comfortable (~3 below)
-  //   ≥10% ≈ Solid       (~2 below)  ← Best Chance floor
-  //   ≥5%  ≈ Slim        (~1 below — e.g. line 19, last-5 low 20)
+  // Recent-floor view: the worst of the last 5 games vs the line. The user's rule
+  // for a safe cushion is "the line should sit ~2 below the smallest hit in the
+  // last 5" — an ABSOLUTE margin (2 disposals is safe whether the line is 15 or
+  // 25). Expressed as a % of the line, a 2-unit margin is ~13% at line 15 but
+  // only ~8% at line 25, while a thin 1-below margin tops out at ~7% (line 15).
+  // So the Solid cut (the Best Chance floor) sits at 7%: that grades every
+  // "2+ below" line Solid and every "1 below" line Slim across the normal 15–28
+  // disposal range, instead of penalising high lines just for being big.
+  //   ≥13% ≈ Comfortable (~3 below)
+  //   ≥7%  ≈ Solid       (~2 below)  ← Best Chance floor
+  //   ≥3%  ≈ Slim        (~1 below — e.g. line 19, last-5 low 20)
   //   ≥0   ≈ On the line; a recent game under the line goes negative.
   if (line > 0) {
     const recentLow = Math.min(...nums.slice(0, 5));
     const fm = (recentLow - line) / line;
-    const floorZ = fm >= 0.15 ? 1.5 : fm >= 0.10 ? 1.0 : fm >= 0.05 ? 0.6 : fm >= 0 ? 0.3 : clamp(fm * 10);
+    const floorZ = fm >= 0.13 ? 1.5 : fm >= 0.07 ? 1.0 : fm >= 0.03 ? 0.6 : fm >= 0 ? 0.3 : clamp(fm * 10);
     return Math.min(spreadZ, floorZ);
   }
   return spreadZ;
