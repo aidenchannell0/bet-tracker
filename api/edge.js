@@ -1985,24 +1985,28 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   pool.sort((a, b) => {
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
     if (riskProfile === "Best Chance") {
-      // Every leg in the pool already clears the Solid cushion floor, so we no
-      // longer need a combined-chance gate to keep risky "hit the odds with a
-      // coin-flip leg" combos out — the floor guarantees every leg is safe. So
-      // among these all-Solid combos, get as CLOSE to the target as we can
-      // (this is what lets the build add a Solid leg when it tightens the gap,
-      // and it still stops over-stacking — a closer 6-leg beats a 7-leg).
+      // Every leg in the pool already clears the Solid cushion floor, so we don't
+      // need a chance-gate to keep risky combos out — the floor guarantees safety.
+      // Goal: the HIGHEST-chance multi that still lands reasonably close to target.
       //
-      // Then, among combos that are equally close (within one odds bucket of the
-      // target), prefer the HIGHEST combined chance. Because every leg is already
-      // Solid, that means reaching the target with FEWER, slightly-longer Solid
-      // legs instead of a long chain of near-locks: a 4-leg at $2.01 (~70%) beats
-      // a 7-leg at $1.92 (~54%) — same odds and same cushion guarantee, but far
-      // more likely to actually land. Deepest cushion is only a final tiebreak
-      // now; chasing it (above) just padded extra legs on and sank the chance.
-      if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
-      if (b.prob !== a.prob) return b.prob - a.prob;
-      if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;
-      if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;
+      // Use a COARSE closeness gate (within ~10% of target), not fine odds-buckets.
+      // Fine buckets created a cliff: a 7-leg at $1.92 (4% off) beat a 4-leg at
+      // $1.90 (5% off) on a 2-cent edge, even though the 4-leg had FAR higher
+      // combined chance (77% vs 54%). With the gate, both count as "close enough",
+      // and we then take the highest combined chance — which means reaching the
+      // target with FEWER, slightly-longer Solid legs instead of a long chain of
+      // near-locks. A 3-leg at $1.66 (17% off) is OUTSIDE the gate, so the build
+      // still ADDS a leg to get close when it must (no undershooting). Nothing
+      // within 10% → just minimise the miss (closest wins).
+      const aNear = a.diff <= targetOddsValue * 0.10;
+      const bNear = b.diff <= targetOddsValue * 0.10;
+      if (aNear !== bNear) return aNear ? -1 : 1;
+      if (aNear) {
+        if (b.prob !== a.prob) return b.prob - a.prob;                              // highest combined chance
+        if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;  // then fewer legs
+        if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;      // then deepest cushion
+        return a.diff - b.diff;                                                     // then closest
+      }
       return a.diff - b.diff;
     }
     if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
