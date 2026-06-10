@@ -4452,6 +4452,155 @@ function StatHoverPreview({ statKey, stats, subStats, filteredBets, pendingBets,
   );
 }
 
+// ── Add / edit a bet — full-screen popup card. Replaces the old inline form
+// with a focused modal: colour-coded result toggle, bigger touch targets, and a
+// sticky save footer. Shares the same `form` state + submit handler. Portal.
+function BetFormModal({ open, editing, form, setForm, onSubmit, onClose }) {
+  if (!open) return null;
+  const set = (patch) => setForm({ ...form, ...patch });
+  const results = [
+    { key: "win", label: "Win", on: "border-[var(--positive-new)] bg-[var(--positive-soft-new)] text-[var(--positive-new)]" },
+    { key: "loss", label: "Loss", on: "border-[var(--danger-new)] bg-[var(--danger-soft-new)] text-[var(--danger-new)]" },
+    { key: "void", label: "Void", on: "border-[var(--border-strong-new)] bg-[var(--surface-2-new)] text-[var(--text-new)]" },
+    { key: "pending", label: "Pending", on: "border-[var(--warning-new)] bg-[var(--warning-soft-new)] text-[var(--warning-new)]" },
+  ];
+  const canSave = !!form.date && Number(form.stake) > 0;
+  const pl = form.result === "pending" ? null : calculateProfitLoss(form.result, form.stake, form.result === "loss" ? 0 : form.returnAmount);
+  const selWrap = "w-full rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-3.5 py-2.5 text-sm text-[var(--text-new)] outline-none focus:border-[var(--border-strong-new)]";
+  const labCls = "mb-1.5 block text-[12px] font-medium text-[var(--text-2-new)]";
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/65 backdrop-blur-md sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={editing ? "Edit bet" : "Add a bet"} onClick={onClose}>
+      <div className="flex max-h-[94vh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-3xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] shadow-[0_-24px_70px_rgba(0,0,0,0.65)] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 px-5 pt-5">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent-new)]">{editing ? "Editing" : "New bet"}</div>
+            <h2 className="mt-1 text-[21px] font-bold tracking-[-0.02em] text-[var(--text-new)]">{editing ? "Edit bet" : "Add a bet"}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] text-[var(--text-2-new)] hover:text-[var(--text-new)]">✕</button>
+        </div>
+        <form id="bet-form" onSubmit={onSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
+          <div className="grid grid-cols-4 gap-2">
+            {results.map((r) => (
+              <button key={r.key} type="button" onClick={() => set({ result: r.key })}
+                className={"rounded-xl border py-2.5 text-[13px] font-semibold transition-colors " + (form.result === r.key ? r.on : "border-[var(--border-new)] bg-[var(--bg-new)] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}>
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block"><span className={labCls}>Date</span><Input type="date" value={form.date} onChange={(e) => set({ date: e.target.value })} /></label>
+            <label className="block"><span className={labCls}>Sport</span>
+              <select value={form.sport} onChange={(e) => set({ sport: e.target.value })} className={selWrap}>
+                <option value="AFL">AFL</option><option value="NRL">NRL</option><option value="Soccer">Soccer</option><option value="Basketball">Basketball</option><option value="Cricket">Cricket</option><option value="Other">Other</option>
+              </select></label>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <label className="block"><span className={labCls}>Stake</span><Input type="number" min="0" step="0.01" placeholder="50" value={form.stake} onChange={(e) => set({ stake: e.target.value })} /></label>
+            <label className="block"><span className={labCls}>Odds</span><Input type="number" min="0" step="0.01" placeholder="2.00" value={form.odds} onChange={(e) => set({ odds: e.target.value })} /></label>
+            <label className="block"><span className={labCls}>Return</span><Input type="number" min="0" step="0.01" placeholder="100" value={form.returnAmount} onChange={(e) => set({ returnAmount: e.target.value })} disabled={form.result === "loss" || form.result === "pending"} /></label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block"><span className={labCls}>Bet type</span>
+              <select value={form.betType} onChange={(e) => set({ betType: e.target.value })} className={selWrap}>
+                <option value="">—</option><option value="Single">Single</option><option value="Multi">Multi</option><option value="Player prop">Player prop</option><option value="Head-to-head">Head-to-head</option><option value="Line">Line</option><option value="Total">Total</option><option value="Other">Other</option>
+              </select></label>
+            <label className="block"><span className={labCls}>Bookmaker</span><Input placeholder="e.g. Sportsbet" value={form.bookmaker} onChange={(e) => set({ bookmaker: e.target.value })} /></label>
+          </div>
+          <label className="block"><span className={labCls}>Notes <span className="text-[var(--text-3-new)]">· optional</span></span><Input placeholder="Add a note…" value={form.notes} onChange={(e) => set({ notes: e.target.value })} /></label>
+          <MultipickCheckbox checked={form.usedMultipick} onChange={(v) => set({ usedMultipick: v })} />
+          <div className="flex items-center justify-between rounded-xl border border-[rgba(212,242,58,0.25)] bg-[var(--accent-soft-new)] px-4 py-3">
+            <span className="text-[12.5px] font-medium text-[var(--text-2-new)]">Estimated profit / loss</span>
+            <span className={"mono-nums text-[18px] font-bold " + (pl == null ? "text-[var(--text-3-new)]" : pl >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{pl == null ? "Pending" : formatCurrency(pl)}</span>
+          </div>
+        </form>
+        <div className="flex gap-3 border-t border-[var(--border-new)] px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <Button type="button" variant="outline" onClick={onClose} className="flex-1 py-3">Cancel</Button>
+          <button type="submit" form="bet-form" disabled={!canSave} className="flex-[2] rounded-lg bg-[var(--accent-new)] py-3 text-[15px] font-semibold text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40">{editing ? "Update bet" : "Save bet"}</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Betslip upload review — the confirm step after OCR. Shows what AI vision
+// read, tags each field ✓ confident / ⚠ check (a null field = couldn't read it,
+// not a guess), lists every leg, and lets the user confirm-and-save or open the
+// full editor. The "result stays Pending when unsure" safety rule is surfaced.
+function SlipReviewModal({ open, extract, image, onConfirm, onEdit, onClose }) {
+  if (!open || !extract) return null;
+  const tag = (v) => (v != null && v !== "" ? <span className="text-[var(--positive-new)]">✓</span> : <span className="text-[var(--warning-new)]">⚠ check</span>);
+  const legs = Array.isArray(extract.legs) ? extract.legs : [];
+  const missing = [extract.stake, extract.odds, extract.returnAmount].filter((v) => v == null).length;
+  const legFlags = legs.filter((l) => l.odds == null || !l.line).length;
+  const pending = extract.status !== "settled";
+  const canSave = Number(extract.stake) > 0;
+  const allGood = missing === 0 && legFlags === 0 && !pending;
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/65 backdrop-blur-md sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Check your slip" onClick={onClose}>
+      <div className="flex max-h-[94vh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-3xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] shadow-[0_-24px_70px_rgba(0,0,0,0.65)] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 px-5 pt-5">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent-new)]">AI vision · read from your screenshot</div>
+            <h2 className="mt-1 text-[21px] font-bold tracking-[-0.02em] text-[var(--text-new)]">Check your slip</h2>
+            <p className="mt-1 text-[12px] text-[var(--text-3-new)]">Confirm what we read, then save.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] text-[var(--text-2-new)] hover:text-[var(--text-new)]">✕</button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[var(--border-new)] bg-[var(--bg-new)] p-3">
+            {image ? <img src={image} alt="Betslip" className="h-16 w-14 shrink-0 rounded-lg border border-[var(--border-new)] object-cover" /> : null}
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold text-[var(--text-new)]">{extract.bookmaker || "Bookmaker"} · {extract.betType || "Bet"}</div>
+              <div className="mt-0.5 text-[12.5px] text-[var(--text-2-new)]">{extract.sport || "—"}{legs.length ? ` · ${legs.length} leg${legs.length === 1 ? "" : "s"}` : ""}</div>
+              <span className={"mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold " + (allGood ? "bg-[var(--positive-soft-new)] text-[var(--positive-new)]" : "bg-[var(--warning-soft-new)] text-[var(--warning-new)]")}>{allGood ? "✓ High confidence" : "⚠ Needs a quick check"}</span>
+            </div>
+          </div>
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3-new)]">The numbers we read</div>
+          <div className="grid grid-cols-3 gap-2.5">
+            {[{ k: "Stake", v: extract.stake, money: true }, { k: "Total odds", v: extract.odds }, { k: "To return", v: extract.returnAmount, money: true }].map((c) => (
+              <div key={c.k} className={"rounded-xl border p-3 " + (c.v == null ? "border-[rgba(251,191,36,0.45)] bg-[var(--warning-soft-new)]" : "border-[var(--border-new)] bg-[var(--bg-new)]")}>
+                <div className="flex items-center justify-between text-[10.5px] text-[var(--text-3-new)]">{c.k} {tag(c.v)}</div>
+                <div className="mono-nums mt-1 text-[16px] font-bold text-[var(--text-new)]">{c.v == null ? "—" : c.money ? formatCurrency(Number(c.v)) : Number(c.v).toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
+          {legs.length ? (
+            <>
+              <div className="mb-1 mt-5 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3-new)]">Legs · {legs.length}</div>
+              <div>
+                {legs.map((l, i) => {
+                  const flag = l.odds == null || !l.line;
+                  return (
+                    <div key={i} className="flex items-center gap-3 border-b border-[var(--border-new)] py-3 last:border-b-0">
+                      <div className={"grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold " + (flag ? "bg-[var(--warning-soft-new)] text-[var(--warning-new)]" : "bg-[var(--positive-soft-new)] text-[var(--positive-new)]")}>{flag ? "⚠" : "✓"}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[14px] font-semibold text-[var(--text-new)]">{l.player || "Selection"}</div>
+                        <div className="truncate text-[12px] text-[var(--text-2-new)]">{l.line || <span className="text-[var(--warning-new)]">tap “Edit all” to add the line</span>}{l.game ? ` · ${l.game}` : ""}</div>
+                      </div>
+                      <div className="mono-nums shrink-0 text-[14px] font-semibold text-[var(--text-new)]">{l.odds != null ? `$${Number(l.odds).toFixed(2)}` : "—"}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : null}
+          {allGood ? (
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-[rgba(74,222,128,0.3)] bg-[var(--positive-soft-new)] px-3.5 py-3 text-[13px] font-medium text-[var(--positive-new)]">✓ Everything looks right — ready to save.</div>
+          ) : (
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-[rgba(251,191,36,0.3)] bg-[var(--warning-soft-new)] px-3.5 py-3 text-[13px] font-medium text-[#fde68a]">⚠ {pending ? "Result is unsettled — we’ll save it as Pending so you can settle it after the game." : `${missing + legFlags} field${missing + legFlags === 1 ? "" : "s"} need a quick look — tap “Edit all” to fix.`}</div>
+          )}
+        </div>
+        <div className="flex gap-3 border-t border-[var(--border-new)] px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <Button type="button" variant="outline" onClick={onEdit} className="flex-1 py-3">Edit all</Button>
+          <button type="button" onClick={onConfirm} disabled={!canSave} className="flex-[2] rounded-lg bg-[var(--accent-new)] py-3 text-[15px] font-semibold text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40">Confirm &amp; save</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export default function BettingTrackerWebsite() {
   // Dark by default. We only ever persist a preference when the user EXPLICITLY
   // picks one in Settings (via chooseTheme). The "bg-theme" key is deliberately
@@ -4559,6 +4708,9 @@ export default function BettingTrackerWebsite() {
   const [navigating, setNavigating] = useState(false);
   // Add-bet manual form is collapsed by default; the betslip upload leads.
   const [manualOpen, setManualOpen] = useState(false);
+  // Full-screen popup cards: the add/edit form, and the post-upload slip review.
+  const [betModalOpen, setBetModalOpen] = useState(false);
+  const [slipReviewOpen, setSlipReviewOpen] = useState(false);
   // Weekly build allowance for the card's "X of N free builds left" nudge.
   const [entitlement, setEntitlement] = useState({ subscribed: false, usage: 0, limit: 3 });
   const [upgrading, setUpgrading] = useState(false);
@@ -4646,7 +4798,7 @@ export default function BettingTrackerWebsite() {
         return;
       }
       setBetslipExtract(data);
-      setManualOpen(true); // reveal the (now pre-filled) form so the user can review + save
+      setSlipReviewOpen(true); // pop the review card so the user can confirm what AI vision read, then save
       // Map OCR-extracted status/result to the form's `result` field. Default
       // is "pending" when the screenshot is unsettled (or the model couldn't
       // tell), NOT the previous "win" — that was the Task #N bug where a
@@ -5141,6 +5293,8 @@ export default function BettingTrackerWebsite() {
   const resetBetForm = () => {
     setEditingBetId(null);
     setMobileAddBetOpen(false);
+    setBetModalOpen(false);
+    setSlipReviewOpen(false);
     // Clear any uploaded betslip too, so its legs don't carry onto the next bet.
     setBetslipImage(null);
     setBetslipExtract(null);
@@ -5153,6 +5307,7 @@ export default function BettingTrackerWebsite() {
     setActivePage("app");
     setEditingBetId(bet.id);
     setMobileAddBetOpen(true);
+    setBetModalOpen(true);
     setForm({
       date: bet.date,
       sport: bet.sport || "Other",
@@ -5175,7 +5330,7 @@ export default function BettingTrackerWebsite() {
   };
 
   const handleAddOrUpdateBet = async (event) => {
-    event.preventDefault();
+    event?.preventDefault();
     if (!supabase || !session?.user?.id) return;
     const stakeNum = Number(form.stake);
     const oddsNum = Number(form.odds || 0);
@@ -6082,7 +6237,7 @@ export default function BettingTrackerWebsite() {
               {!editingBetId ? (
                 <button
                   type="button"
-                  onClick={() => setManualOpen((open) => !open)}
+                  onClick={() => { resetBetForm(); setBetModalOpen(true); }}
                   className="mb-4 flex w-full items-center justify-between rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 py-3 text-left transition-colors hover:border-[var(--border-strong-new)]"
                 >
                   <span>
@@ -6093,7 +6248,8 @@ export default function BettingTrackerWebsite() {
                 </button>
               ) : null}
 
-              {(editingBetId || manualOpen) ? (
+              {/* Manual + edit forms now open in BetFormModal (full-screen popup). */}
+              {false ? (
               <form onSubmit={handleAddOrUpdateBet} className="space-y-5">
                 <div className="grid gap-5 sm:grid-cols-3">
                   <label className="block">
@@ -7086,6 +7242,8 @@ export default function BettingTrackerWebsite() {
         />
       ) : null}
       {termsGateOpen ? <TermsGateModal onAccept={doCheckout} onClose={() => setTermsGateOpen(false)} accepting={upgrading} /> : null}
+      <BetFormModal open={betModalOpen} editing={!!editingBetId} form={form} setForm={setForm} onSubmit={handleAddOrUpdateBet} onClose={resetBetForm} />
+      <SlipReviewModal open={slipReviewOpen} extract={betslipExtract} image={betslipImage} onConfirm={() => handleAddOrUpdateBet()} onEdit={() => { setSlipReviewOpen(false); setBetModalOpen(true); }} onClose={() => { setSlipReviewOpen(false); clearBetslip(); }} />
     </div>
   );
 }

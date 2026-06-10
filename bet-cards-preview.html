@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pickd — Full-screen bet cards (preview)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0a0a0b; --surface:#111114; --surface-2:#16161a;
+    --border:rgba(255,255,255,0.07); --border-strong:rgba(255,255,255,0.13);
+    --text:#f5f5f7; --text-2:#9d9da3; --text-3:#5d5d63;
+    --accent:#d4f23a; --accent-soft:rgba(212,242,58,0.12);
+    --pos:#4ade80; --pos-soft:rgba(74,222,128,0.12);
+    --warn:#fbbf24; --warn-soft:rgba(251,191,36,0.12);
+    --dang:#f87171; --dang-soft:rgba(248,113,113,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:40px 20px 80px;
+    background:radial-gradient(1200px 700px at 50% -8%, #15151b 0%, transparent 58%), var(--bg);
+    color:var(--text); font-family:"Inter",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+  }
+  .wrap{max-width:1040px; margin:0 auto;}
+  h1{font-family:"Inter Tight"; font-size:30px; font-weight:700; letter-spacing:-0.02em; margin:0 0 6px;}
+  h1 .ac{color:var(--accent);}
+  .sub{color:var(--text-2); font-size:15px; margin:0 0 8px; max-width:680px; line-height:1.5;}
+  .note{color:var(--text-3); font-size:12.5px; margin:0 0 30px;}
+
+  .stage{display:flex; flex-wrap:wrap; gap:48px 40px; justify-content:center; align-items:flex-start;}
+  figure{margin:0; width:380px; max-width:100%;}
+  .tab{display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:600; letter-spacing:.04em;
+       text-transform:uppercase; color:var(--text-2); margin:0 0 14px 4px;}
+  .tab .n{display:inline-grid; place-items:center; width:22px; height:22px; border-radius:50%;
+          background:var(--accent-soft); color:var(--accent); font-size:12px;}
+
+  /* ---- phone frame ---- */
+  .phone{position:relative; width:380px; height:790px; background:#000;
+         border-radius:50px; padding:11px; box-shadow:0 40px 90px rgba(0,0,0,.6), 0 0 0 1px #232328;}
+  .screen{position:absolute; inset:11px; border-radius:40px; overflow:hidden; background:var(--bg);}
+  .statusbar{position:absolute; top:0; left:0; right:0; height:46px; z-index:5;
+             display:flex; align-items:center; justify-content:space-between; padding:0 26px;
+             font-size:13px; font-weight:600; color:var(--text);}
+  .statusbar .ico{display:flex; gap:6px; align-items:center; color:var(--text-2);}
+  .notch{position:absolute; top:9px; left:50%; transform:translateX(-50%); width:108px; height:26px;
+         background:#000; border-radius:0 0 16px 16px; z-index:6;}
+
+  /* dimmed app behind the popup */
+  .behind{position:absolute; inset:0; padding:54px 16px 0; filter:blur(1.5px); opacity:.32;}
+  .behind .h{height:14px; width:40%; background:var(--surface-2); border-radius:6px; margin:6px 2px 16px;}
+  .behind .row{display:flex; gap:10px; margin-bottom:12px;}
+  .behind .sc{flex:1; height:64px; background:var(--surface); border:1px solid var(--border); border-radius:16px;}
+  .behind .big{height:150px; background:var(--surface); border:1px solid var(--border); border-radius:18px; margin-bottom:12px;}
+
+  .scrim{position:absolute; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(3px); z-index:8;}
+
+  /* the popup sheet */
+  .sheet{position:absolute; left:0; right:0; bottom:0; height:93%; z-index:9;
+         background:var(--surface); border-top:1px solid var(--border-strong);
+         border-radius:30px 30px 40px 40px; box-shadow:0 -24px 70px rgba(0,0,0,.65);
+         display:flex; flex-direction:column; overflow:hidden;}
+  .grab{width:38px; height:5px; border-radius:3px; background:#3a3a42; margin:11px auto 4px; flex:none;}
+  .sheethead{display:flex; align-items:flex-start; justify-content:space-between; padding:6px 22px 2px; flex:none;}
+  .sheethead h2{font-family:"Inter Tight"; font-size:21px; font-weight:700; letter-spacing:-.01em; margin:0;}
+  .sheethead p{margin:3px 0 0; font-size:13px; color:var(--text-2); max-width:240px; line-height:1.4;}
+  .x{flex:none; width:32px; height:32px; border-radius:50%; background:var(--surface-2); border:1px solid var(--border);
+     color:var(--text-2); display:grid; place-items:center; font-size:16px; cursor:default;}
+  .body{flex:1; overflow-y:auto; padding:14px 22px 6px;}
+  .foot{flex:none; padding:14px 22px calc(14px + env(safe-area-inset-bottom)); border-top:1px solid var(--border);
+        background:linear-gradient(0deg, var(--surface) 70%, transparent); display:flex; gap:10px;}
+
+  /* form bits */
+  label.fld{display:block; margin-bottom:13px;}
+  .lab{font-size:12px; font-weight:600; color:var(--text-2); margin:0 0 6px 2px; display:flex; gap:6px; align-items:center;}
+  .inp{width:100%; height:46px; border-radius:12px; border:1px solid var(--border); background:var(--bg);
+       color:var(--text); font-size:15px; font-family:inherit; padding:0 13px; display:flex; align-items:center;}
+  .inp.sel::after{content:"▾"; color:var(--text-3); margin-left:auto; font-size:12px;}
+  .inp .ph{color:var(--text-3);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:11px;}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px;}
+
+  /* result segmented control */
+  .seg{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:15px;}
+  .seg button{height:44px; border-radius:12px; border:1px solid var(--border); background:var(--bg);
+              color:var(--text-2); font-size:13.5px; font-weight:600; font-family:inherit; text-transform:capitalize; cursor:default;}
+  .seg .win{background:var(--pos-soft); border-color:rgba(74,222,128,.4); color:var(--pos);}
+  .seg .loss-on{background:var(--dang-soft); border-color:rgba(248,113,113,.4); color:var(--dang);}
+
+  /* multipick toggle */
+  .mpick{display:flex; align-items:center; gap:11px; padding:12px 14px; border-radius:13px;
+         border:1px solid var(--border); background:var(--bg); margin-bottom:13px;}
+  .mpick .tg{flex:none; width:40px; height:24px; border-radius:13px; background:var(--accent); position:relative;}
+  .mpick .tg::after{content:""; position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; background:#0a0a0b;}
+  .mpick .tx{font-size:13.5px; font-weight:500;}
+  .mpick .tx small{display:block; color:var(--text-3); font-size:11.5px; font-weight:400; margin-top:1px;}
+
+  .pl{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-radius:14px;
+      background:var(--accent-soft); border:1px solid rgba(212,242,58,.25); margin-top:4px;}
+  .pl .k{font-size:12.5px; color:var(--text-2); font-weight:500;}
+  .pl .v{font-family:"Inter Tight"; font-size:22px; font-weight:700; color:var(--pos);}
+
+  /* buttons */
+  .btn{flex:1; height:50px; border-radius:13px; font-size:15.5px; font-weight:600; font-family:inherit;
+       display:grid; place-items:center; cursor:default;}
+  .btn.primary{background:var(--accent); color:#0a0a0b;}
+  .btn.outline{background:var(--surface); color:var(--text); border:1px solid var(--border-strong); flex:0 0 38%;}
+
+  /* ---- slip review specifics ---- */
+  .slipstrip{display:flex; gap:12px; align-items:center; padding:11px; border-radius:15px; border:1px solid var(--border);
+             background:var(--bg); margin-bottom:14px;}
+  .thumb{flex:none; width:54px; height:70px; border-radius:9px; overflow:hidden; background:var(--surface-2);
+         border:1px solid var(--border); position:relative;}
+  .thumb .stripe{height:13px; background:#e11d48;}
+  .thumb .ln{height:4px; border-radius:2px; background:#33333b; margin:6px 6px 0;}
+  .thumb .ln.s{width:60%;}
+  .slipmeta b{font-family:"Inter Tight"; font-size:15px; font-weight:600;}
+  .slipmeta p{margin:3px 0 0; font-size:12.5px; color:var(--text-2);}
+  .pill{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:3px 9px;
+        border-radius:20px; background:var(--pos-soft); color:var(--pos); margin-top:7px;}
+
+  .sectlab{font-size:11.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--text-3);
+           margin:16px 2px 9px;}
+  .chips{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
+  .chip{padding:10px 12px; border-radius:12px; border:1px solid var(--border); background:var(--bg);}
+  .chip .k{font-size:11px; color:var(--text-3); display:flex; justify-content:space-between; align-items:center;}
+  .chip .v{font-family:"Inter Tight"; font-size:17px; font-weight:600; margin-top:3px;}
+  .ok{color:var(--pos);} .flagc{color:var(--warn);}
+  .chip.warn{border-color:rgba(251,191,36,.45); background:var(--warn-soft);}
+
+  .leg{display:flex; align-items:center; gap:11px; padding:11px 4px; border-bottom:1px solid var(--border);}
+  .leg:last-child{border-bottom:0;}
+  .tick{flex:none; width:22px; height:22px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:700;}
+  .tick.good{background:var(--pos-soft); color:var(--pos);}
+  .tick.warn{background:var(--warn-soft); color:var(--warn);}
+  .leg .nm{flex:1;}
+  .leg .nm b{font-size:14.5px; font-weight:600;}
+  .leg .nm small{display:block; color:var(--text-2); font-size:12px; margin-top:1px;}
+  .leg .nm .confirm{color:var(--warn);}
+  .leg .od{font-family:"Inter Tight"; font-size:15px; font-weight:600; color:var(--text);}
+
+  .banner{display:flex; align-items:center; gap:9px; padding:11px 13px; border-radius:13px; margin-top:14px;
+          font-size:13px; font-weight:500; background:var(--warn-soft); border:1px solid rgba(251,191,36,.3); color:#fde68a;}
+
+  figcaption{margin:18px 4px 0; color:var(--text-2); font-size:13.5px; line-height:1.55;}
+  figcaption b{color:var(--text);}
+  figcaption ul{margin:8px 0 0; padding-left:18px;}
+  figcaption li{margin:4px 0;}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Full-screen bet cards <span class="ac">· preview</span></h1>
+    <p class="sub">Two popup cards that lift over the whole screen instead of the cramped inline strip — bigger type, room to breathe, and (for uploads) a real “here’s what we read, confirm it” moment.</p>
+    <p class="note">Mockup in your live theme (#0a0a0b · lime #d4f23a · Inter Tight). Static preview — not wired in yet.</p>
+
+    <div class="stage">
+
+      <!-- ============ A · ADD A BET ============ -->
+      <figure>
+        <div class="tab"><span class="n">A</span> Add a bet — manual</div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="screen">
+            <div class="statusbar"><span>9:41</span><span class="ico">5G ▮▮▮ 100%</span></div>
+            <div class="behind">
+              <div class="h"></div>
+              <div class="row"><div class="sc"></div><div class="sc"></div><div class="sc"></div></div>
+              <div class="big"></div>
+              <div class="row"><div class="sc"></div><div class="sc"></div></div>
+            </div>
+            <div class="scrim"></div>
+            <div class="sheet">
+              <div class="grab"></div>
+              <div class="sheethead">
+                <div><h2>Add a bet</h2><p>Log it in a few taps.</p></div>
+                <div class="x">✕</div>
+              </div>
+              <div class="body">
+                <div class="seg">
+                  <button class="win">Win</button>
+                  <button>Loss</button>
+                  <button>Void</button>
+                  <button>Pending</button>
+                </div>
+                <div class="grid2">
+                  <label class="fld"><div class="lab">Date</div><div class="inp">10 Jun 2026</div></label>
+                  <label class="fld"><div class="lab">Sport</div><div class="inp sel">AFL</div></label>
+                </div>
+                <div class="grid3">
+                  <label class="fld"><div class="lab">Stake</div><div class="inp">$50</div></label>
+                  <label class="fld"><div class="lab">Odds</div><div class="inp">1.95</div></label>
+                  <label class="fld"><div class="lab">Return</div><div class="inp">$97.50</div></label>
+                </div>
+                <div class="grid2">
+                  <label class="fld"><div class="lab">Bet type</div><div class="inp sel">Multi</div></label>
+                  <label class="fld"><div class="lab">Bookmaker</div><div class="inp">Sportsbet</div></label>
+                </div>
+                <label class="fld"><div class="lab">Notes <span style="color:var(--text-3);font-weight:400">· optional</span></div><div class="inp"><span class="ph">Add a note…</span></div></label>
+                <div class="mpick">
+                  <div class="tg"></div>
+                  <div class="tx">Built with MultiPick<small>Tracks how your AI builds perform</small></div>
+                </div>
+                <div class="pl"><span class="k">Estimated profit / loss</span><span class="v">+$47.50</span></div>
+              </div>
+              <div class="foot">
+                <div class="btn outline">Cancel</div>
+                <div class="btn primary">Save bet</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption>
+          <b>What changes:</b> the form lifts into a focused card over the screen.
+          <ul>
+            <li>Win/Loss/Void/Pending now <b>colour-coded</b> (green / red) so the result reads at a glance</li>
+            <li>Bigger inputs &amp; touch targets — far easier on a phone</li>
+            <li>Live <b>estimated P/L</b> and a clean MultiPick toggle</li>
+            <li>Sticky <b>Save</b> footer always in reach while you scroll</li>
+          </ul>
+        </figcaption>
+      </figure>
+
+      <!-- ============ B · CHECK YOUR SLIP ============ -->
+      <figure>
+        <div class="tab"><span class="n">B</span> After a betslip upload</div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="screen">
+            <div class="statusbar"><span>9:41</span><span class="ico">5G ▮▮▮ 100%</span></div>
+            <div class="behind">
+              <div class="h"></div>
+              <div class="row"><div class="sc"></div><div class="sc"></div><div class="sc"></div></div>
+              <div class="big"></div>
+              <div class="row"><div class="sc"></div><div class="sc"></div></div>
+            </div>
+            <div class="scrim"></div>
+            <div class="sheet">
+              <div class="grab"></div>
+              <div class="sheethead">
+                <div><h2>Check your slip</h2><p>We read this from your screenshot — confirm and save.</p></div>
+                <div class="x">✕</div>
+              </div>
+              <div class="body">
+                <div class="slipstrip">
+                  <div class="thumb"><div class="stripe"></div><div class="ln"></div><div class="ln"></div><div class="ln s"></div><div class="ln"></div><div class="ln s"></div></div>
+                  <div class="slipmeta">
+                    <b>Sportsbet · Multi</b>
+                    <p>4 legs · read in 1.2s</p>
+                    <span class="pill">✓ High confidence</span>
+                  </div>
+                </div>
+
+                <div class="sectlab">The numbers we read</div>
+                <div class="chips">
+                  <div class="chip"><div class="k">Stake <span class="ok">✓</span></div><div class="v">$20.00</div></div>
+                  <div class="chip"><div class="k">Total odds <span class="ok">✓</span></div><div class="v">$6.14</div></div>
+                  <div class="chip"><div class="k">To return <span class="ok">✓</span></div><div class="v">$122.71</div></div>
+                  <div class="chip warn"><div class="k">Date <span class="flagc">⚠ check</span></div><div class="v">10 Jun</div></div>
+                </div>
+
+                <div class="sectlab">Legs · 4</div>
+                <div class="leg"><div class="tick good">✓</div><div class="nm"><b>Marcus Bontempelli</b><small>25+ disposals</small></div><div class="od">$1.45</div></div>
+                <div class="leg"><div class="tick good">✓</div><div class="nm"><b>Nick Daicos</b><small>30+ disposals</small></div><div class="od">$1.55</div></div>
+                <div class="leg"><div class="tick good">✓</div><div class="nm"><b>Errol Gulden</b><small>20+ disposals</small></div><div class="od">$1.40</div></div>
+                <div class="leg"><div class="tick warn">⚠</div><div class="nm"><b>Charlie Curnow</b><small class="confirm">2+ goals · tap to confirm the line</small></div><div class="od">$1.95</div></div>
+
+                <div class="banner">⚠ 1 leg &amp; the date need a quick look before saving.</div>
+              </div>
+              <div class="foot">
+                <div class="btn outline">Edit all</div>
+                <div class="btn primary">Confirm &amp; save</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption>
+          <b>The missing step today:</b> upload currently <i>silently</i> pre-fills the form. This adds a confirm screen.
+          <ul>
+            <li>Thumbnail + bookmaker so you know it read the <b>right slip</b></li>
+            <li>Every field tagged <b>✓ confident</b> or <b>⚠ check</b> — guesses get flagged, not hidden</li>
+            <li>Full <b>leg-by-leg</b> breakdown, each tap-to-fix</li>
+            <li>Won’t silently mark a loss as a win — uncertain results stay <b>Pending</b></li>
+          </ul>
+        </figcaption>
+      </figure>
+
+    </div>
+  </div>
+</body>
+</html>
