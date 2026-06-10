@@ -1933,7 +1933,8 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       // safe as its shakiest leg) plus the total, used by the Best Chance sort.
       const czs = acc.map((l) => (l.cushionZ == null ? 0 : l.cushionZ));
       const minCushion = czs.length ? Math.min(...czs) : 0;
-      const cand = { legs: [...acc], prob, imp, edgeScore, diff, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion };
+      const avgCushion = czs.length ? czs.reduce((s, z) => s + z, 0) / czs.length : 0;
+      const cand = { legs: [...acc], prob, imp, edgeScore, diff, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, avgCushion };
       if (diff <= NEAR) combos.push(cand);                  // keep only in-window combos (memory + a small sort)
       if (!closest || diff < closest.diff) closest = cand;  // closest tracked over ALL combos (the fallback)
     }
@@ -1980,14 +1981,17 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       // The user's "bump only as needed to get NEAR target" workflow. Every combo
       // is already all-Solid and within ±30c. First get NEAR the target — a COARSE
       // 20c band, so e.g. $1.82 and $1.89 count as equally near and we don't chase
-      // the last few cents. THEN, among those equally-near combos, take the DEEPEST
-      // weakest-leg cushion, so it won't over-bump a leg (keeps Max at 22+ when that
-      // already lands near target instead of pushing him to 23+). Then fewest legs,
-      // then chance, then the exact closest.
+      // the last few cents. THEN take the deepest AVERAGE cushion (bucketed) — the
+      // average, not just the weakest leg, so it keeps EVERY line as deep as it can
+      // (Max at 22+/Comfortable rather than over-bumping to 23+/Solid, even when
+      // the weakest leg is some other player and the minimum wouldn't change). Then
+      // fewest legs, combined chance, exact closest.
       const aband = Math.floor(a.diff / 0.20);
       const bband = Math.floor(b.diff / 0.20);
       if (aband !== bband) return aband - bband;                                 // near target (coarse 20c band)
-      if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;     // deepest cushion (no over-bump)
+      const ad = Math.floor((a.avgCushion ?? 0) / 0.15);
+      const bd = Math.floor((b.avgCushion ?? 0) / 0.15);
+      if (ad !== bd) return bd - ad;                                             // deepest AVERAGE cushion (no over-bump)
       if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length; // fewest legs
       if (b.prob !== a.prob) return b.prob - a.prob;                             // combined chance
       return a.diff - b.diff;                                                    // exact closest
