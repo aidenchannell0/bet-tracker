@@ -1027,10 +1027,12 @@ function PasswordRecoveryScreen({ newPassword, setNewPassword, loading, message,
 
 // Shared top nav — Layout B editorial style. Appears on Dashboard, Tracker,
 // MultiPick, and Settings pages on desktop. Mobile uses MobileBottomNav.
-function TopNav({ activePage, setActivePage, handleLogout }) {
+function TopNav({ activePage, setActivePage }) {
   const tabClass = (key) =>
-    "text-[12px] font-medium uppercase tracking-[0.06em] transition-colors " +
-    (activePage === key ? "text-[var(--text-new)]" : "text-[var(--text-3-new)] hover:text-[var(--text-2-new)]");
+    "text-[14px] md:text-[16px] uppercase tracking-[0.08em] transition-colors " +
+    (activePage === key
+      ? "font-semibold text-[var(--text-new)]"
+      : "font-medium text-[var(--text-2-new)] hover:text-[var(--text-new)]");
   return (
     <nav className="mb-2 flex flex-col gap-3 border-b border-[var(--border-new)] pb-4 md:flex-row md:items-center md:justify-between md:pb-5">
       {/* Brand wordmark — "Pickd." with a lime accent dot. The period reads
@@ -1045,16 +1047,13 @@ function TopNav({ activePage, setActivePage, handleLogout }) {
         <span className="text-[22px] font-bold tracking-[-0.045em] text-[var(--text-new)]">Pickd</span>
         <span className="text-[22px] font-bold tracking-[-0.045em] text-[var(--accent-new)]">.</span>
       </button>
-      <div className="-mx-2 flex items-center gap-4 overflow-x-auto px-2 md:gap-6 md:overflow-visible">
+      <div className="-mx-2 flex items-center gap-5 overflow-x-auto px-2 md:gap-9 md:overflow-visible">
         <button onClick={() => setActivePage("app")} className={tabClass("app") + " whitespace-nowrap"}>Dashboard</button>
         <button onClick={() => setActivePage("tracker")} className={tabClass("tracker") + " whitespace-nowrap"}>Tracker</button>
-        <button onClick={() => setActivePage("edge")} className={tabClass("edge") + " inline-flex items-center gap-1.5 whitespace-nowrap"}>
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" style={{ boxShadow: "0 0 8px var(--accent-new)" }} />MultiPick
+        <button onClick={() => setActivePage("edge")} className={tabClass("edge") + " inline-flex items-center gap-2 whitespace-nowrap"}>
+          <span className="h-2 w-2 rounded-full bg-[var(--accent-new)]" style={{ boxShadow: "0 0 8px var(--accent-new)" }} />MultiPick
         </button>
         <button onClick={() => setActivePage("settings")} className={tabClass("settings") + " whitespace-nowrap"}>Settings</button>
-        {handleLogout ? (
-          <button onClick={handleLogout} className="whitespace-nowrap text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">Log out</button>
-        ) : null}
       </div>
     </nav>
   );
@@ -1077,7 +1076,7 @@ function Footer({ setActivePage }) {
   );
 }
 
-function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode, onReplayTour, unitSize, setUnitSize, showUnits, setShowUnits }) {
+function SettingsPage({ setActivePage, handleLogout, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode, onReplayTour, unitSize, setUnitSize, showUnits, setShowUnits }) {
   return (
     <div className="page-fade-in min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
@@ -1093,6 +1092,12 @@ function SettingsPage({ setActivePage, bets, exportCsv, exportBackup, clearAllBe
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">PICKD · Account</p>
             <h1 className="mt-3.5 text-[36px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[44px]">Settings.</h1>
             <p className="mt-3 max-w-[480px] text-[14px] leading-relaxed text-[var(--text-2-new)]">Manage exports, backups and account-level bet data actions.</p>
+            {handleLogout ? (
+              <button type="button" onClick={handleLogout} className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] px-5 py-2.5 text-[14px] font-semibold text-[var(--text-new)] transition-colors hover:border-[var(--danger-new)] hover:text-[var(--danger-new)]">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                Log out
+              </button>
+            ) : null}
           </div>
 
           <div className="divide-y divide-[var(--border-new)]">
@@ -5545,7 +5550,7 @@ export default function BettingTrackerWebsite() {
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
   if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} gridBuildStats={gridBuildStats} prefill={edgePrefill} onPrefillConsumed={() => setEdgePrefill(null)} fmtMoney={fmtMoney} />;
-  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} onReplayTour={replayTour} unitSize={unitSize} setUnitSize={setUnitSize} showUnits={showUnits} setShowUnits={setShowUnits} />;
+  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} handleLogout={handleLogout} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} onReplayTour={replayTour} unitSize={unitSize} setUnitSize={setUnitSize} showUnits={showUnits} setShowUnits={setShowUnits} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} firstName={firstName} setFirstName={setFirstName} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
@@ -5677,7 +5682,7 @@ export default function BettingTrackerWebsite() {
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl">
 
-          <TopNav activePage={activePage} setActivePage={setActivePage} handleLogout={handleLogout} />
+          <TopNav activePage={activePage} setActivePage={setActivePage} />
 
           {showTour ? <OnboardingTour initialName={userFirstName} onFinish={finishTour} onSkip={dismissTour} /> : null}
 
