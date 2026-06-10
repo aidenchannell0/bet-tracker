@@ -1977,20 +1977,20 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
 
     if (riskProfile === "Best Chance") {
-      // SAFEST — the user's "near-locks at Comfortable, bump only as needed"
-      // workflow. Every combo is already all-Solid and within ±30c, so optimise
-      // for CUSHION DEPTH: keep every leg as Comfortable as possible (maximise the
-      // deepest-weakest-leg cushion, bucketed) and only let a line climb toward
-      // Solid when that's the only way to reach the target — NO over-bumping
-      // (prefer Noah 22+ / Comfortable over 23+ / Solid). Then fewest legs, then
-      // closest to target, then combined chance.
-      const ac = Math.floor((a.minCushion ?? 0) / 0.3);
-      const bc = Math.floor((b.minCushion ?? 0) / 0.3);
-      if (ac !== bc) return bc - ac;                                              // deepest cushion tier
-      if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;  // fewest legs
-      if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);  // closest to target
-      if (b.prob !== a.prob) return b.prob - a.prob;                              // then combined chance
-      return a.diff - b.diff;
+      // The user's "bump only as needed to get NEAR target" workflow. Every combo
+      // is already all-Solid and within ±30c. First get NEAR the target — a COARSE
+      // 20c band, so e.g. $1.82 and $1.89 count as equally near and we don't chase
+      // the last few cents. THEN, among those equally-near combos, take the DEEPEST
+      // weakest-leg cushion, so it won't over-bump a leg (keeps Max at 22+ when that
+      // already lands near target instead of pushing him to 23+). Then fewest legs,
+      // then chance, then the exact closest.
+      const aband = Math.floor(a.diff / 0.20);
+      const bband = Math.floor(b.diff / 0.20);
+      if (aband !== bband) return aband - bband;                                 // near target (coarse 20c band)
+      if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;     // deepest cushion (no over-bump)
+      if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length; // fewest legs
+      if (b.prob !== a.prob) return b.prob - a.prob;                             // combined chance
+      return a.diff - b.diff;                                                    // exact closest
     }
 
     if (riskProfile === "Balanced") {
