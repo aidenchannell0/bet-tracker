@@ -1029,7 +1029,7 @@ function PasswordRecoveryScreen({ newPassword, setNewPassword, loading, message,
 // MultiPick, and Settings pages on desktop. Mobile uses MobileBottomNav.
 function TopNav({ activePage, setActivePage }) {
   const tabClass = (key) =>
-    "text-[14px] md:text-[16px] uppercase tracking-[0.08em] transition-colors " +
+    "text-[13px] md:text-[14px] uppercase tracking-[0.08em] transition-colors " +
     (activePage === key
       ? "font-semibold text-[var(--text-new)]"
       : "font-medium text-[var(--text-2-new)] hover:text-[var(--text-new)]");
@@ -1044,8 +1044,8 @@ function TopNav({ activePage, setActivePage }) {
         className="brand-wordmark flex items-baseline leading-none"
         aria-label="Pickd home"
       >
-        <span className="text-[26px] md:text-[28px] font-bold tracking-[-0.045em] text-[var(--text-new)]">Pickd</span>
-        <span className="text-[26px] md:text-[28px] font-bold tracking-[-0.045em] text-[var(--accent-new)]">.</span>
+        <span className="text-[30px] md:text-[32px] font-bold tracking-[-0.045em] text-[var(--text-new)]">Pickd</span>
+        <span className="text-[30px] md:text-[32px] font-bold tracking-[-0.045em] text-[var(--accent-new)]">.</span>
       </button>
       <div className="-mx-2 flex items-center gap-5 overflow-x-auto px-2 md:gap-9 md:overflow-visible">
         <button onClick={() => setActivePage("app")} className={tabClass("app") + " whitespace-nowrap"}>Dashboard</button>

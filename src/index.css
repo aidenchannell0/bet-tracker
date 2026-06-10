@@ -7,9 +7,31 @@
 @variant dark (&:where(.dark, .dark *));
 
 /* ── 2026 minimalist refresh — design tokens ──────────────────────────── */
-/* Used by the new build-output and tracker surfaces. Always renders dark;
-   pairs with the existing dark-mode overrides on the rest of the app. */
+/* Used by the new build-output and tracker surfaces. Light by default; the
+   .dark class on <html> (set pre-paint in index.html, toggled from Settings)
+   swaps to the dark palette. Dark values are byte-identical to before, so dark
+   mode is unchanged — only the previously-broken light path is now real. */
 :root {
+  color-scheme: light;
+  --bg-new: #e8e2d4;
+  --surface-new: #faf7ef;
+  --surface-2-new: #ece5d6;
+  --border-new: rgba(17,32,59,0.12);
+  --border-strong-new: rgba(17,32,59,0.22);
+  --text-new: #11203b;
+  --text-2-new: #55617a;
+  --text-3-new: #8b94a4;
+  --accent-new: #d4f23a;
+  --accent-soft-new: rgba(150,180,20,0.16);
+  --positive-new: #2e7d5b;
+  --positive-soft-new: rgba(46,125,91,0.12);
+  --warning-new: #b07d2b;
+  --warning-soft-new: rgba(176,125,43,0.14);
+  --danger-new: #a94442;
+  --danger-soft-new: rgba(169,68,66,0.10);
+}
+:root.dark {
+  color-scheme: dark;
   --bg-new: #0a0a0b;
   --surface-new: #111114;
   --surface-2-new: #16161a;
@@ -27,6 +49,12 @@
   --danger-new: #f87171;
   --danger-soft-new: rgba(248,113,113,0.10);
 }
+
+/* Accent (lime) is a light colour in BOTH themes, so text on a solid accent
+   surface must always be near-black. Binding it to the bg utility keeps every
+   accent CTA readable in light mode with no JSX changes; in dark this equals
+   the old text-[var(--bg-new)] (#0a0a0b), so dark is unaffected. */
+.bg-\[var\(--accent-new\)\] { color: #0a0a0b !important; }
 
 /* Body sets Inter as the default font everywhere — so paragraph copy and labels
    use Inter, only the .mono-nums elements flip to JetBrains Mono. */
@@ -189,12 +217,12 @@ html, body, #root {
    below also remaps these, but the refresh wants a slightly cooler tone. */
 .bg-\[\#E8E2D4\] { background-color: var(--bg-new) !important; }
 .bg-\[\#FAF7EF\] { background-color: var(--surface-new) !important; }
-.bg-\[\#FAF7EF\]\/95 { background-color: rgba(17, 17, 20, 0.95) !important; }
-.bg-\[\#FAF7EF\]\/70 { background-color: rgba(17, 17, 20, 0.70) !important; }
+:root.dark .bg-\[\#FAF7EF\]\/95 { background-color: rgba(17, 17, 20, 0.95) !important; }
+:root.dark .bg-\[\#FAF7EF\]\/70 { background-color: rgba(17, 17, 20, 0.70) !important; }
 
 /* Legacy navy primary text → new bright text. */
 .text-\[\#11203B\] { color: var(--text-new) !important; }
-.bg-\[\#11203B\] { background-color: var(--surface-2-new) !important; }
+:root.dark .bg-\[\#11203B\] { background-color: var(--surface-2-new) !important; }
 .hover\:bg-\[\#E8E2D4\]:hover { background-color: var(--surface-2-new) !important; }
 
 /* Slate scales → new neutral scale (text + borders + backgrounds). */
@@ -272,7 +300,7 @@ html, body, #root {
 
 /* Generic Tailwind backgrounds used in scattered places */
 .bg-white { background-color: var(--surface-new) !important; }
-.bg-white\/70 { background-color: rgba(17, 17, 20, 0.7) !important; }
+:root.dark .bg-white\/70 { background-color: rgba(17, 17, 20, 0.7) !important; }
 
 /* Kill harsh shadows globally for the refresh */
 .shadow-sm, .shadow, .shadow-md, .shadow-lg { box-shadow: none !important; }
