@@ -2353,9 +2353,9 @@ function buildStructuredMulti(computed, sport, targetOdds) {
 
   const targetVal = parseOddsValue(targetOdds);
   let oddsNote = null;
-  if (targetVal && metrics.combinedOdds > targetVal * 1.25) {
+  if (targetVal && metrics.combinedOdds > targetVal + 0.30) {
     oddsNote = `${selected.length} legs naturally pays more than your ${targetOdds} target — for odds nearer ${targetOdds}, try fewer legs.`;
-  } else if (targetVal && metrics.combinedOdds < targetVal * 0.8) {
+  } else if (targetVal && metrics.combinedOdds < targetVal - 0.30) {
     // Eligible pool exhausted under the current floor. The old message said
     // "add more legs" but that's misleading — there ARE no more legs that
     // pass the floor + filters. Tell the user what to actually widen.
