@@ -1832,6 +1832,27 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     }
   }
 
+  // Per-player line spread: ensure each player ALREADY in the shortlist also has
+  // their LONGEST (and a MID) qualifying line — not just their deepest-cushion
+  // shortest one. The cushion-first odds-band fill above keeps a player's shortest
+  // lines and cuts the longer ones, which left the combo search unable to CLIMB a
+  // line up to reach the target — a $2 build stalled at $1.43 on near-locks. With
+  // the longer lines available it can bump e.g. Noah 20+ -> 23+ (still inside his
+  // cushion) to hit the number instead of quitting short.
+  for (const name of [...new Set(shortlist.map((p) => p.playerName))]) {
+    const lines = ranked.filter((p) => p.playerName === name);
+    if (lines.length < 2) continue;
+    const byOdds = [...lines].sort((a, b) => Number(a.odds) - Number(b.odds));
+    const extras = [byOdds[byOdds.length - 1]]; // longest qualifying line
+    if (byOdds.length >= 3) extras.push(byOdds[Math.floor(byOdds.length / 2)]); // a mid line
+    for (const leg of extras) {
+      if (!seen.has(leg)) {
+        shortlist.push(leg);
+        seen.add(leg);
+      }
+    }
+  }
+
   const minLegs = 2;
   // Cap legs to roughly what the target NEEDS. Low targets stay shallow so the
   // exhaustive search reliably finds the best near-target combo instead of
