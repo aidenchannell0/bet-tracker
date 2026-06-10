@@ -1567,7 +1567,17 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null, g
       // the player clears this line. Drives the Best Chance cushion preference
       // and is surfaced per-leg in the UI. Computed once here so every consumer
       // (selection AND display) reads the same number.
-      cushionZ: clearanceZ(ms.last10Values, prop.line),
+      //
+      // prop.line is the bookmaker's POINT (e.g. 1.5 for an "Over 1.5" = "2+"
+      // market). To CLEAR it the player must reach the next integer (2), and the
+      // cushion measures margin — so it must use that integer threshold. Using the
+      // raw .5 point overstated the cushion badly on low-count stats: a 2+ tackles
+      // line (point 1.5) with a worst game of 2 read as "0.5 above 1.5 = 33% =
+      // Comfortable" when it's really ON the line (2 vs a threshold of 2). On
+      // disposals the half-point is noise (~2.5% of 20), which is why only the
+      // low-count props (marks/tackles/goals) were grading wrong. Hit rates are
+      // unaffected — >=1.5 and >=2 count identically for integer stats.
+      cushionZ: clearanceZ(ms.last10Values, Math.floor(prop.line) + 1),
     };
   });
 }
