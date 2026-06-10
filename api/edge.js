@@ -1977,14 +1977,19 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
 
     if (riskProfile === "Best Chance") {
-      // SAFEST. Every combo is all-Solid and within ±30c. Prefer on-target, then
-      // the HIGHEST combined CHANCE (= fewest, slightly-longer Solid legs), then
-      // fewer legs, then deepest weakest-leg cushion, then closest.
-      const aOn = a.diff <= ON_TARGET, bOn = b.diff <= ON_TARGET;
-      if (aOn !== bOn) return aOn ? -1 : 1;
-      if (b.prob !== a.prob) return b.prob - a.prob;
-      if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;
-      if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;
+      // SAFEST — the user's "near-locks at Comfortable, bump only as needed"
+      // workflow. Every combo is already all-Solid and within ±30c, so optimise
+      // for CUSHION DEPTH: keep every leg as Comfortable as possible (maximise the
+      // deepest-weakest-leg cushion, bucketed) and only let a line climb toward
+      // Solid when that's the only way to reach the target — NO over-bumping
+      // (prefer Noah 22+ / Comfortable over 23+ / Solid). Then fewest legs, then
+      // closest to target, then combined chance.
+      const ac = Math.floor((a.minCushion ?? 0) / 0.3);
+      const bc = Math.floor((b.minCushion ?? 0) / 0.3);
+      if (ac !== bc) return bc - ac;                                              // deepest cushion tier
+      if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;  // fewest legs
+      if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);  // closest to target
+      if (b.prob !== a.prob) return b.prob - a.prob;                              // then combined chance
       return a.diff - b.diff;
     }
 
