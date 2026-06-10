@@ -1583,36 +1583,30 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null, g
 }
 
 // Deterministically pick the strongest legs for the target and risk profile.
-// Wraps selectLegsForProfile with progressive floor relaxation: if the user's
-// requested profile can't get within ±20% of the target odds AND hit the
-// profile's minimum combined-confidence floor, drop one tier and retry.
-// User explicitly picked Safer/Balanced for a reason, so we tag the result
-// with `profileUsed` vs `profileRequested` and the response layer surfaces a
-// "couldn't hit target at Safer — relaxed to Balanced" note in the UI.
+// Wraps selectLegsForProfile with progressive relaxation: if the requested tier
+// can't get within ±30c of the target AND clear its combined-chance floor, drop
+// one tier and retry. The result is tagged `profileUsed` vs `profileRequested`
+// so the UI can surface a "couldn't hit target at Balanced — relaxed to
+// Aggressive" note.
 function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   const RELAX_CHAIN = {
-    Safer: ["Safer", "Balanced", "Aggressive"],
+    // Best Chance never relaxes — it keeps its safety floors and builds the
+    // closest SAFE multi it can (the UI flags "add a game" if it falls short).
+    "Best Chance": ["Best Chance"],
+    // Balanced can drop to Aggressive to reach the target when its own floors
+    // can't; tagged so the UI shows the relax note.
     Balanced: ["Balanced", "Aggressive"],
     Aggressive: ["Aggressive"],
-    // Best Chance has no fallback — it has no constraints to relax from. If
-    // the search returns empty, the global fallback at the end of
-    // selectLegsForProfile picks the closest combo anyway.
-    "Best Chance": ["Best Chance"],
   };
-  const RELAX_TOLERANCE = 0.20; // ±20% of target counts as "hit"
-  // Per-profile combined-confidence floor. User feedback on Safer:
-  // "i need that confidence to be at least 80 for safer bets at 2.00."
-  // 80% combined prob means each leg averages ~95% for a 4-leg multi,
-  // which is genuinely hard for NBA — so when it's infeasible, the relax
-  // chain drops to Balanced (50% floor) and shows the "couldn't hit
-  // Safer at target" note, same UX as the existing hit-rate-floor relax.
-  // Best Chance has no floor — it's pure "let the math pick", no safety
-  // overrides.
+  const RELAX_NEAR = 0.30; // within ±30c of the target counts as "hit"
+  // Per-profile combined-chance floor for the WHOLE multi — stops a tier
+  // relaxing into a technically-on-target but very unlikely combo. Best Chance
+  // needs none (its objective already maximises combined chance); Balanced wants
+  // at least a coin-flip; Aggressive is unconstrained.
   const MIN_COMBINED_PROB = {
-    Safer: 0.80,
+    "Best Chance": 0,
     Balanced: 0.50,
     Aggressive: 0,
-    "Best Chance": 0,
   };
   const chain = RELAX_CHAIN[riskProfile] || [riskProfile];
 
@@ -1634,7 +1628,7 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
     // the profile's combined-confidence floor. The combo search already
     // prefers closeness-to-target; the prob check is what catches the
     // "Safer multi at 62% combined confidence" pathology the user flagged.
-    const targetMet = combinedOdds >= targetOddsValue * (1 - RELAX_TOLERANCE);
+    const targetMet = Math.abs(combinedOdds - targetOddsValue) <= RELAX_NEAR;
     const probMet = combinedProb >= minProb;
     if (targetMet && probMet) {
       best = candidate;
@@ -1652,29 +1646,28 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
 }
 
 function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile) {
-  // Raw hit-rate floor by risk profile. Distinct from `minHit` below: minHit
-  // gates on *model confidence* (empirical, post-EB-shrinkage), while
-  // minHitRate gates on *raw evidence* — the player's actual recent clears.
-  // A leg can rate 88% confidence on 7/10 clears and pass the old confidence
-  // gate; users picking "Safer" reasonably expect the data to back the leg,
-  // not just the model. Aggressive stays floor-free; Balanced requires 8/10+;
-  // Safer requires 9/10+. Best Chance's nominal floor is only 7/10 because it
-  // ALSO enforces a hard cushion gate (cushionZ >= 1.0) below, which in practice
-  // keeps its legs at 8/10+ anyway — so it stays the safest tier overall even
-  // though this one number reads lower than Balanced. Every profile WITH a floor
-  // also requires ≥5 games of sample (the `hr10.total < 5` reject below), so
-  // small-sample noise (e.g. 3/3 perfect) can't sneak through.
+  // ===================== RISK LADDER =====================
+  // Three tiers, each a clean relaxation of the one above. All three target the
+  // requested odds within a flat ±30c window (see SELECT_NEAR below).
   //
-  // Best Chance is the "high floor + deep cushion" model: a 7/10 raw floor only
-  // exists on lines a player clears comfortably, so this naturally pushes it
-  // toward elite, rarely-quiet players on safe lines — exactly the same-game
-  // build style that wins by hand. (It also embraces same-game/same-metric
-  // stacks: the team- and metric-diversity penalties are skipped for it below.)
+  //   Best Chance — "safest, most likely to land"
+  //     8/10 form · Solid cushion (line >=2 below recent worst) · 60% conf
+  //     objective: highest combined CHANCE within ±30c
+  //   Balanced — "strong form, best value"
+  //     8/10 form · no-negative cushion · 55% conf
+  //     objective: highest combined EDGE (most underpriced) within ±30c
+  //   Aggressive — "reach the target, chase edge"
+  //     5/10 form · no cushion · 45% conf
+  //     objective: closest to target + edge
+  //
+  // minHitRate = raw recent-form floor (actual last-10 clears), distinct from
+  // `minHit` (model-confidence floor) below. Every floored tier also needs >=5
+  // games of sample (the hr10.total<5 reject), so 3/3-perfect noise can't sneak in.
   const minHitRate =
-    riskProfile === "Safer" ? 0.9
-    : riskProfile === "Balanced" ? 0.8   // 8/10 recent clears (user-requested form floor)
-    : riskProfile === "Best Chance" ? 0.7 // backstop only — the cushionZ>=1.0 gate dominates
-    : 0; // Aggressive — no floor
+    riskProfile === "Best Chance" ? 0.8   // 8/10 recent clears
+    : riskProfile === "Balanced" ? 0.8    // 8/10 recent clears
+    : riskProfile === "Aggressive" ? 0.5  // 5/10 — still cleared it at least half the time
+    : 0.8; // unknown/legacy ("Safer" retired) -> safest floor
 
   // Sanity gate: reject any leg the player has never cleared in their last 10
   // games. Catches the "Joel Amartey 6+ goals at $31, 0/10 hit, 67% confidence"
@@ -1698,22 +1691,30 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   });
 
   const minHit =
-    riskProfile === "Safer" ? 0.7
-    : riskProfile === "Balanced" ? 0.58
+    riskProfile === "Best Chance" ? 0.60   // safest tier shouldn't share a floor with Aggressive
+    : riskProfile === "Balanced" ? 0.55
     : riskProfile === "Aggressive" ? 0.45
-    : 0.45; // Best Chance — same low confidence floor as Aggressive (the 0/10 hard reject still applies as a sanity gate)
+    : 0.60; // unknown/legacy -> safest
   const scoreOf = (p) => (p.empirical ?? 0) + Math.max(0, p.edge ?? 0) * 1.5;
 
-  // Best Chance holds a HARD "Solid+" cushion floor (cushionZ >= 1.0). Users pick
-  // it expecting safe, comfortably-cleared legs, so we don't pad the multi with
-  // line-huggers — better to build fewer Solid legs than more Slim ones. Only
-  // relax (back to the full pool) when the chosen game(s) can't even supply 2
-  // Solid legs, so we still build something rather than nothing; the cushion chip
-  // flags any Slim leg that slips through in that rare fallback.
+  // Cushion floors (now meaningful after the integer-threshold fix):
+  //   Best Chance — HARD Solid+ (cushionZ >= 1.0): every leg sits ~2 below the
+  //     player's recent worst. Line-huggers (2+ marks/tackles with no margin) are
+  //     dropped — that's the whole point of the tier.
+  //   Balanced — LIGHT (cushionZ >= 0): drop only legs whose recent worst game
+  //     fell BELOW the line (negative cushion), even at 8/10 form — keeps "best
+  //     value" from grabbing a leg that clears often but craters hard.
+  //   Aggressive — none.
+  // Each relaxes back to the full pool if its floor would leave <2 distinct
+  // players (a thin game still builds something); the cushion chip flags any leg
+  // that slips through in that rare fallback.
   let selectionPool = candidates;
   if (riskProfile === "Best Chance") {
     const solid = candidates.filter((p) => (p.cushionZ ?? -99) >= 1.0);
     if (new Set(solid.map((p) => p.playerName)).size >= 2) selectionPool = solid;
+  } else if (riskProfile === "Balanced") {
+    const cushioned = candidates.filter((p) => (p.cushionZ ?? -99) >= 0);
+    if (new Set(cushioned.map((p) => p.playerName)).size >= 2) selectionPool = cushioned;
   }
 
   // Keep up to a few candidate LINES per player (not just the single highest-score
@@ -1830,7 +1831,10 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   }
 
   const minLegs = 2;
-  const maxLegs = Math.min(7, new Set(shortlist.map((p) => p.playerName)).size);
+  // No fixed leg cap: stack as many qualifying legs as the games supply so higher
+  // targets are reachable ($3-5 need ~8-12 short Solid legs). Bounded at 12 for
+  // sanity, and the explored-combo guard in `choose` keeps the search fast.
+  const maxLegs = Math.min(12, new Set(shortlist.map((p) => p.playerName)).size);
 
   // Size of the largest single-team block in a combo (4 Hawks => 4). When the
   // combo search produces "all 4 legs same team" picks (which used to happen
@@ -1874,10 +1878,16 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
 
   const combos = [];
   let closest = null;
+  let explored = 0; // safety valve: high targets (many legs) can't blow up the DFS
   const choose = (start, acc, players, accOdds) => {
+    if (explored++ > 250000) return;
     if (acc.length >= minLegs) {
       const diff = Math.abs(accOdds - targetOddsValue);
       const prob = acc.reduce((a, p) => a * (p.empirical ?? 0), 1);
+      // Combined market-implied prob -> the multi's EDGE (how underpriced the model
+      // rates the whole combo). Drives the Balanced "best value" objective.
+      const imp = acc.reduce((a, p) => a * (p.implied ?? p.impliedRaw ?? 1 / Number(p.odds)), 1);
+      const edgeScore = prob - imp;
       const legPenalty = wantCount ? Math.abs(acc.length - wantCount) : 0;
       // Diversity: discourage stacking one metric (e.g. all goals). Allow up to
       // ~half the legs in any single market before penalising.
@@ -1895,8 +1905,7 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       // safe as its shakiest leg) plus the total, used by the Best Chance sort.
       const czs = acc.map((l) => (l.cushionZ == null ? 0 : l.cushionZ));
       const minCushion = czs.length ? Math.min(...czs) : 0;
-      const sumCushion = czs.reduce((a, b) => a + b, 0);
-      const cand = { legs: [...acc], prob, diff, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, sumCushion };
+      const cand = { legs: [...acc], prob, imp, edgeScore, diff, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion };
       combos.push(cand);
       if (!closest || diff < closest.diff) closest = cand;
     }
@@ -1916,127 +1925,60 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   };
   choose(0, [], new Set(), 1);
 
-  // Tightest tolerance band (within a filter) that contains at least one combo.
-  // Bands are PERCENTAGES of the target — absolute dollar bands (the old shape:
-  // 0.20, 0.35, 0.50, 0.75, 1.0, Infinity) broke down for any target > $2.50
-  // because "0.20" is 4% of a $5 target but 10% of a $2 target — same band
-  // meant very different tolerances. Percentage bands scale naturally: a 5%
-  // band of $2 is $0.10, of $5 is $0.25, of $10 is $0.50. User feedback:
-  // "would be good if it was at +-20% of the target odds" — start tight (5%)
-  // and relax only when needed.
-  const PCT_BANDS = [0.05, 0.10, 0.15, 0.20, 0.30, 0.50];
-  const tightestPool = (filterFn) => {
-    if (!targetOddsValue) {
-      // No target → just return all combos passing the filter, the sort below
-      // decides the winner. (Old absolute-band behaviour collapses to the same
-      // outcome when targetOddsValue is null.)
-      const p = combos.filter(filterFn);
-      return p.length ? p : [];
-    }
-    for (const pct of PCT_BANDS) {
-      const tol = targetOddsValue * pct;
-      const p = combos.filter((c) => filterFn(c) && c.diff <= tol);
-      if (p.length) return p;
-    }
-    return [];
-  };
-
-  // Honour the requested leg count FIRST. Otherwise a shorter combo that happens to
-  // land closer to the target (e.g. a 3-leg combo within $0.20) would crowd out the
-  // 4-leg combos the user actually asked for, since the tolerance band is chosen
-  // before leg count. Only fall back to other counts if no wantCount combo exists.
-  let pool;
-  if (riskProfile === "Best Chance" && targetOddsValue) {
-    // Best Chance optimises for combined CHANCE + cushion, NOT for hitting the
-    // exact target odds — landing within ~20% either way is fine. So take a wide
-    // odds window and let the sort below pick the highest-chance, deepest-cushion
-    // build in it, instead of snapping to whatever lands closest to target (which
-    // used to drop a safe 6-leg build for a thinner 2-leg combo a few cents nearer).
-    const tol = targetOddsValue * 0.20;
-    pool = combos.filter((c) => c.diff <= tol && (!wantCount || c.legs.length === wantCount));
-    if (!pool.length && wantCount) pool = combos.filter((c) => c.legs.length === wantCount);
-    if (!pool.length) pool = closest ? [closest] : [];
-  } else {
-    pool = wantCount ? tightestPool((c) => c.legs.length === wantCount) : [];
-    if (!pool.length) pool = tightestPool(() => true);
-    if (!pool.length) pool = closest ? [closest] : [];
-  }
+  // ===== Target window: a flat ±30c around the requested odds, for EVERY tier =====
+  // The odds you ask for is the odds you get, regardless of risk level. Within
+  // that window each tier applies its own objective (the sort below). If nothing
+  // lands inside ±30c (pool too thin / target unreachable) we fall back to the
+  // single closest combo so we still return something — the UI flags the miss.
+  const SELECT_NEAR = 0.30;
+  let pool = combos.filter((c) => c.diff <= SELECT_NEAR && (!wantCount || c.legs.length === wantCount));
+  if (!pool.length && wantCount) pool = combos.filter((c) => c.diff <= SELECT_NEAR);
+  if (!pool.length) pool = closest ? [closest] : [];
   if (!pool.length) return ordered.slice(0, wantCount || 3);
 
-  // Prefer requested leg count, then closeness-to-target (bucketed so form
-  // still matters between near-equivalent overshoots), then evenly-priced legs
-  // (no one-long-leg + filler), market variety, highest chance, then
-  // fine-grained diff.
-  //
-  // Bucket width is now a percentage of target (5% by default, min $0.10 floor
-  // to avoid hyper-narrow buckets at tiny targets). Old fixed $0.50 buckets
-  // lumped $1.71 and $2.00 builds for a $2.00 target into the same "bucket 0"
-  // — so the search treated them as tied on closeness, then picked the
-  // higher-prob one even when the other was meaningfully closer to target.
-  // 5% buckets keep $1.71 (diff $0.29 → bucket 2) and $2.05 (diff $0.05 →
-  // bucket 0) properly ordered for the user.
+  // Inside the ±30c window, lean toward "on target" (±15c) before the objective —
+  // a COARSE split (not fine buckets) so a $1.90 and a $1.92 build count as equally
+  // on-target and the objective decides, while a combo 28c off can't beat one 5c
+  // off. (Fine buckets used to create a cliff where a 2c-closer 7-leg build beat a
+  // far higher-chance 4-leg.)
+  const ON_TARGET = SELECT_NEAR / 2; // ±15c
   const bucketSize = targetOddsValue ? Math.max(0.10, targetOddsValue * 0.05) : 0.5;
   const diffBucket = (c) => Math.floor(c.diff / bucketSize);
-  // Safer prefers BALANCED leg pricing (even-sized legs spread risk across
-  // all of them instead of concentrating it on the one outlier). User
-  // feedback after seeing "$1.04 + $1.05 + $1.11 + $1.57" pop out of a
-  // Safer build: "I don't know how I feel about 3 lock and one 50-50."
-  // Safer should *feel* safe, and that means each leg looks similar in
-  // weight — the multi rides on the whole portfolio, not one leg.
-  // Aggressive also prefers balance (chase-edge combos don't want one long
-  // leg carrying the whole multi). Balanced keeps the original prob-first
-  // sort — its name implies the math optimises for raw hit chance.
-  // Profiles preferring PROB-first sort: Balanced (math optimises raw chance)
-  // and Best Chance (user wants the absolute max combined hit rate, no balance
-  // override). Safer + Aggressive prefer BALANCE — even leg sizes spread the
-  // failure modes across all legs instead of riding on the one outlier.
-  const preferProbOverBalance =
-    riskProfile === "Balanced" || riskProfile === "Best Chance";
   pool.sort((a, b) => {
+    // Requested leg count always wins first (when the user pinned one).
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
+
     if (riskProfile === "Best Chance") {
-      // Every leg in the pool already clears the Solid cushion floor, so we don't
-      // need a chance-gate to keep risky combos out — the floor guarantees safety.
-      // Goal: the HIGHEST-chance multi that still lands reasonably close to target.
-      //
-      // Use a COARSE closeness gate (within ~10% of target), not fine odds-buckets.
-      // Fine buckets created a cliff: a 7-leg at $1.92 (4% off) beat a 4-leg at
-      // $1.90 (5% off) on a 2-cent edge, even though the 4-leg had FAR higher
-      // combined chance (77% vs 54%). With the gate, both count as "close enough",
-      // and we then take the highest combined chance — which means reaching the
-      // target with FEWER, slightly-longer Solid legs instead of a long chain of
-      // near-locks. A 3-leg at $1.66 (17% off) is OUTSIDE the gate, so the build
-      // still ADDS a leg to get close when it must (no undershooting). Nothing
-      // within 10% → just minimise the miss (closest wins).
-      const aNear = a.diff <= targetOddsValue * 0.10;
-      const bNear = b.diff <= targetOddsValue * 0.10;
-      if (aNear !== bNear) return aNear ? -1 : 1;
-      if (aNear) {
-        if (b.prob !== a.prob) return b.prob - a.prob;                              // highest combined chance
-        if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;  // then fewer legs
-        if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;      // then deepest cushion
-        return a.diff - b.diff;                                                     // then closest
-      }
+      // SAFEST. Every combo is all-Solid and within ±30c. Prefer on-target, then
+      // the HIGHEST combined CHANCE (= fewest, slightly-longer Solid legs), then
+      // fewer legs, then deepest weakest-leg cushion, then closest.
+      const aOn = a.diff <= ON_TARGET, bOn = b.diff <= ON_TARGET;
+      if (aOn !== bOn) return aOn ? -1 : 1;
+      if (b.prob !== a.prob) return b.prob - a.prob;
+      if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length;
+      if (b.minCushion !== a.minCushion) return b.minCushion - a.minCushion;
       return a.diff - b.diff;
     }
+
+    if (riskProfile === "Balanced") {
+      // BEST VALUE. Prefer on-target, then the most UNDERPRICED combo (highest
+      // model-vs-market edge), then market/team diversity, then chance, then close.
+      const aOn = a.diff <= ON_TARGET, bOn = b.diff <= ON_TARGET;
+      if (aOn !== bOn) return aOn ? -1 : 1;
+      if (b.edgeScore !== a.edgeScore) return b.edgeScore - a.edgeScore;
+      if (a.diversityPenalty !== b.diversityPenalty) return a.diversityPenalty - b.diversityPenalty;
+      if (a.teamPenalty !== b.teamPenalty) return a.teamPenalty - b.teamPenalty;
+      if (b.prob !== a.prob) return b.prob - a.prob;
+      return a.diff - b.diff;
+    }
+
+    // AGGRESSIVE (and any fallback). REACH the target — closest first — then chase
+    // edge, keep it diverse and evenly priced.
     if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
+    if (b.edgeScore !== a.edgeScore) return b.edgeScore - a.edgeScore;
     if (a.diversityPenalty !== b.diversityPenalty) return a.diversityPenalty - b.diversityPenalty;
-    // Team spread: prefer combos that don't stack 3+ legs from one team
-    // (concentration risk if that team gets blown out). Soft tiebreaker —
-    // single-team stacks still win when no diverse alternative is in the
-    // same diff-bucket / metric-diversity tier. Best Chance skips this:
-    // pure max-prob means we don't dock the highest-chance combo just
-    // because it happens to be same-team.
-    if (riskProfile !== "Best Chance" && a.teamPenalty !== b.teamPenalty) {
-      return a.teamPenalty - b.teamPenalty;
-    }
-    if (preferProbOverBalance) {
-      if (b.prob !== a.prob) return b.prob - a.prob;
-      if (a.balance !== b.balance) return a.balance - b.balance;
-    } else {
-      if (a.balance !== b.balance) return a.balance - b.balance;
-      if (b.prob !== a.prob) return b.prob - a.prob;
-    }
+    if (a.teamPenalty !== b.teamPenalty) return a.teamPenalty - b.teamPenalty;
+    if (a.balance !== b.balance) return a.balance - b.balance;
     return a.diff - b.diff;
   });
   return pool[0].legs.sort((a, b) => b.score - a.score);
@@ -2253,8 +2195,11 @@ function detectRiskFromMessage(message) {
   // MUST be recognised here — otherwise a Best Chance build returns null and the
   // resolver silently falls back to the "Balanced" default, dropping the whole
   // cushion floor. Checked first so "best chance" never trips the "safe" branch.
-  if (lower.includes("best chance") || lower.includes("safest")) return "Best Chance";
-  if (lower.includes("safer") || lower.includes("safe multi") || lower.includes("low risk")) return "Safer";
+  // All "safe"-ish synonyms map to Best Chance, the safe tier ("Safer" retired).
+  if (
+    lower.includes("best chance") || lower.includes("safest") ||
+    lower.includes("safer") || lower.includes("safe multi") || lower.includes("low risk")
+  ) return "Best Chance";
   if (lower.includes("aggressive") || lower.includes("high risk") || lower.includes("riskier")) return "Aggressive";
   if (lower.includes("balanced")) return "Balanced";
   return null;
