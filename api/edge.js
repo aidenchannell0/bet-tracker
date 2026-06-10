@@ -1735,14 +1735,16 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   for (const arr of linesByPlayer.values()) {
     arr.sort((a, b) => b.score - a.score);
     bestPerPlayer.push(arr[0]);
-    const kept = arr.slice(0, PER_PLAYER);
-    // Also keep each player's CHEAPEST (deepest-cushion) line. Top-by-score
-    // tends to hold the edgier MID lines, so a 5-leg/$2 build overshoots (each
-    // mid leg ~$1.24 → ~$2.59). Keeping the deep line lets the combo search
-    // compose many short, safe legs near a low target instead — the "lower-odds
-    // legs with a solid cushion" a deep multi needs.
-    const cheapest = arr.reduce((lo, x) => (Number(x.odds) < Number(lo.odds) ? x : lo), arr[0]);
-    if (!kept.includes(cheapest)) kept.push(cheapest);
+    // Keep a SPREAD of lines per player so the combo search can fine-tune the
+    // combined odds ONTO the target. Top-N by score holds the best legs, but we
+    // MUST also keep each player's CHEAPEST (deepest cushion) AND LONGEST
+    // qualifying line + a mid. Without the longer lines the search can only stack
+    // near-locks (~$1.06) and undershoots — a 7-leg $2 build lands at $1.58.
+    const kept = new Set(arr.slice(0, PER_PLAYER));
+    const byOdds = [...arr].sort((a, b) => Number(a.odds) - Number(b.odds));
+    kept.add(byOdds[0]);                                          // cheapest / deepest cushion
+    kept.add(byOdds[byOdds.length - 1]);                         // longest qualifying line
+    if (byOdds.length >= 3) kept.add(byOdds[Math.floor(byOdds.length / 2)]); // a mid line
     perPlayerLines.push(...kept);
   }
 
