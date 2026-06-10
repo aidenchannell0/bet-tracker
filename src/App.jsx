@@ -1044,8 +1044,8 @@ function TopNav({ activePage, setActivePage }) {
         className="brand-wordmark flex items-baseline leading-none"
         aria-label="Pickd home"
       >
-        <span className="text-[22px] font-bold tracking-[-0.045em] text-[var(--text-new)]">Pickd</span>
-        <span className="text-[22px] font-bold tracking-[-0.045em] text-[var(--accent-new)]">.</span>
+        <span className="text-[26px] md:text-[28px] font-bold tracking-[-0.045em] text-[var(--text-new)]">Pickd</span>
+        <span className="text-[26px] md:text-[28px] font-bold tracking-[-0.045em] text-[var(--accent-new)]">.</span>
       </button>
       <div className="-mx-2 flex items-center gap-5 overflow-x-auto px-2 md:gap-9 md:overflow-visible">
         <button onClick={() => setActivePage("app")} className={tabClass("app") + " whitespace-nowrap"}>Dashboard</button>
