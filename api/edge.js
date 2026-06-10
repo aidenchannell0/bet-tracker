@@ -1648,7 +1648,7 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
 function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile) {
   // ===================== RISK LADDER =====================
   // Three tiers, each a clean relaxation of the one above. All three target the
-  // requested odds within a flat ±30c window (see SELECT_NEAR below).
+  // requested odds within a flat ±30c window (see NEAR below).
   //
   //   Best Chance — "safest, most likely to land"
   //     8/10 form · Solid cushion (line >=2 below recent worst) · 60% conf
@@ -1831,10 +1831,14 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   }
 
   const minLegs = 2;
-  // No fixed leg cap: stack as many qualifying legs as the games supply so higher
-  // targets are reachable ($3-5 need ~8-12 short Solid legs). Bounded at 12 for
-  // sanity, and the explored-combo guard in `choose` keeps the search fast.
-  const maxLegs = Math.min(12, new Set(shortlist.map((p) => p.playerName)).size);
+  // Cap legs to roughly what the target NEEDS. Low targets stay shallow so the
+  // exhaustive search reliably finds the best near-target combo instead of
+  // drowning in deep undershooting near-lock stacks; high targets reach further.
+  // log base ~1.13 = a typical short Solid leg, an UPPER bound (fewer used when
+  // longer lines fit): $2->7, $3->9, $5->12. Floor 7, hard cap 12.
+  const distinctPlayers = new Set(shortlist.map((p) => p.playerName)).size;
+  const legsForTarget = targetOddsValue ? Math.ceil(Math.log(targetOddsValue) / Math.log(1.13)) : 7;
+  const maxLegs = Math.min(12, Math.max(7, legsForTarget), distinctPlayers);
 
   // Size of the largest single-team block in a combo (4 Hawks => 4). When the
   // combo search produces "all 4 legs same team" picks (which used to happen
@@ -1876,11 +1880,12 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     return Math.round(Math.sqrt(variance) / 0.1);
   };
 
+  const NEAR = 0.30; // ±30c target window — also keeps this search lean (only in-window combos kept)
   const combos = [];
   let closest = null;
   let explored = 0; // safety valve: high targets (many legs) can't blow up the DFS
   const choose = (start, acc, players, accOdds) => {
-    if (explored++ > 250000) return;
+    if (explored++ > 600000) return;
     if (acc.length >= minLegs) {
       const diff = Math.abs(accOdds - targetOddsValue);
       const prob = acc.reduce((a, p) => a * (p.empirical ?? 0), 1);
@@ -1906,8 +1911,8 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       const czs = acc.map((l) => (l.cushionZ == null ? 0 : l.cushionZ));
       const minCushion = czs.length ? Math.min(...czs) : 0;
       const cand = { legs: [...acc], prob, imp, edgeScore, diff, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion };
-      combos.push(cand);
-      if (!closest || diff < closest.diff) closest = cand;
+      if (diff <= NEAR) combos.push(cand);                  // keep only in-window combos (memory + a small sort)
+      if (!closest || diff < closest.diff) closest = cand;  // closest tracked over ALL combos (the fallback)
     }
     if (acc.length >= maxLegs) return;
     // Odds only grow as legs are added; once we've overshot the target there's no
@@ -1930,9 +1935,9 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // that window each tier applies its own objective (the sort below). If nothing
   // lands inside ±30c (pool too thin / target unreachable) we fall back to the
   // single closest combo so we still return something — the UI flags the miss.
-  const SELECT_NEAR = 0.30;
-  let pool = combos.filter((c) => c.diff <= SELECT_NEAR && (!wantCount || c.legs.length === wantCount));
-  if (!pool.length && wantCount) pool = combos.filter((c) => c.diff <= SELECT_NEAR);
+  // combos already holds only in-window (±30c) candidates (see NEAR in the search).
+  let pool = wantCount ? combos.filter((c) => c.legs.length === wantCount) : combos.slice();
+  if (!pool.length) pool = combos.slice();
   if (!pool.length) pool = closest ? [closest] : [];
   if (!pool.length) return ordered.slice(0, wantCount || 3);
 
@@ -1941,7 +1946,7 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // on-target and the objective decides, while a combo 28c off can't beat one 5c
   // off. (Fine buckets used to create a cliff where a 2c-closer 7-leg build beat a
   // far higher-chance 4-leg.)
-  const ON_TARGET = SELECT_NEAR / 2; // ±15c
+  const ON_TARGET = NEAR / 2; // ±15c
   const bucketSize = targetOddsValue ? Math.max(0.10, targetOddsValue * 0.05) : 0.5;
   const diffBucket = (c) => Math.floor(c.diff / bucketSize);
   pool.sort((a, b) => {
