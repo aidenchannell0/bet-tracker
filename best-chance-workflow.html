@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Best Chance — Build Workflow</title>
+<style>
+  :root { --bg:#0a0a0b; --ink:#e9e9ec; --muted:#9a9aa4; --lime:#c8f135; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:
+      radial-gradient(1200px 600px at 50% -10%, #15151a 0%, transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh; padding:36px 20px 60px;
+  }
+  .wrap { max-width:980px; margin:0 auto; }
+  h1 { font-size:26px; margin:0 0 4px; letter-spacing:-0.02em; }
+  h1 .tag { color:var(--lime); }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 26px; }
+  .card {
+    background:#0e0e12; border:1px solid #24242b; border-radius:18px;
+    padding:18px 14px 24px; overflow-x:auto;
+  }
+  .legend {
+    display:flex; flex-wrap:wrap; gap:14px 26px; margin:22px 2px 0;
+    color:var(--muted); font-size:13px;
+  }
+  .legend b { color:var(--ink); font-weight:600; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; margin-right:7px; }
+  .pre { margin-top:18px; color:var(--muted); font-size:12.5px; line-height:1.5; }
+  .mermaid { display:flex; justify-content:center; }
+  .mermaid .nodeLabel { line-height:1.4; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Best Chance — <span class="tag">build workflow</span></h1>
+    <p class="sub">Anchor deep, then climb one line at a time until the odds land in the window. Deterministic — you can trace any build by hand.</p>
+
+    <div class="card">
+      <pre class="mermaid">
+flowchart TD
+  START(["Best Chance build<br/>target = e.g. $2.00"]):::start --> P1
+  P1["①&nbsp; PICK THE LINEUP<br/><b>Rank every player by cushion headroom</b><br/>take the top ~5–6 (more legs for higher targets)<br/>so their deepest lines land just under target"]:::step --> A2
+  A2["②&nbsp; ANCHOR DEEP<br/>set every player to his <b>shortest line</b> = max cushion<br/>multiply the legs → combined odds"]:::step --> D1
+
+  D1{"Combined odds<br/>vs target?"}:::dec
+  D1 -->|within ±20¢| FIN(["✓ FINISH<br/>this is your multi"]):::finish
+  D1 -. "over (low target)" .-> DROP["Drop a leg<br/><i>fewer legs = lower odds</i>"]:::guard
+  DROP -. retry .-> A2
+  D1 -->|under| D2
+
+  D2{"Any player still<br/>below his Solid ceiling?"}:::dec
+  D2 -->|yes| B4["③&nbsp; BUMP +1 LINE<br/>climb the <b>highest-headroom</b> player one line (still Solid)<br/>at his Solid ceiling (2 below worst-of-5) → next player"]:::step
+  B4 -- re-check --> D1
+  D2 -->|no · all maxed| D3
+
+  D3{"Any players left<br/>on the bench?"}:::dec
+  D3 -->|yes| S5["④&nbsp; SWAP A LEG<br/>drop the <b>lowest-odds leg</b><br/>bring in a fresh bench player (pays more, still Solid)"]:::step
+  S5 -- retry --> A2
+  D3 -->|no| STOP["⑤&nbsp; STOP — safest build<br/>return the safest multi for these games<br/><b>flag:</b> add a game or lower the target"]:::stop
+
+  classDef start fill:#101018,stroke:#3a3a46,color:#cdd0ff,rx:14,ry:14;
+  classDef step fill:#14141a,stroke:#34343f,color:#e9e9ec;
+  classDef dec fill:#0d0d12,stroke:#4a4a58,color:#dfe0ea;
+  classDef finish fill:#16240a,stroke:#c8f135,color:#e7ffb0,font-weight:600;
+  classDef stop fill:#241606,stroke:#f0a83a,color:#ffdca6;
+  classDef guard fill:#101014,stroke:#3a3a44,color:#9a9aa4;
+      </pre>
+    </div>
+
+    <div class="legend">
+      <span><span class="dot" style="background:#c8f135"></span><b>Finish</b> — odds landed in the window</span>
+      <span><span class="dot" style="background:#5a86ff"></span><b>Bump loop</b> — ③ → re-check (climb lines)</span>
+      <span><span class="dot" style="background:#9a9aa4"></span><b>Swap loop</b> — ④ → retry (change players)</span>
+      <span><span class="dot" style="background:#f0a83a"></span><b>Stop</b> — pool exhausted, flag it</span>
+    </div>
+
+    <div class="pre">
+      <b style="color:#e9e9ec">Two rules that keep it safe:</b><br/>
+      · Every leg always sits at <b style="color:#e9e9ec">Solid+</b> cushion (≥ 2 below the player's worst of his last 5). The bump never crosses that ceiling.<br/>
+      · It climbs the <b style="color:#e9e9ec">safest player first</b> (most headroom) and only one line at a time, so it stops the instant it's in the window — never over-bumps.
+    </div>
+  </div>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis', nodeSpacing: 46, rankSpacing: 52 },
+      theme: 'base',
+      themeVariables: {
+        fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif',
+        fontSize: '13.5px',
+        lineColor: '#7c7c88',
+        edgeLabelBackground: '#0e0e12',
+        tertiaryColor: '#0d0d12',
+      },
+    });
+  </script>
+</body>
+</html>

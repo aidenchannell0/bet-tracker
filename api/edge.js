@@ -1582,6 +1582,101 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null, g
   });
 }
 
+// === Best Chance: greedy "anchor deep, climb one line at a time" builder ===
+// Follows the agreed workflow exactly (see best-chance-workflow.html):
+//   ① pick the lineup = the players with the most cushion HEADROOM (room to climb
+//      while staying Solid+);  ② anchor each at his deepest line (max cushion);
+//   ③ within ±20c of target? → done;  ④ under → bump the highest-headroom player
+//   up ONE line (stays Solid), repeat — at his Solid ceiling, move to the next;
+//   ⑤ all maxed & still short → swap the lowest-odds leg for a fresh bench player;
+//   ⑥ bench exhausted → return the safest build (the caller flags "add a game").
+// Deterministic and traceable by hand — replaces the old combinatorial search.
+function selectBestChanceGreedy(enriched, targetOddsValue, wantCount) {
+  const T = targetOddsValue;
+  if (!(T > 1)) return [];
+  const WINDOW = 0.20; // ±20c target window
+
+  // Eligible Solid+ lines grouped by player (same floors as the Best Chance tier:
+  // 8/10 form, ≥60% confidence, Solid cushion, ≥5 games of sample).
+  const byPlayer = new Map();
+  for (const p of enriched) {
+    if (!p.statsAvailable || p.empirical == null) continue;
+    if (!(Number(p.odds) > 1)) continue;
+    if (!p.hr10 || p.hr10.total < 5 || p.hr10.hits === 0) continue;
+    if (p.hr10.hits / p.hr10.total < 0.8) continue; // 8/10 form
+    if ((p.empirical ?? 0) < 0.6) continue;          // confidence
+    if ((p.cushionZ ?? -99) < 1.0) continue;         // Solid+ cushion only
+    const arr = byPlayer.get(p.playerName) || [];
+    arr.push(p);
+    byPlayer.set(p.playerName, arr);
+  }
+
+  // Per player: lines shortest→longest (deepest cushion first). The longest is his
+  // Solid ceiling (~2 below worst-of-5); headroom = how far he can climb in log-odds.
+  const players = [];
+  for (const [name, lines] of byPlayer) {
+    lines.sort((a, b) => Number(a.odds) - Number(b.odds));
+    const headroom = Math.log(Number(lines[lines.length - 1].odds)) - Math.log(Number(lines[0].odds));
+    players.push({ name, lines, idx: 0, headroom, deep: lines[0].cushionZ ?? 0 });
+  }
+  if (players.length < 2) return [];
+  // Lineup order: most headroom first (safest to climb), then deepest cushion.
+  players.sort((a, b) => b.headroom - a.headroom || b.deep - a.deep);
+
+  // ① Starting leg count: enough deep legs that the target sits in the bumpable
+  // range (log base ~1.14 ≈ a moderately-deep leg → $2≈5, $3≈8). A pinned leg
+  // count overrides. Bounded [2..min(players,12)].
+  let N = wantCount && wantCount >= 2 ? wantCount : Math.round(Math.log(T) / Math.log(1.14));
+  N = Math.max(2, Math.min(N, players.length, 12));
+  let active = players.slice(0, N);
+  const bench = players.slice(N);
+  const combined = () => active.reduce((a, pl) => a * Number(pl.lines[pl.idx].odds), 1);
+
+  // Guard: deepest anchor already OVER target (a low target) → drop the leg adding
+  // the most odds until back inside the window (skip if a leg count was pinned).
+  while (!wantCount && active.length > 2 && combined() > T + WINDOW) {
+    let hi = 0;
+    for (let i = 1; i < active.length; i++) {
+      if (Number(active[i].lines[active[i].idx].odds) > Number(active[hi].lines[active[hi].idx].odds)) hi = i;
+    }
+    active.splice(hi, 1);
+  }
+
+  // ④/⑤ Bump (climb lines) then swap (change players) until in the window or exhausted.
+  let guard = 0;
+  while (combined() < T - WINDOW && guard++ < 1000) {
+    // Highest-headroom player not yet at his Solid ceiling → climb him one line.
+    let best = -1, bestRoom = -1;
+    for (let i = 0; i < active.length; i++) {
+      const pl = active[i];
+      if (pl.idx < pl.lines.length - 1) {
+        const room = Math.log(Number(pl.lines[pl.lines.length - 1].odds)) - Math.log(Number(pl.lines[pl.idx].odds));
+        if (room > bestRoom) { bestRoom = room; best = i; }
+      }
+    }
+    if (best >= 0) {
+      active[best].idx += 1;
+      continue;
+    }
+    // All maxed & still short → swap the lowest-odds leg for the highest-ceiling
+    // bench player (raises what's reachable). Pinned count keeps the leg count.
+    if (bench.length) {
+      let lo = 0;
+      for (let i = 1; i < active.length; i++) {
+        if (Number(active[i].lines[active[i].idx].odds) < Number(active[lo].lines[active[lo].idx].odds)) lo = i;
+      }
+      bench.sort((a, b) => Number(b.lines[b.lines.length - 1].odds) - Number(a.lines[a.lines.length - 1].odds));
+      const incoming = bench.shift();
+      incoming.idx = 0;
+      active.splice(lo, 1, incoming);
+    } else {
+      break; // ⑥ pool exhausted → safest build we've got
+    }
+  }
+
+  return active.map((pl) => ({ ...pl.lines[pl.idx] }));
+}
+
 // Deterministically pick the strongest legs for the target and risk profile.
 // Wraps selectLegsForProfile with progressive relaxation: if the requested tier
 // can't get within ±30c of the target AND clear its combined-chance floor, drop
@@ -1589,6 +1684,19 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null, g
 // so the UI can surface a "couldn't hit target at Balanced — relaxed to
 // Aggressive" note.
 function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
+  // Best Chance follows the deterministic greedy workflow (anchor deep, climb one
+  // line at a time into the ±20c window). Fall back to the combinatorial search
+  // only if the greedy can't build (returns < 2 legs).
+  if (riskProfile === "Best Chance" && targetOddsValue) {
+    const n = parseInt(targetLegs, 10);
+    const wantCount = targetLegs === "Any" || !Number.isFinite(n) ? null : Math.max(2, n);
+    const greedy = selectBestChanceGreedy(enriched, targetOddsValue, wantCount);
+    if (greedy.length >= 2) {
+      greedy.profileUsed = "Best Chance";
+      greedy.profileRequested = "Best Chance";
+      return greedy;
+    }
+  }
   const RELAX_CHAIN = {
     // Best Chance never relaxes — it keeps its safety floors and builds the
     // closest SAFE multi it can (the UI flags "add a game" if it falls short).
