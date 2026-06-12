@@ -2839,10 +2839,9 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                           );
                         })}
                       </div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <div className="grid grid-cols-3 gap-2">
                         {[
                           { label: "Sport", value: sport, set: setSport, options: ["AFL", "NBA"] },
-                          { label: "Legs", value: legs, set: setLegs, options: ["Any", "2", "3", "4", "5"] },
                           { label: "Odds", value: targetOdds, set: setTargetOdds, options: ["$1.50", "$2.00", "$3.00", "$5.00", "Custom"] },
                           { label: "Risk", value: riskProfile, set: setRiskProfile, options: ["Best Chance", "Balanced", "Aggressive"] },
                         ].map((ctrl) => (
@@ -5611,11 +5610,10 @@ export default function BettingTrackerWebsite() {
         )}
       </div>
 
-      {/* One compact control row: sport / legs / odds / risk */}
-      <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {/* One compact control row: sport / odds / risk — leg count is the builder's call */}
+      <div className="mt-3.5 grid grid-cols-3 gap-2">
         {[
           { label: "Sport", value: mpSport, set: setMpSport, options: ["AFL", "NBA"] },
-          { label: "Legs", value: mpLegs, set: setMpLegs, options: ["Any", "2", "3", "4", "5"] },
           { label: "Odds", value: mpOdds, set: setMpOdds, options: ["$2.00", "$3.00", "$5.00", "$10.00", "Custom"] },
           { label: "Risk", value: mpRisk, set: setMpRisk, options: ["Best Chance", "Balanced", "Aggressive"] },
         ].map((ctrl) => (
