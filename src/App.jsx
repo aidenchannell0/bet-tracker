@@ -2175,10 +2175,8 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
 function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, prefill, onPrefillConsumed, fmtMoney = formatCurrency }) {
   const [mode, setMode] = useState("multi");
   const [sport, setSport] = useState(prefill?.sport || "AFL");
-  const [legs, setLegs] = useState(prefill?.legs || "Any");
   const [targetOdds, setTargetOdds] = useState(prefill?.targetOdds || "$2.00");
   const [customTargetOdds, setCustomTargetOdds] = useState("2.20");
-  const [customLegs, setCustomLegs] = useState("6");
   const [riskProfile, setRiskProfile] = useState(prefill?.riskProfile || "Best Chance");
   const [bookmaker, setBookmaker] = useState(prefill?.bookmaker || "");
   const [request, setRequest] = useState(prefill?.request || "");
@@ -2373,7 +2371,6 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
   }, [sport]);
 
   const displayedTargetOdds = targetOdds === "Custom" && customTargetOdds ? "$" + customTargetOdds : targetOdds;
-  const displayedLegs = legs === "Custom" && customLegs ? customLegs : legs;
 
   const exampleLegs = [
     {
@@ -2493,7 +2490,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
       : (selectedGame ? [selectedGame.label] : []);
     const gamePart = gameLabels.length === 1 ? ` for the ${gameLabels[0]} game`
       : gameLabels.length > 1 ? ` spread across ${gameLabels.join(", ")}` : "";
-    const prompt = `Build a ${displayedLegs}-leg ${sport} example multi${gamePart} targeting ${displayedTargetOdds}${riskPart}${requestPart}. Use real player form and current odds to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
+    const prompt = `Build a ${sport} example multi${gamePart} targeting ${displayedTargetOdds}${riskPart}${requestPart}. Choose the number of legs that best hits the target. Use real player form and current odds to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
     sendChatMessage(prompt, { isBuild: true, gameIds: gameIdsOverride });
     setTimeout(() => {
       outputPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2547,7 +2544,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
           context: {
             mode,
             sport,
-            legs: displayedLegs,
+            legs: "Any",
             targetOdds: displayedTargetOdds,
             riskProfile,
             bookmaker,
@@ -2952,7 +2949,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                           ? <>Building your {sport} multi<span className="text-[var(--accent-new)]">.</span></>
                           : multiOutput
                           ? <>{multiOutput.legCount}-leg {multiOutput.sport} multi {multiOutput.game ? <span className="text-[var(--text-2-new)]"> · {multiOutput.game}</span> : null}</>
-                          : <>Example {displayedLegs}-leg {sport} multi</>}
+                          : <>Example {sport} multi</>}
                       </h2>
                     </div>
                     {multiOutput ? (
@@ -3181,7 +3178,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                   <p className="text-sm font-semibold text-[#11203B]">Try MultiPick</p>
                   <p className="mt-1 text-sm text-slate-600">Choose a starter prompt or type your own question below.</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => useExamplePrompt(`Build a ${displayedLegs}-leg ${sport} example multi around ${displayedTargetOdds}. Keep it simple and explain the risk.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Build example multi</button>
+                    <button type="button" onClick={() => useExamplePrompt(`Build a ${sport} example multi around ${displayedTargetOdds}. Keep it simple and explain the risk.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Build example multi</button>
                     <button type="button" onClick={() => useExamplePrompt(`Make the ${sport} example ${request || "disposals only"} and explain what data you would check.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Use my request</button>
                     <button type="button" onClick={() => useExamplePrompt(`Explain why this ${sport} build has a 6 out of 10 risk score.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Explain risk score</button>
                     <button type="button" onClick={() => useExamplePrompt(`What data would you check before choosing players for this ${sport} build?`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">What data to check?</button>
@@ -4701,7 +4698,6 @@ export default function BettingTrackerWebsite() {
   // navigates to the MultiPick page, which auto-fires the build on arrival.
   const [mpSport, setMpSport] = useState("AFL");
   const [mpGameIds, setMpGameIds] = useState([]);
-  const [mpLegs, setMpLegs] = useState("Any");
   const [mpOdds, setMpOdds] = useState("$2.00");
   const [mpOddsCustom, setMpOddsCustom] = useState("2.50");
   const [mpRisk, setMpRisk] = useState("Best Chance");
@@ -4780,7 +4776,7 @@ export default function BettingTrackerWebsite() {
   // then switch to MultiPick (which fades in and auto-builds on arrival).
   const goBuildMulti = () => {
     const targetOdds = mpOdds === "Custom" && mpOddsCustom ? `$${mpOddsCustom}` : mpOdds;
-    setEdgePrefill({ sport: mpSport, gameIds: mpGameIds, legs: mpLegs, targetOdds, riskProfile: mpRisk, bookmaker: mpBook, autoBuild: true });
+    setEdgePrefill({ sport: mpSport, gameIds: mpGameIds, targetOdds, riskProfile: mpRisk, bookmaker: mpBook, autoBuild: true });
     setNavigating(true);
     setTimeout(() => { setActivePage("edge"); setNavigating(false); }, 220);
   };
