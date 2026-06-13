@@ -1239,6 +1239,13 @@ function weightedHitRate(values, line, decay = 0.85) {
 // Without the floor view, "Adam Cerra 17+ (recent 17,17,19)" graded the same as
 // a player clearing by 5 every week — which is the false comfort this fixes.
 // Clamped to ±5. Values are most-recent-first.
+// Spiky low-count event stats. Their game-to-game variance is high relative to the
+// count, so a "Solid" cushion z does NOT mean what it does for volume stats — a
+// 6-mark player still drops the odd 1-2 mark game, and tackles swing on game state.
+// Best Chance holds these to a stricter "bulletproof" bar (see selectBestChanceGreedy);
+// Balanced / Aggressive treat them normally.
+const VOLATILE_METRICS = new Set(["marks", "tackles", "goals"]);
+
 function clearanceZ(values, line, decay = 0.85) {
   if (line == null || !Array.isArray(values)) return null;
   const nums = values.map(Number).filter((v) => Number.isFinite(v));
@@ -1578,6 +1585,14 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null, g
       // low-count props (marks/tackles/goals) were grading wrong. Hit rates are
       // unaffected — >=1.5 and >=2 count identically for integer stats.
       cushionZ: clearanceZ(ms.last10Values, Math.floor(prop.line) + 1),
+      // Absolute units of room: the WORST of the last 5 over the integer threshold.
+      // The teeth of the Best Chance "bulletproof" bar for volatile stats — a low
+      // line can fake a big % cushion, this measures real margin (e.g. worst-of-5 = 6
+      // on a 4+ line -> +2).
+      floorMargin: (() => {
+        const r5 = (ms.last10Values || []).map(Number).filter(Number.isFinite).slice(0, 5);
+        return r5.length ? Math.min(...r5) - (Math.floor(prop.line) + 1) : null;
+      })(),
     };
   });
 }
@@ -1606,6 +1621,15 @@ function selectBestChanceGreedy(enriched, targetOddsValue, wantCount) {
     if (p.hr10.hits / p.hr10.total < 0.8) continue; // 8/10 form
     if ((p.empirical ?? 0) < 0.6) continue;          // confidence
     if ((p.cushionZ ?? -99) < 1.0) continue;         // Solid+ cushion only
+    // Volatile event stats (marks/tackles/goals) are spiky low-count props — a Solid
+    // z overstates safety (fat lower tail). Bulletproof bar: worst of last 5 clears
+    // by >=2 absolute, Comfortable cushion, 9/10 form, 75% empirical.
+    if (VOLATILE_METRICS.has(p.metric)) {
+      if ((p.floorMargin ?? -99) < 2) continue;
+      if ((p.cushionZ ?? -99) < 1.5) continue;
+      if (!p.hr10 || p.hr10.hits / p.hr10.total < 0.9) continue;
+      if ((p.empirical ?? 0) < 0.75) continue;
+    }
     const arr = byPlayer.get(p.playerName) || [];
     arr.push(p);
     byPlayer.set(p.playerName, arr);
@@ -1794,6 +1818,14 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     if (minHitRate > 0) {
       if (!p.hr10 || p.hr10.total < 5) return false;
       if (p.hr10.hits / p.hr10.total < minHitRate) return false;
+    }
+    // Best Chance: volatile event stats (marks/tackles/goals) must be bulletproof —
+    // worst of last 5 clears by >=2, Comfortable cushion, 9/10 form, 75% empirical.
+    if (riskProfile === "Best Chance" && VOLATILE_METRICS.has(p.metric)) {
+      if ((p.floorMargin ?? -99) < 2) return false;
+      if ((p.cushionZ ?? -99) < 1.5) return false;
+      if (!p.hr10 || p.hr10.hits / p.hr10.total < 0.9) return false;
+      if ((p.empirical ?? 0) < 0.75) return false;
     }
     return true;
   });
