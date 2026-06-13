@@ -1,0 +1,23 @@
+name: Matchup intel (AFL)
+on:
+  schedule:
+    # AFL selected teams drop Thursday night AEST; late mail lands by Saturday.
+    # Two passes so the notes reflect confirmed teams + late changes.
+    - cron: "30 9 * * 4"   # Thu 7:30pm AEST (after team lists)
+    - cron: "0 23 * * 5"   # Sat 9:00am AEST (late mail)
+  workflow_dispatch: {}
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: node scripts/ingest-matchups.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
