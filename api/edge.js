@@ -1620,12 +1620,14 @@ function selectBestChanceGreedy(enriched, targetOddsValue, wantCount) {
     if (!p.hr10 || p.hr10.total < 5 || p.hr10.hits === 0) continue;
     if (p.hr10.hits / p.hr10.total < 0.8) continue; // 8/10 form
     if ((p.empirical ?? 0) < 0.6) continue;          // confidence
-    if ((p.cushionZ ?? -99) < 1.0) continue;         // Solid+ cushion only
-    // Volatile event stats (marks/tackles/goals) are spiky low-count props — a Solid
-    // z overstates safety (fat lower tail). Bulletproof bar: worst of last 5 clears
-    // by >=2 absolute, Comfortable cushion, 9/10 form, 75% empirical.
+    if ((p.cushionZ ?? -99) < 1.0) continue;         // Solid+ cushion (consistency floor)
+    // The "line ~2 below the worst of the last 5" rule, as an ABSOLUTE buffer so a low
+    // line can't fake safety with a big % (12+ off a worst-of-5 of 13 is only +1 — "on
+    // the line" — so it's dropped, and the builder picks a deeper line for that player).
+    if ((p.floorMargin ?? -99) < 2) continue;
+    // Volatile event stats (marks/tackles/goals) are extra spiky — on top of the +2
+    // buffer, hold them to a Comfortable cushion, 9/10 form and 75% empirical.
     if (VOLATILE_METRICS.has(p.metric)) {
-      if ((p.floorMargin ?? -99) < 2) continue;
       if ((p.cushionZ ?? -99) < 1.5) continue;
       if (!p.hr10 || p.hr10.hits / p.hr10.total < 0.9) continue;
       if ((p.empirical ?? 0) < 0.75) continue;
@@ -1850,7 +1852,7 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // that slips through in that rare fallback.
   let selectionPool = candidates;
   if (riskProfile === "Best Chance") {
-    const solid = candidates.filter((p) => (p.cushionZ ?? -99) >= 1.0);
+    const solid = candidates.filter((p) => (p.cushionZ ?? -99) >= 1.0 && (p.floorMargin ?? -99) >= 2);
     if (new Set(solid.map((p) => p.playerName)).size >= 2) selectionPool = solid;
   } else if (riskProfile === "Balanced") {
     const cushioned = candidates.filter((p) => (p.cushionZ ?? -99) >= 0);
