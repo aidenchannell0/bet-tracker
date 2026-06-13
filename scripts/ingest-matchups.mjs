@@ -72,20 +72,32 @@ const VALID_METRIC = new Set(["disposals", "marks", "goals", "tackles", "general
 const VALID_DIR = new Set(["up", "down", "neutral"]);
 
 function buildPrompt(game, round, season) {
-  return `You are researching AFL Round ${round} (${season}) to find ROLE and POSITIONAL MATCHUP intel for player-prop betting, for this game ONLY: ${game.home} vs ${game.away}.
+  return `You are researching AFL Round ${round} (${season}) for player-prop betting intel for this game ONLY: ${game.home} vs ${game.away}.
 
-Use web search to find RECENT (this week / this round) preview, team-news or analysis articles for THIS specific game.
+Run SEVERAL targeted web searches (not just one). Search for:
+- "${game.home} vs ${game.away} round ${round} preview" and the named / selected teams
+- "${game.home} tagger" and "${game.away} tagger" — who is tagging whom this week
+- the run-with matchup on each side's key midfielders (e.g. "who will tag <that team's gun mid>")
 
-Extract ONLY explicit, factual statements that change a player's expected disposals / marks / goals / tackles, such as:
-- a run-with tagger assignment (who tags whom)
-- a role or position change (e.g. a midfielder shifted forward or to defence)
-- a specific defensive matchup (who guards whom)
-- a confirmed return that changes a player's role, or a teammate's absence shifting another player's usage
+Prefer trusted sources where role and tagger intel actually lives: afl.com.au, the official club sites, sen.com.au, espn.com.au/afl, dfsaustralia.com, footywire.com, theroar.com.au. Do NOT rely on fan-forum speculation (e.g. BigFooty) unless it quotes an official selection or coach.
+
+Extract ONLY statements in these categories that change a player's expected disposals / marks / goals / tackles:
+1. MATCHUP (HIGHEST PRIORITY) — a run-with tagger, or who is tasked to negate or guard whom. Set "player" to the player whose prop is affected (the one being tagged / guarded) and name the opponent in the summary. e.g. "Bedford to tag Wanganeen-Milera".
+2. AVAILABILITY — a player confirmed OUT, or coming IN / returning, where it affects who plays or shifts roles.
+3. ROLE / POSITION — a role or position change (e.g. a midfielder shifted forward or to defence).
+4. MINUTES / MANAGEMENT — a returning player eased back or on a minutes/role restriction (expect reduced output).
+5. USAGE SHIFT — a teammate's absence that lifts or lowers another player's expected usage.
+
+DO NOT include (noise or already known):
+- recent form, last-game stat lines, or season tallies (e.g. "had 30 disposals last week")
+- milestones, games-played counts, contract or award news
+- generic squad-list additions with no role or usage implication
+- coach quotes with no concrete role/availability detail
 
 STRICT RULES (this is a betting tool — accuracy matters far more than coverage):
 - Only include a note if a real article you actually retrieved EXPLICITLY states it. Do NOT infer, guess, speculate, or use prior knowledge.
 - Every note MUST include the exact source_url of the article it came from.
-- If you find nothing concrete and sourced, return {"notes":[]}. An empty result is correct and expected.
+- If nothing concrete and sourced fits the categories above, return {"notes":[]}. An empty result is correct and expected.
 - Keep each "summary" to one short factual line.
 
 Return ONLY raw JSON (no markdown fences), exactly this shape:
