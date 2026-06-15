@@ -1239,12 +1239,12 @@ function weightedHitRate(values, line, decay = 0.85) {
 // Without the floor view, "Adam Cerra 17+ (recent 17,17,19)" graded the same as
 // a player clearing by 5 every week — which is the false comfort this fixes.
 // Clamped to ±5. Values are most-recent-first.
-// Spiky low-count event stats. Their game-to-game variance is high relative to the
-// count, so a "Solid" cushion z does NOT mean what it does for volume stats — a
-// 6-mark player still drops the odd 1-2 mark game, and tackles swing on game state.
-// Best Chance holds these to a stricter "bulletproof" bar (see selectBestChanceGreedy);
-// Balanced / Aggressive treat them normally.
-const VOLATILE_METRICS = new Set(["marks", "tackles", "goals"]);
+// Marks & tackles: spiky low-count event stats whose HIT RATE is unreliable (fat
+// lower tails — a 6-mark player still drops the odd 1-2 mark game). Low keeps the
+// cushion "bulletproof" bar for THESE because a high hit rate alone can lie. Goals
+// are excluded — they gate on hit rate like disposals. Everything else in Low gates
+// purely on hit rate (see selectLegsForProfile).
+const VOLATILE_METRICS = new Set(["marks", "tackles"]);
 
 function clearanceZ(values, line, decay = 0.85) {
   if (line == null || !Array.isArray(values)) return null;
@@ -1814,13 +1814,16 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       if (!p.hr10 || p.hr10.total < 5) return false;
       if (p.hr10.hits / p.hr10.total < minHitRate) return false;
     }
-    // Best Chance: volatile event stats (marks/tackles/goals) must be bulletproof —
-    // worst of last 5 clears by >=2, Comfortable cushion, 9/10 form, 75% empirical.
+    // Best Chance gates on HIT RATE, not cushion depth: every leg must be a near-lock
+    // (≥88% model chance). This cuts shaky / negative-edge legs (e.g. an 82% leg) while
+    // admitting the safe 98% legs the old +2 cushion wrongly excluded for sitting "on
+    // the line". (Form is already ≥9/10 via minHitRate above.)
+    if (riskProfile === "Best Chance" && (p.empirical ?? 0) < 0.88) return false;
+    // …except marks & tackles, whose hit rate genuinely lies (spiky low counts): they
+    // additionally need the bulletproof cushion bar (≥2 below worst-of-5, Comfortable).
     if (riskProfile === "Best Chance" && VOLATILE_METRICS.has(p.metric)) {
       if ((p.floorMargin ?? -99) < 2) return false;
       if ((p.cushionZ ?? -99) < 1.5) return false;
-      if (!p.hr10 || p.hr10.hits / p.hr10.total < 0.9) return false;
-      if ((p.empirical ?? 0) < 0.75) return false;
     }
     return true;
   });
@@ -1844,10 +1847,10 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // players (a thin game still builds something); the cushion chip flags any leg
   // that slips through in that rare fallback.
   let selectionPool = candidates;
-  if (riskProfile === "Best Chance") {
-    const solid = candidates.filter((p) => (p.cushionZ ?? -99) >= 1.0 && (p.floorMargin ?? -99) >= 2);
-    if (new Set(solid.map((p) => p.playerName)).size >= 2) selectionPool = solid;
-  } else if (riskProfile === "Balanced") {
+  // Best Chance no longer cushion-filters here — it gates on HIT RATE in `candidates`
+  // (≥88% + 9/10), plus the cushion bar for marks/tackles. Balanced drops only legs
+  // whose recent worst fell below the line (negative cushion).
+  if (riskProfile === "Balanced") {
     const cushioned = candidates.filter((p) => (p.cushionZ ?? -99) >= 0);
     if (new Set(cushioned.map((p) => p.playerName)).size >= 2) selectionPool = cushioned;
   }
