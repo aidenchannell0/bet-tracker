@@ -911,34 +911,42 @@ const RISK_LEVELS = [
   { tier: "Balanced", label: "Balanced", color: "#fbbf24", angle: 0 },
   { tier: "Aggressive", label: "High", color: "#f87171", angle: 60 },
 ];
-function RiskDial({ value, onChange }) {
+function RiskDial({ value, onChange, compact = false }) {
   const sel = Math.max(0, RISK_LEVELS.findIndex((l) => l.tier === value));
   const cur = RISK_LEVELS[sel] || RISK_LEVELS[0];
+  // Geometry derived from one width so the compact (dashboard) build is the same
+  // dial, just scaled. Default (164) is unchanged from before.
+  const W = compact ? 132 : 164;
+  const R = W / 2 - 16;
+  const H = R + 18;
+  const CX = W / 2;
+  const CY = H - 10;
+  const arc = `M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`;
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Risk per leg</span>
-      <div className="rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 pb-3 pt-4">
+      <div className={"rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] " + (compact ? "px-3 pb-2.5 pt-3" : "px-4 pb-3 pt-4")}>
         <div className="flex flex-col items-center">
-          <div className="relative" style={{ width: 164, height: 84 }}>
-            <svg width="164" height="84" viewBox="0 0 164 84" style={{ display: "block" }}>
-              <path d="M16 74 A66 66 0 0 1 148 74" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="2.5" strokeLinecap="round" />
-              <circle cx="82" cy="74" r="3.5" fill="#f5f5f7" />
+          <div className="relative" style={{ width: W, height: H }}>
+            <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
+              <path d={arc} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={compact ? 2 : 2.5} strokeLinecap="round" />
+              <circle cx={CX} cy={CY} r={compact ? 3 : 3.5} fill="#f5f5f7" />
             </svg>
-            <div style={{ position: "absolute", left: "50%", bottom: 10, width: 2.5, height: 58, background: cur.color, borderRadius: 3,
+            <div style={{ position: "absolute", left: CX, bottom: 10, width: compact ? 2 : 2.5, height: R - 8, background: cur.color, borderRadius: 3,
               transformOrigin: "bottom center", transform: `translateX(-50%) rotate(${cur.angle}deg)`,
               transition: "transform 0.45s cubic-bezier(0.2,1,0.3,1), background-color 0.35s ease" }} />
           </div>
-          <div className="brand-wordmark mt-1 font-semibold" style={{ color: cur.color, fontSize: 17, transition: "color 0.35s ease" }}>{cur.label}</div>
+          <div className="brand-wordmark mt-0.5 font-semibold" style={{ color: cur.color, fontSize: compact ? 15 : 17, transition: "color 0.35s ease" }}>{cur.label}</div>
         </div>
-        <div className="mt-2.5 flex justify-center gap-7">
+        <div className={"flex justify-center " + (compact ? "mt-2 gap-5" : "mt-2.5 gap-7")}>
           {RISK_LEVELS.map((l) => {
             const on = l.tier === cur.tier;
             return (
               <button key={l.tier} type="button" onClick={() => onChange(l.tier)}
-                className={"relative pb-1.5 text-[13px] transition-colors duration-300 " + (on ? "font-semibold" : "font-medium text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}
+                className={"relative pb-1.5 transition-colors duration-300 " + (compact ? "text-[12px] " : "text-[13px] ") + (on ? "font-semibold" : "font-medium text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}
                 style={on ? { color: l.color } : undefined}>
                 {l.label}
-                <span style={{ position: "absolute", left: "50%", bottom: 0, width: on ? 16 : 0, height: 2, borderRadius: 2, background: l.color, transform: "translateX(-50%)", transition: "width 0.3s ease" }} />
+                <span style={{ position: "absolute", left: "50%", bottom: 0, width: on ? (compact ? 14 : 16) : 0, height: 2, borderRadius: 2, background: l.color, transform: "translateX(-50%)", transition: "width 0.3s ease" }} />
               </button>
             );
           })}
@@ -5653,12 +5661,11 @@ export default function BettingTrackerWebsite() {
         )}
       </div>
 
-      {/* One compact control row: sport / odds / risk — leg count is the builder's call */}
-      <div className="mt-3.5 grid grid-cols-3 gap-2">
+      {/* One compact control row: sport / odds (risk is the dial below) */}
+      <div className="mt-3.5 grid grid-cols-2 gap-2">
         {[
           { label: "Sport", value: mpSport, set: setMpSport, options: ["AFL", "NBA"] },
           { label: "Odds", value: mpOdds, set: setMpOdds, options: ["$2.00", "$3.00", "$5.00", "$10.00", "Custom"] },
-          { label: "Risk", value: mpRisk, set: setMpRisk, options: ["Best Chance", "Balanced", "Aggressive"] },
         ].map((ctrl) => (
           <label key={ctrl.label} className="flex flex-col gap-1">
             <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">{ctrl.label}</span>
@@ -5672,6 +5679,8 @@ export default function BettingTrackerWebsite() {
           </label>
         ))}
       </div>
+
+      <div className="mt-2.5"><RiskDial compact value={mpRisk} onChange={setMpRisk} /></div>
 
       {mpOdds === "Custom" ? (
         <label className="mt-2.5 flex flex-col gap-1">
