@@ -4195,16 +4195,16 @@ ${buildAnalysisDataBlock(analysis)}`,
           }
         }
 
-        // Best Chance keeps a hard Solid-cushion floor. Explain when a game can't
-        // fully honour it — either we built fewer legs than asked (all Solid), or
-        // (rare) the game had <2 Solid legs so the safest available were used.
+        // Low now gates on hit rate, not cushion. When it lands well short of target,
+        // few near-lock lines qualified — usually the selected book lists a coarse/deep
+        // line ladder (e.g. TAB), or the game lacks in-form players. One short note.
         if (structuredMulti && riskProfile === "Best Chance") {
-          const wantLegs = parseInt(targetLegs, 10);
-          const slimLegs = (computed.selected || []).filter((p) => (p.cushionZ ?? 99) < 1.0).length;
-          if (slimLegs > 0) {
-            structuredMulti.cushionNote = `This game didn't have enough Solid-cushion legs, so ${slimLegs} ${slimLegs === 1 ? "leg sits" : "legs sit"} below it (see the cushion tags). Pick a game with more in-form players for an all-Solid build.`;
-          } else if (Number.isFinite(wantLegs) && structuredMulti.legCount < wantLegs) {
-            structuredMulti.cushionNote = `Built ${structuredMulti.legCount} of ${wantLegs} legs — only these cleared a Solid cushion in this game. Add another game, or pick one with more in-form players, for a longer multi.`;
+          const tv = parseOddsValue(targetOdds);
+          const got = Number(structuredMulti.combinedOdds);
+          if (tv && got && got < tv - 0.30) {
+            structuredMulti.cushionNote = bookLabelUsed
+              ? `${bookLabelUsed} has few near-lock lines here — try “Best available”, or add a game.`
+              : `Few near-locks in this game — add a game for a fuller Low build.`;
           }
         }
 

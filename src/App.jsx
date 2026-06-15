@@ -3098,7 +3098,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                     if (multiOutput.oddsNote) notes.push({ text: multiOutput.oddsNote });
                     if (multiOutput.profileNote) notes.push({ html: multiOutput.profileNote.replace(/\*\*(.+?)\*\*/g, '<span class="text-[var(--text-new)] font-medium">$1</span>') });
                     if (multiOutput.bookmakerNote) notes.push({ text: multiOutput.bookmakerNote });
-                    if (multiOutput.cushionNote) notes.push({ label: "Cushion", text: multiOutput.cushionNote });
+                    if (multiOutput.cushionNote) notes.push({ label: "Lines", text: multiOutput.cushionNote });
                     if (!notes.length) return null;
                     return (
                       <div className="mt-4 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3.5 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
