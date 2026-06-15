@@ -1912,17 +1912,14 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // Resolution: bucket by odds and take top legs from each band. Near-locks
   // still dominate the cheap end (so Safer builds at low targets stay good)
   // but higher targets get genuine candidates at every price level.
-  // Within each odds band the shortlist keeps the top legs. Best Chance ranks
-  // those by CUSHION (deepest first) rather than edge-score, so a player's deep
-  // cheap line beats his edgier mid line for a shortlist slot — without this the
-  // near-locks band fills with mid lines and low-target/many-leg builds can't
-  // find enough cheap legs to land near the target.
+  // Within each odds band the shortlist keeps the top legs by SCORE (chance + edge)
+  // for every tier. Best Chance USED to rank these by cushion DEPTH, which filled the
+  // near-locks band with deep legs and cut clean high-chance legs sitting "on the
+  // line" (e.g. a 98% Erasmus 13+), forcing Low onto weaker/fewer legs. Hit rate, not
+  // cushion, decides Low now — so it ranks by score like the others.
   const ranked = perPlayerLines.sort((a, b) => {
     const m = (b.empirical >= minHit) - (a.empirical >= minHit);
     if (m) return m;
-    if (riskProfile === "Best Chance" && (b.cushionZ ?? 0) !== (a.cushionZ ?? 0)) {
-      return (b.cushionZ ?? 0) - (a.cushionZ ?? 0);
-    }
     return b.score - a.score;
   });
   const oddsBands = [
