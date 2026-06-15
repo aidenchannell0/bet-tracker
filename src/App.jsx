@@ -2538,7 +2538,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
     // span several games; manual builds fall back to the single dropdown.
     const gameIdsOverride = Array.isArray(opts?.gameIds) ? opts.gameIds.filter(Boolean) : null;
     const requestPart = request.trim() ? `. Focus: ${request.trim()}` : "";
-    const riskPart = riskProfile !== "Balanced" ? ` with a ${riskProfile} risk profile` : "";
+    const risk = opts?.riskOverride || riskProfile;
+    const riskPart = risk !== "Balanced" ? ` with a ${risk} risk profile` : "";
     const selectedGame = games.find((game) => game.id === selectedGameId);
     const gameLabels = gameIdsOverride && gameIdsOverride.length
       ? games.filter((game) => gameIdsOverride.includes(game.id)).map((game) => game.label)
@@ -2546,10 +2547,17 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
     const gamePart = gameLabels.length === 1 ? ` for the ${gameLabels[0]} game`
       : gameLabels.length > 1 ? ` spread across ${gameLabels.join(", ")}` : "";
     const prompt = `Build a ${sport} example multi${gamePart} targeting ${displayedTargetOdds}${riskPart}${requestPart}. Choose the number of legs that best hits the target. Use real player form and current odds to pick the best legs mathematically. Show each leg's hit rate and recent average.`;
-    sendChatMessage(prompt, { isBuild: true, gameIds: gameIdsOverride });
+    sendChatMessage(prompt, { isBuild: true, gameIds: gameIdsOverride, riskOverride: opts?.riskOverride });
     setTimeout(() => {
       outputPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
+  };
+
+  // One-tap from the "Low capped short" reframe: switch the dial to Balanced and
+  // rebuild the same games immediately (riskOverride beats the not-yet-updated state).
+  const switchToBalanced = () => {
+    setRiskProfile("Balanced");
+    previewMulti({ gameIds: selectedGameIds?.length ? selectedGameIds : buildGameIdsRef.current, riskOverride: "Balanced" });
   };
 
   // Deep-link build: when the dashboard mini-builder hands off a prefill, fire
@@ -2601,7 +2609,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
             sport,
             legs: "Any",
             targetOdds: displayedTargetOdds,
-            riskProfile,
+            riskProfile: opts.riskOverride || riskProfile,
             bookmaker,
             request,
             gameId: selectedGameId,
@@ -3053,6 +3061,18 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                           const target = parseFloat(String(displayedTargetOdds).replace(/[^0-9.]/g, ""));
                           const combined = Number(multiOutput.combinedOdds);
                           if (!target || !combined) return `Target ${displayedTargetOdds}`;
+                          // Low capped short of a too-long target: reframe as an intentional "safest build"
+                          // and offer a one-tap switch to Balanced (which can reach it). Not a miss — a choice.
+                          if (multiOutput.profileUsed === "Best Chance" && combined < target - 0.30) {
+                            return (
+                              <>
+                                <span className="text-[var(--warning-new)]">Safest build — {displayedTargetOdds} needs Balanced or more games</span>
+                                <button type="button" onClick={switchToBalanced} className="mt-2 flex w-fit items-center gap-1.5 rounded-lg border border-[rgba(212,242,58,0.45)] bg-[var(--accent-soft-new)] px-3 py-1.5 text-[12px] font-semibold text-[var(--accent-new)] transition-opacity hover:opacity-90">
+                                  Reach {displayedTargetOdds} with Balanced →
+                                </button>
+                              </>
+                            );
+                          }
                           const closeness = Math.abs((combined - target) / target * 100);
                           return <>Target <span className="mono-nums">{displayedTargetOdds}</span> · within <span className="mono-nums">{closeness.toFixed(1)}%</span></>;
                         })()}</div>
