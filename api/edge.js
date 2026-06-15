@@ -1710,19 +1710,11 @@ function selectBestChanceGreedy(enriched, targetOddsValue, wantCount) {
 // so the UI can surface a "couldn't hit target at Balanced — relaxed to
 // Aggressive" note.
 function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
-  // Best Chance follows the deterministic greedy workflow (anchor deep, climb one
-  // line at a time into the ±20c window). Fall back to the combinatorial search
-  // only if the greedy can't build (returns < 2 legs).
-  if (riskProfile === "Best Chance" && targetOddsValue) {
-    const n = parseInt(targetLegs, 10);
-    const wantCount = targetLegs === "Any" || !Number.isFinite(n) ? null : Math.max(2, n);
-    const greedy = selectBestChanceGreedy(enriched, targetOddsValue, wantCount);
-    if (greedy.length >= 2) {
-      greedy.profileUsed = "Best Chance";
-      greedy.profileRequested = "Best Chance";
-      return greedy;
-    }
-  }
+  // Best Chance now runs through the same combinatorial search as the other tiers,
+  // but with a max-COMBINED-CHANCE objective + a 60% floor (see selectLegsForProfile).
+  // The old "anchor deep, climb" greedy maximised cushion DEPTH, which stacked
+  // low-edge deep legs and dragged the combined chance BELOW Balanced — the exact
+  // bug we're fixing. (selectBestChanceGreedy is retained but no longer called.)
   const RELAX_CHAIN = {
     // Best Chance never relaxes — it keeps its safety floors and builds the
     // closest SAFE multi it can (the UI flags "add a game" if it falls short).
@@ -1738,7 +1730,7 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   // needs none (its objective already maximises combined chance); Balanced wants
   // at least a coin-flip; Aggressive is unconstrained.
   const MIN_COMBINED_PROB = {
-    "Best Chance": 0,
+    "Best Chance": 0.60,  // the chance floor — enforced inside selectLegsForProfile (sort + cap)
     Balanced: 0.50,
     Aggressive: 0,
   };
@@ -1785,8 +1777,9 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // requested odds within a flat ±30c window (see NEAR below).
   //
   //   Best Chance — "safest, most likely to land"
-  //     8/10 form · Solid cushion (line >=2 below recent worst) · 60% conf
-  //     objective: highest combined CHANCE within ±30c
+  //     9/10 form · +2 cushion (line >=2 below recent worst) · bulletproof marks/tackles
+  //     objective: highest combined CHANCE within ±30c, with a 60% chance floor
+  //     (caps short of target rather than drop below 60%; flagged to the user)
   //   Balanced — "strong form, best value"
   //     8/10 form · no-negative cushion · 55% conf
   //     objective: highest combined EDGE (most underpriced) within ±30c
@@ -1798,7 +1791,7 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // `minHit` (model-confidence floor) below. Every floored tier also needs >=5
   // games of sample (the hr10.total<5 reject), so 3/3-perfect noise can't sneak in.
   const minHitRate =
-    riskProfile === "Best Chance" ? 0.8   // 8/10 recent clears
+    riskProfile === "Best Chance" ? 0.9   // 9/10 recent clears — every Low leg has basically never missed
     : riskProfile === "Balanced" ? 0.8    // 8/10 recent clears
     : riskProfile === "Aggressive" ? 0.5  // 5/10 — still cleared it at least half the time
     : 0.8; // unknown/legacy ("Safer" retired) -> safest floor
@@ -2046,8 +2039,10 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   };
 
   const NEAR = 0.30; // ±30c target window — also keeps this search lean (only in-window combos kept)
+  const CHANCE_FLOOR = riskProfile === "Best Chance" ? 0.60 : 0; // Low: never present below 60% combined chance
   const combos = [];
   let closest = null;
+  let capFallback = null; // longest build (highest odds, <= target) that still clears the chance floor
   let explored = 0; // safety valve: high targets (many legs) can't blow up the DFS
   const choose = (start, acc, players, accOdds) => {
     if (explored++ > 600000) return;
@@ -2076,9 +2071,12 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       const czs = acc.map((l) => (l.cushionZ == null ? 0 : l.cushionZ));
       const minCushion = czs.length ? Math.min(...czs) : 0;
       const avgCushion = czs.length ? czs.reduce((s, z) => s + z, 0) / czs.length : 0;
-      const cand = { legs: [...acc], prob, imp, edgeScore, diff, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, avgCushion };
+      const cand = { legs: [...acc], prob, imp, edgeScore, diff, odds: accOdds, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, avgCushion };
       if (diff <= NEAR) combos.push(cand);                  // keep only in-window combos (memory + a small sort)
       if (!closest || diff < closest.diff) closest = cand;  // closest tracked over ALL combos (the fallback)
+      // Chance-floor cap: the longest build (highest odds, not past target) that still
+      // clears the floor — used when nothing in the window stays >= the floor (Low only).
+      if (CHANCE_FLOOR && prob >= CHANCE_FLOOR && accOdds <= targetOddsValue + NEAR && (!capFallback || accOdds > capFallback.odds)) capFallback = cand;
     }
     if (acc.length >= maxLegs) return;
     // Odds only grow as legs are added; once we've overshot the target there's no
@@ -2120,22 +2118,18 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     if (a.legPenalty !== b.legPenalty) return a.legPenalty - b.legPenalty;
 
     if (riskProfile === "Best Chance") {
-      // The user's "bump only as needed to get NEAR target" workflow. Every combo
-      // is already all-Solid and within ±30c. First get NEAR the target — a COARSE
-      // 20c band, so e.g. $1.82 and $1.89 count as equally near and we don't chase
-      // the last few cents. THEN take the deepest AVERAGE cushion (bucketed) — the
-      // average, not just the weakest leg, so it keeps EVERY line as deep as it can
-      // (Max at 22+/Comfortable rather than over-bumping to 23+/Solid, even when
-      // the weakest leg is some other player and the minimum wouldn't change). Then
-      // fewest legs, combined chance, exact closest.
+      // Objective: the HIGHEST COMBINED CHANCE for the target, with a 60% floor.
+      // (At a fixed target, max chance == max value; stacking deep low-edge legs
+      // lowers the product, which is why the old "deepest cushion" sort fell BELOW
+      // Balanced.) Every combo is already safe (the filter) and within ±30c.
+      const aOk = (a.prob ?? 0) >= CHANCE_FLOOR, bOk = (b.prob ?? 0) >= CHANCE_FLOOR;
+      if (aOk !== bOk) return aOk ? -1 : 1;                                       // ≥60% floor clears first
       const aband = Math.floor(a.diff / 0.20);
       const bband = Math.floor(b.diff / 0.20);
       if (aband !== bband) return aband - bband;                                 // near target (coarse 20c band)
-      const ad = Math.floor((a.avgCushion ?? 0) / 0.15);
-      const bd = Math.floor((b.avgCushion ?? 0) / 0.15);
-      if (ad !== bd) return bd - ad;                                             // deepest AVERAGE cushion (no over-bump)
-      if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length; // fewest legs
-      if (b.prob !== a.prob) return b.prob - a.prob;                             // combined chance
+      if (b.prob !== a.prob) return b.prob - a.prob;                             // HIGHEST combined chance
+      if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length; // fewest legs (tiebreak)
+      if (b.edgeScore !== a.edgeScore) return b.edgeScore - a.edgeScore;         // then value
       return a.diff - b.diff;                                                    // exact closest
     }
 
@@ -2160,7 +2154,15 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     if (a.balance !== b.balance) return a.balance - b.balance;
     return a.diff - b.diff;
   });
-  return pool[0].legs.sort((a, b) => b.score - a.score);
+  // Chance floor: if nothing in the ±30c window stays ≥60%, the target is too long
+  // to stay "Low" — return the longest build that DOES clear 60% (shorter than the
+  // target) and flag it, rather than an on-target but sub-60% combo.
+  let chosen = pool[0];
+  const capped = !!(CHANCE_FLOOR && (chosen.prob ?? 0) < CHANCE_FLOOR && capFallback);
+  if (capped) chosen = capFallback;
+  const out = chosen.legs.sort((a, b) => b.score - a.score);
+  out.chanceFloorCapped = capped;
+  return out;
 }
 
 // ── Correlation-aware combined probability ───────────────────────────────
@@ -2525,13 +2527,16 @@ function buildStructuredMulti(computed, sport, targetOdds) {
 
   const targetVal = parseOddsValue(targetOdds);
   let oddsNote = null;
-  if (targetVal && metrics.combinedOdds > targetVal + 0.30) {
+  if (selected.chanceFloorCapped) {
+    // Low capped short of the target to stay above its 60% combined-chance floor.
+    oddsNote = `Capped at $${metrics.combinedOdds.toFixed(2)} — the longest Low-risk build that stays above a 60% chance. To reach ${targetOdds}, switch to Balanced, or add more games so Low has more safe legs to stack.`;
+  } else if (targetVal && metrics.combinedOdds > targetVal + 0.30) {
     oddsNote = `${selected.length} legs naturally pays more than your ${targetOdds} target — for odds nearer ${targetOdds}, try fewer legs.`;
   } else if (targetVal && metrics.combinedOdds < targetVal - 0.30) {
-    // Eligible pool exhausted under the current floor. The old message said
-    // "add more legs" but that's misleading — there ARE no more legs that
-    // pass the floor + filters. Tell the user what to actually widen.
-    oddsNote = `Only ${selected.length} eligible legs in this pool combine to $${metrics.combinedOdds.toFixed(2)}. Widen the pool to reach ${targetOdds} — switch GAMES to "All upcoming games", drop to Balanced/Aggressive, or change BOOKMAKER to "Best available".`;
+    // Eligible pool exhausted under the current floor — there are no more legs that
+    // pass the filters. More GAMES is the real lever (more safe legs to stack);
+    // a single book's lines are already all considered, so don't over-promise it.
+    oddsNote = `Only ${selected.length} eligible legs here combine to $${metrics.combinedOdds.toFixed(2)}. To reach ${targetOdds}, add more games (more safe legs to stack), or drop to Balanced/Aggressive.`;
   }
 
   // Profile-relaxation note: surfaced when the requested risk floor was too
