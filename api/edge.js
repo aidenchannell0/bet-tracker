@@ -4201,10 +4201,15 @@ ${buildAnalysisDataBlock(analysis)}`,
         if (structuredMulti && riskProfile === "Best Chance") {
           const tv = parseOddsValue(targetOdds);
           const got = Number(structuredMulti.combinedOdds);
-          if (tv && got && got < tv - 0.30) {
+          const lc = structuredMulti.legCount || 0;
+          // Only flag the BOARD when genuinely few near-locks qualified (<=3). A 6-leg
+          // build that simply can't stretch to a long target is NOT a thin board —
+          // that's the oddsNote's "add games" job, and naming the book there would be
+          // wrong (e.g. PointsBet has a full ladder; only TAB-style coarse books trip this).
+          if (tv && got && got < tv - 0.30 && lc <= 3) {
             structuredMulti.cushionNote = bookLabelUsed
-              ? `${bookLabelUsed} has few near-lock lines here — try “Best available”, or add a game.`
-              : `Few near-locks in this game — add a game for a fuller Low build.`;
+              ? `Only ${lc} near-lock line${lc === 1 ? "" : "s"} qualified on ${bookLabelUsed} here — try “Best available” or add a game.`
+              : `Only ${lc} near-lock${lc === 1 ? "" : "s"} in this game — add a game for a fuller Low build.`;
           }
         }
 
