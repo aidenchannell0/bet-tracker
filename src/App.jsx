@@ -901,13 +901,15 @@ function Input({ className = "", ...props }) {
   );
 }
 
-// Risk-per-leg dial — a needle gauge over the three calibrated tiers (Low = Best
-// Chance, Balanced, High = Aggressive). The engine floors are unchanged; this is
-// just the control surface. `value` is the riskProfile string; onChange emits it.
+// Risk-per-leg dial — a minimalist hairline needle gauge over the three calibrated
+// tiers (Low = Best Chance, Balanced, High = Aggressive). The engine floors are
+// unchanged; this is just the control surface. The needle is an element ROTATED
+// around its pivot (CSS transform), so the tip sweeps cleanly along the arc instead
+// of cutting a straight chord. `value` is the riskProfile string; onChange emits it.
 const RISK_LEVELS = [
-  { tier: "Best Chance", label: "Low", color: "#4ade80", soft: "rgba(74,222,128,0.12)", angle: -62, blurb: "Every leg sits 2+ below its recent worst · bulletproof marks & tackles · safest" },
-  { tier: "Balanced", label: "Balanced", color: "#fbbf24", soft: "rgba(251,191,36,0.12)", angle: 0, blurb: "No negative cushion · 8/10 recent form · tuned for best value vs the market" },
-  { tier: "Aggressive", label: "High", color: "#f87171", soft: "rgba(248,113,113,0.12)", angle: 62, blurb: "Reaches for value · 5/10 form · looser cushion and longer legs" },
+  { tier: "Best Chance", label: "Low", color: "#4ade80", angle: -60 },
+  { tier: "Balanced", label: "Balanced", color: "#fbbf24", angle: 0 },
+  { tier: "Aggressive", label: "High", color: "#f87171", angle: 60 },
 ];
 function RiskDial({ value, onChange }) {
   const sel = Math.max(0, RISK_LEVELS.findIndex((l) => l.tier === value));
@@ -915,31 +917,32 @@ function RiskDial({ value, onChange }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Risk per leg</span>
-      <div className="rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 pb-3.5 pt-4">
+      <div className="rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 pb-3 pt-4">
         <div className="flex flex-col items-center">
-          <div className="relative" style={{ width: 196, height: 104, overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 196, height: 196, borderRadius: "50%",
-              background: "conic-gradient(from 0deg,#fbbf24,#f87171 90deg,transparent 90deg,transparent 270deg,#4ade80 270deg,#fbbf24 360deg)",
-              WebkitMask: "radial-gradient(circle at 50% 50%, transparent 60px, #000 61px)", mask: "radial-gradient(circle at 50% 50%, transparent 60px, #000 61px)" }} />
-            <div style={{ position: "absolute", left: "50%", bottom: 0, width: 4, height: 82, background: "#f5f5f7", borderRadius: 3,
-              transformOrigin: "bottom center", transform: `translateX(-50%) rotate(${cur.angle}deg)`, transition: "transform .35s cubic-bezier(.2,1,.3,1)" }} />
-            <div style={{ position: "absolute", left: "50%", bottom: -6, width: 14, height: 14, borderRadius: "50%", background: "#f5f5f7", transform: "translateX(-50%)" }} />
+          <div className="relative" style={{ width: 164, height: 84 }}>
+            <svg width="164" height="84" viewBox="0 0 164 84" style={{ display: "block" }}>
+              <path d="M16 74 A66 66 0 0 1 148 74" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="2.5" strokeLinecap="round" />
+              <circle cx="82" cy="74" r="3.5" fill="#f5f5f7" />
+            </svg>
+            <div style={{ position: "absolute", left: "50%", bottom: 10, width: 2.5, height: 58, background: cur.color, borderRadius: 3,
+              transformOrigin: "bottom center", transform: `translateX(-50%) rotate(${cur.angle}deg)`,
+              transition: "transform 0.45s cubic-bezier(0.2,1,0.3,1), background-color 0.35s ease" }} />
           </div>
-          <div className="brand-wordmark mt-1 font-bold" style={{ color: cur.color, fontSize: 17 }}>{cur.label}</div>
+          <div className="brand-wordmark mt-1 font-semibold" style={{ color: cur.color, fontSize: 17, transition: "color 0.35s ease" }}>{cur.label}</div>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="mt-2.5 flex justify-center gap-7">
           {RISK_LEVELS.map((l) => {
             const on = l.tier === cur.tier;
             return (
               <button key={l.tier} type="button" onClick={() => onChange(l.tier)}
-                className={"rounded-lg border py-2 text-[12.5px] font-semibold transition-colors " + (on ? "" : "border-[var(--border-new)] bg-[var(--bg-new)] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}
-                style={on ? { borderColor: l.color, color: l.color, background: l.soft } : undefined}>
+                className={"relative pb-1.5 text-[13px] transition-colors duration-300 " + (on ? "font-semibold" : "font-medium text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}
+                style={on ? { color: l.color } : undefined}>
                 {l.label}
+                <span style={{ position: "absolute", left: "50%", bottom: 0, width: on ? 16 : 0, height: 2, borderRadius: 2, background: l.color, transform: "translateX(-50%)", transition: "width 0.3s ease" }} />
               </button>
             );
           })}
         </div>
-        <p className="mt-3 text-[11.5px] leading-snug text-[var(--text-2-new)]">{cur.blurb}</p>
       </div>
     </div>
   );
