@@ -4258,9 +4258,32 @@ ${buildAnalysisDataBlock(analysis)}`,
           await recordPredictions(ratedPool, selectedSet, defenseContext?.season, access.userId);
         }
 
+        // TEMP DEBUG: dump the full per-line ladder with Best Chance gate results so
+        // we can see exactly why longer lines get rejected. Remove after diagnosing.
+        let debugPool;
+        if (context?.debugLegs) {
+          const dp = enrichProps(allProps, statsContext, defenseFactors, calibrationCurve, gameEnvByLabel);
+          debugPool = dp
+            .filter((p) => p.empirical != null && Number(p.odds) > 1)
+            .map((p) => {
+              const form = p.hr10 && p.hr10.total >= 5 ? p.hr10.hits / p.hr10.total : null;
+              return {
+                player: p.playerName, metric: p.metric, line: p.line, odds: Number(p.odds),
+                emp: Math.round((p.empirical ?? 0) * 100),
+                form: p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "—",
+                cuZ: p.cushionZ == null ? null : Math.round(p.cushionZ * 100) / 100,
+                passForm: form != null && form >= 0.8,
+                passEmp: (p.empirical ?? 0) >= 0.88,
+                cand: form != null && form >= 0.8 && (p.empirical ?? 0) >= 0.88,
+              };
+            })
+            .sort((a, b) => a.player.localeCompare(b.player) || a.line - b.line);
+        }
+
         return res.status(200).json({
           reply,
           multi: structuredMulti,
+          debugPool,
           oddsConnected: oddsContext.available,
           statsConnected: statsContext.available,
           gamesAnalysed: statsContext.gamesAnalysed,
