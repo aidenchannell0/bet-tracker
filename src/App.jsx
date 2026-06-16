@@ -3061,14 +3061,15 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                           const target = parseFloat(String(displayedTargetOdds).replace(/[^0-9.]/g, ""));
                           const combined = Number(multiOutput.combinedOdds);
                           if (!target || !combined) return `Target ${displayedTargetOdds}`;
-                          // Low capped short of a too-long target: reframe as an intentional "safest build"
-                          // and offer a one-tap switch to Balanced (which can reach it). Not a miss — a choice.
+                          // Low undershot = the safe-leg pool across the selected games is exhausted.
+                          // Low reaches longer odds by STACKING safe legs, so the honest nudge is "add a
+                          // game". The one-tap to Balanced stays as a quick fewer-legs alternative.
                           if (multiOutput.profileUsed === "Best Chance" && combined < target - 0.30) {
                             return (
                               <>
-                                <span className="text-[var(--warning-new)]">Safest build — {displayedTargetOdds} needs Balanced or more games</span>
+                                <span className="text-[var(--warning-new)]">Safest legs here — add a game to reach {displayedTargetOdds}</span>
                                 <button type="button" onClick={switchToBalanced} className="mt-2 flex w-fit items-center gap-1.5 rounded-lg border border-[rgba(212,242,58,0.45)] bg-[var(--accent-soft-new)] px-3 py-1.5 text-[12px] font-semibold text-[var(--accent-new)] transition-opacity hover:opacity-90">
-                                  Reach {displayedTargetOdds} with Balanced →
+                                  or fewer legs on Balanced →
                                 </button>
                               </>
                             );
