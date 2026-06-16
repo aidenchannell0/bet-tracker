@@ -2151,7 +2151,8 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       // ball-winners. `prob` (the true chance) is what's displayed — rankProb never is.
       const producer = acc.length ? acc.reduce((s, l) => s + (l._prod ?? 0.85), 0) / acc.length : 0.85;
       const rankProb = prob * acc.reduce((s, l) => s * (l._pf ?? 1), 1);
-      const cand = { legs: [...acc], prob, rankProb, imp, edgeScore, diff, odds: accOdds, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, avgCushion, producer };
+      const rankEdge = rankProb - imp; // producer-penalized edge — Balanced/Aggressive rank on this
+      const cand = { legs: [...acc], prob, rankProb, imp, edgeScore, rankEdge, diff, odds: accOdds, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, avgCushion, producer };
       if (diff <= NEAR) combos.push(cand);                  // keep only in-window combos (memory + a small sort)
       if (!closest || diff < closest.diff) closest = cand;  // closest tracked over ALL combos (the fallback)
       // Chance-floor cap: the longest build (highest odds, not past target) that still
@@ -2222,17 +2223,17 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       // model-vs-market edge), then market/team diversity, then chance, then close.
       const aOn = a.diff <= ON_TARGET, bOn = b.diff <= ON_TARGET;
       if (aOn !== bOn) return aOn ? -1 : 1;
-      if (b.edgeScore !== a.edgeScore) return b.edgeScore - a.edgeScore;
+      if (b.rankEdge !== a.rankEdge) return b.rankEdge - a.rankEdge;             // best value, producer-penalized
       if (a.diversityPenalty !== b.diversityPenalty) return a.diversityPenalty - b.diversityPenalty;
       if (a.teamPenalty !== b.teamPenalty) return a.teamPenalty - b.teamPenalty;
-      if (b.prob !== a.prob) return b.prob - a.prob;
+      if (b.rankProb !== a.rankProb) return b.rankProb - a.rankProb;            // then producer-penalized chance
       return a.diff - b.diff;
     }
 
     // AGGRESSIVE (and any fallback). REACH the target — closest first — then chase
     // edge, keep it diverse and evenly priced.
     if (diffBucket(a) !== diffBucket(b)) return diffBucket(a) - diffBucket(b);
-    if (b.edgeScore !== a.edgeScore) return b.edgeScore - a.edgeScore;
+    if (b.rankEdge !== a.rankEdge) return b.rankEdge - a.rankEdge;             // reach, then producer-penalized value
     if (a.diversityPenalty !== b.diversityPenalty) return a.diversityPenalty - b.diversityPenalty;
     if (a.teamPenalty !== b.teamPenalty) return a.teamPenalty - b.teamPenalty;
     if (a.balance !== b.balance) return a.balance - b.balance;
