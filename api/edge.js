@@ -4323,9 +4323,29 @@ ${buildAnalysisDataBlock(analysis)}`,
           await recordPredictions(ratedPool, selectedSet, defenseContext?.season, access.userId);
         }
 
+        // TEMP DEBUG: disposal candidates with position/volume/producer, to see why the
+        // producer tilt isn't swapping low-volume role players out. Remove after diagnosing.
+        let debugPool;
+        if (context?.debugLegs) {
+          const dp = enrichProps(allProps, statsContext, defenseFactors, calibrationCurve, gameEnvByLabel);
+          debugPool = dp
+            .filter((p) => p.empirical != null && Number(p.odds) > 1 && p.metric === "disposals")
+            .map((p) => {
+              const form = p.hr10 && p.hr10.total >= 5 ? p.hr10.hits / p.hr10.total : null;
+              const cand = form != null && form >= 0.8 && (p.empirical ?? 0) >= 0.80;
+              return {
+                player: p.playerName, line: p.line, odds: Number(p.odds),
+                emp: Math.round((p.empirical ?? 0) * 100), pos: p.position,
+                avg: p.recentAvg ?? p.avg10 ?? null, prod: Math.round(legProducer(p) * 100) / 100, cand,
+              };
+            })
+            .sort((a, b) => a.player.localeCompare(b.player) || a.line - b.line);
+        }
+
         return res.status(200).json({
           reply,
           multi: structuredMulti,
+          debugPool,
           oddsConnected: oddsContext.available,
           statsConnected: statsContext.available,
           gamesAnalysed: statsContext.gamesAnalysed,
