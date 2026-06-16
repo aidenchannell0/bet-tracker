@@ -1777,12 +1777,13 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // requested odds within a flat ±30c window (see NEAR below).
   //
   //   Best Chance — "safest, most likely to land"
-  //     8/10 form · ≥88% model chance (the near-lock gate) · bulletproof marks/tackles
+  //     8/10 form · ≥80% model chance (strong favourite) · bulletproof marks/tackles
   //     objective: highest combined CHANCE within ±30c, with a 60% chance floor
   //     (caps short of target rather than drop below 60%; flagged to the user)
-  //     NB: form is 8/10 not 9/10 — 9/10 only passed each player's single deepest
-  //     line, so Low could never climb onto a normal target. The 88% gate + 60%
-  //     combined floor are what keep it safe; form is just a sanity check now.
+  //     NB: per-leg floors are deliberately LOOSE (8/10 form, 80% chance). Tighter floors
+  //     (9/10, 88%) only ever passed each player's single deepest line, so Low had no
+  //     ladder to climb and stalled ~$1.34 for any target. The 60% COMBINED floor is the
+  //     real safety net; per-leg floors just keep each leg a strong favourite.
   //   Balanced — "strong form, best value"
   //     8/10 form · no-negative cushion · 55% conf
   //     objective: highest combined EDGE (most underpriced) within ±30c
@@ -1823,11 +1824,14 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       if (!p.hr10 || p.hr10.total < 5) return false;
       if (p.hr10.hits / p.hr10.total < minHitRate) return false;
     }
-    // Best Chance gates on HIT RATE, not cushion depth: every leg must be a near-lock
-    // (≥88% model chance). This cuts shaky / negative-edge legs (e.g. an 82% leg) while
-    // admitting the safe 98% legs the old +2 cushion wrongly excluded for sitting "on
-    // the line". (Form is already ≥9/10 via minHitRate above.)
-    if (riskProfile === "Best Chance" && (p.empirical ?? 0) < 0.88) return false;
+    // Best Chance gates on a STRONG-FAVOURITE model chance (≥80%) + 8/10 form — NOT 88%.
+    // Live data showed 88% only ever passes a player's single DEEPEST line (Newcombe 17.5
+    // @98% passed; his 18.5 @87% and 19.5 @85% — both 9/10 form, clearly safe — were cut),
+    // so the build had no ladder to climb and stalled at ~$1.34 on a single game for ANY
+    // target. The model's empirical is much more conservative than raw form here (90% form
+    // → 76-87% chance), so 88% was brutal. The 60% COMBINED-chance floor below is Low's real
+    // safety net; this gate just keeps each individual leg a strong favourite to stack.
+    if (riskProfile === "Best Chance" && (p.empirical ?? 0) < 0.80) return false;
     // …except marks & tackles, whose hit rate genuinely lies (spiky low counts): they
     // additionally need the bulletproof cushion bar (≥2 below worst-of-5, Comfortable).
     if (riskProfile === "Best Chance" && VOLATILE_METRICS.has(p.metric)) {
