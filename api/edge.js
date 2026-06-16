@@ -1832,6 +1832,11 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     // → 76-87% chance), so 88% was brutal. The 60% COMBINED-chance floor below is Low's real
     // safety net; this gate just keeps each individual leg a strong favourite to stack.
     if (riskProfile === "Best Chance" && (p.empirical ?? 0) < 0.80) return false;
+    // Low never uses fantasy-points legs: they're heavily correlated with disposals (same
+    // possession family — stacking them inflates the multi's REAL risk), confusing in a
+    // disposals/goals build, and priced tight enough that they ran the combo -EV (a Will Day
+    // 59.5 fantasy @ $1.05 leg dragged a +5% disposals build down to -23%). Counting stats only.
+    if (riskProfile === "Best Chance" && p.metric === "fantasy_points") return false;
     // …except marks & tackles, whose hit rate genuinely lies (spiky low counts): they
     // additionally need the bulletproof cushion bar (≥2 below worst-of-5, Comfortable).
     if (riskProfile === "Best Chance" && VOLATILE_METRICS.has(p.metric)) {
@@ -4262,32 +4267,9 @@ ${buildAnalysisDataBlock(analysis)}`,
           await recordPredictions(ratedPool, selectedSet, defenseContext?.season, access.userId);
         }
 
-        // TEMP DEBUG: dump the full per-line ladder with Best Chance gate results so
-        // we can see exactly why longer lines get rejected. Remove after diagnosing.
-        let debugPool;
-        if (context?.debugLegs) {
-          const dp = enrichProps(allProps, statsContext, defenseFactors, calibrationCurve, gameEnvByLabel);
-          debugPool = dp
-            .filter((p) => p.empirical != null && Number(p.odds) > 1)
-            .map((p) => {
-              const form = p.hr10 && p.hr10.total >= 5 ? p.hr10.hits / p.hr10.total : null;
-              return {
-                player: p.playerName, metric: p.metric, line: p.line, odds: Number(p.odds),
-                emp: Math.round((p.empirical ?? 0) * 100),
-                form: p.hr10 ? `${p.hr10.hits}/${p.hr10.total}` : "—",
-                cuZ: p.cushionZ == null ? null : Math.round(p.cushionZ * 100) / 100,
-                passForm: form != null && form >= 0.8,
-                passEmp: (p.empirical ?? 0) >= 0.88,
-                cand: form != null && form >= 0.8 && (p.empirical ?? 0) >= 0.88,
-              };
-            })
-            .sort((a, b) => a.player.localeCompare(b.player) || a.line - b.line);
-        }
-
         return res.status(200).json({
           reply,
           multi: structuredMulti,
-          debugPool,
           oddsConnected: oddsContext.available,
           statsConnected: statsContext.available,
           gamesAnalysed: statsContext.gamesAnalysed,
