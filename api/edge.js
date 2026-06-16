@@ -1777,9 +1777,12 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // requested odds within a flat ±30c window (see NEAR below).
   //
   //   Best Chance — "safest, most likely to land"
-  //     9/10 form · +2 cushion (line >=2 below recent worst) · bulletproof marks/tackles
+  //     8/10 form · ≥88% model chance (the near-lock gate) · bulletproof marks/tackles
   //     objective: highest combined CHANCE within ±30c, with a 60% chance floor
   //     (caps short of target rather than drop below 60%; flagged to the user)
+  //     NB: form is 8/10 not 9/10 — 9/10 only passed each player's single deepest
+  //     line, so Low could never climb onto a normal target. The 88% gate + 60%
+  //     combined floor are what keep it safe; form is just a sanity check now.
   //   Balanced — "strong form, best value"
   //     8/10 form · no-negative cushion · 55% conf
   //     objective: highest combined EDGE (most underpriced) within ±30c
@@ -1791,7 +1794,13 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
   // `minHit` (model-confidence floor) below. Every floored tier also needs >=5
   // games of sample (the hr10.total<5 reject), so 3/3-perfect noise can't sneak in.
   const minHitRate =
-    riskProfile === "Best Chance" ? 0.9   // 9/10 recent clears — every Low leg has basically never missed
+    // Best Chance = 8/10, NOT 9/10. 9/10 only ever passes a player's single DEEPEST line — a line near
+    // their average clears ~5-6/10 — so every player collapsed to one ultra-short $1.05 near-lock and the
+    // search had nothing longer to climb with: it stacked 6 near-locks to ~$1.33 and physically could not
+    // reach a $2 target (returned the SAME build for $1.50/$2/$3). Low's real "near-lock" identity is the
+    // 88% model-chance gate below; its real safety net is the 60% COMBINED-chance floor. 8/10 form keeps
+    // every leg a strong favourite while letting Low climb its longer near-lock lines onto the target.
+    riskProfile === "Best Chance" ? 0.8
     : riskProfile === "Balanced" ? 0.8    // 8/10 recent clears
     : riskProfile === "Aggressive" ? 0.5  // 5/10 — still cleared it at least half the time
     : 0.8; // unknown/legacy ("Safer" retired) -> safest floor
