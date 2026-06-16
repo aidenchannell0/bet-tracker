@@ -2385,12 +2385,26 @@ function correlationAdjustedProb(items) {
   return hits / SAMPLES;
 }
 
+// Leg-scaled edge shrinkage. The model's per-leg edge estimates are noisy; multiplying many
+// of them compounds that noise into a spurious combined edge — a 14-leg multi "proving" a
+// +165% EV that the −7.9% ROI track record says isn't real. So we shrink the combined chance's
+// EDGE (its distance, in log space, from the market-implied chance) toward 0, harder as the
+// leg count grows: a 5-leg keeps ~90% of its edge, a 14-leg keeps ~5% (reads roughly fair).
+// Display-only — selection (which legs) is unchanged; this just makes the shown numbers honest.
+function shrinkCombinedProb(modelProb, impliedProb, legCount) {
+  if (!modelProb || !impliedProb || modelProb <= 0 || impliedProb <= 0) return modelProb;
+  const keep = Math.max(0.05, Math.min(1, 1 - 0.10 * Math.max(0, (legCount || 0) - 4)));
+  const shrunk = impliedProb * Math.pow(modelProb / impliedProb, keep);
+  return Math.max(0.01, Math.min(0.99, shrunk));
+}
+
 function computeCombinedMetrics(selected) {
   const combinedOdds = selected.reduce((acc, p) => acc * Number(p.odds), 1);
   const independentProb = selected.reduce((acc, p) => acc * (p.empirical ?? 0), 1);
-  const combinedProb = correlationAdjustedProb(
+  const modelProb = correlationAdjustedProb(
     selected.map((p) => ({ prob: p.empirical ?? 0, game: p.gameLabel, metric: p.metric, team: p.team }))
   );
+  const combinedProb = shrinkCombinedProb(modelProb, combinedOdds > 0 ? 1 / combinedOdds : modelProb, selected.length);
   const ev = combinedProb * combinedOdds - 1;
   return {
     combinedOdds: Number(combinedOdds.toFixed(2)),
@@ -2398,7 +2412,7 @@ function computeCombinedMetrics(selected) {
     combinedProbPct: Math.round(combinedProb * 100),
     independentProbPct: Math.round(independentProb * 100),
     evPct: Math.round(ev * 100),
-    correlated: Math.abs(combinedProb - independentProb) >= 0.005,
+    correlated: Math.abs(modelProb - independentProb) >= 0.005,
   };
 }
 
@@ -2724,15 +2738,16 @@ function pickReplacement(enriched, usedPlayers, metric, targetLegOdds) {
 function recomputeMultiFromLegs(base, legs, sport) {
   const combinedOdds = Number(legs.reduce((a, l) => a * Number(l.odds || 1), 1).toFixed(2));
   const independentProb = legs.reduce((a, l) => a * legEmpirical(l), 1);
-  const combinedProb = correlationAdjustedProb(
+  const modelProb = correlationAdjustedProb(
     legs.map((l) => ({ prob: legEmpirical(l), game: l.game, metric: legMetricOf(l), team: l.team }))
   );
+  const combinedProb = shrinkCombinedProb(modelProb, combinedOdds > 0 ? 1 / combinedOdds : modelProb, legs.length);
   const combinedProbPct = Math.round(combinedProb * 100);
   const independentProbPct = Math.round(independentProb * 100);
   const sg = sameGameAdjust(legs, combinedOdds, combinedProb);
   const evPct = sg.evPct;
   const valueLegs = legs.filter((l) => typeof l.edgePct === "number" && l.edgePct > 0).length;
-  const correlated = Math.abs(combinedProb - independentProb) >= 0.005;
+  const correlated = Math.abs(modelProb - independentProb) >= 0.005;
   const risk = computeRiskScore(combinedProb, legs.length);
   const targetOdds = base.targetOdds;
   const targetVal = parseOddsValue(targetOdds);
