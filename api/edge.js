@@ -1336,6 +1336,51 @@ function inferAFLPosition(matched) {
   return "UTIL";
 }
 
+// ── Producer reliability (volume + role) ─────────────────────────────────────
+// A leg's hit-rate doesn't capture how BANKABLE the stat is. A gun mid's disposals
+// are role-guaranteed (he's in every centre bounce); a low-volume defender's come
+// from rebounds that dry up with game flow, so his deep line is less trustworthy than
+// "10/10 cleared" implies. We bias Best Chance SELECTION toward genuine producers.
+// This does NOT touch the displayed chance/EV — only which players get picked.
+//
+// Per-metric volume reference [fringe, gun]: maps a player's recent average in the bet
+// metric onto a 0..1 "how much of a producer" rating.
+const VOLUME_REF = {
+  disposals: [12, 28], kicks: [7, 16], handballs: [5, 14], clearances: [2, 7],
+  marks: [3, 8], tackles: [3, 8], goals: [0.6, 2.4], hitouts: [10, 35],
+  // NBA
+  points: [8, 26], rebounds: [3, 11], assists: [2, 9], threes: [1, 4], steals: [0.6, 2], blocks: [0.4, 2],
+};
+
+// Role fit: does this player's POSITION naturally produce the bet metric? Mids/rucks own
+// possession stats, forwards own goals, rucks own hitouts, etc. Off-role output is more
+// game-script-dependent, so it's less bankable than the raw hit-rate suggests.
+function roleFit(metric, position) {
+  if (!position) return 0.85; // unknown (e.g. NBA) — neutral, volume still applies
+  const T = {
+    disposals:  { MID: 1.00, RUC: 0.94, UTIL: 0.85, DEF: 0.78, FWD: 0.72 },
+    kicks:      { MID: 1.00, RUC: 0.88, UTIL: 0.85, DEF: 0.85, FWD: 0.72 },
+    handballs:  { MID: 1.00, RUC: 0.90, UTIL: 0.85, DEF: 0.75, FWD: 0.72 },
+    clearances: { MID: 1.00, RUC: 0.94, UTIL: 0.80, DEF: 0.70, FWD: 0.70 },
+    goals:      { FWD: 1.00, MID: 0.80, UTIL: 0.80, RUC: 0.75, DEF: 0.62 },
+    marks:      { FWD: 1.00, DEF: 0.94, UTIL: 0.85, MID: 0.85, RUC: 0.82 },
+    tackles:    { MID: 1.00, FWD: 0.92, UTIL: 0.85, RUC: 0.78, DEF: 0.78 },
+    hitouts:    { RUC: 1.00, MID: 0.55, UTIL: 0.55, DEF: 0.55, FWD: 0.55 },
+  };
+  return T[metric]?.[position] ?? 0.85;
+}
+
+// Per-leg producer score: role fit (primary) + a volume nudge. ~0.6 (off-role role player)
+// to ~1.15 (on-role gun). Constant across a player's lines, so it biases WHICH players are
+// chosen, not how deep their line goes (the target still drives that).
+function legProducer(p) {
+  const fit = roleFit(p.metric, p.position);
+  const ref = VOLUME_REF[p.metric];
+  const avg = p.recentAvg ?? p.avg10 ?? null;
+  const vol = avg != null && ref ? Math.max(0, Math.min(1, (avg - ref[0]) / (ref[1] - ref[0]))) : 0.5;
+  return fit + 0.15 * vol;
+}
+
 function matchStatsForProp(prop, statsMap) {
   const normName = String(prop.playerName || "").toLowerCase();
   const propWords = normName.split(" ").filter(Boolean);
@@ -2056,6 +2101,9 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     return Math.round(Math.sqrt(variance) / 0.1);
   };
 
+  // Producer score per shortlist leg, computed ONCE (the DFS below visits many combos).
+  for (const leg of shortlist) leg._prod = legProducer(leg);
+
   const NEAR = 0.30; // ±30c target window — also keeps this search lean (only in-window combos kept)
   const CHANCE_FLOOR = riskProfile === "Best Chance" ? 0.60 : 0; // Low: never present below 60% combined chance
   const combos = [];
@@ -2089,7 +2137,10 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       const czs = acc.map((l) => (l.cushionZ == null ? 0 : l.cushionZ));
       const minCushion = czs.length ? Math.min(...czs) : 0;
       const avgCushion = czs.length ? czs.reduce((s, z) => s + z, 0) / czs.length : 0;
-      const cand = { legs: [...acc], prob, imp, edgeScore, diff, odds: accOdds, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, avgCushion };
+      // Average producer quality of the combo (role fit + volume) — biases the Best Chance
+      // objective toward on-role ball-winners over low-volume role players. Selection only.
+      const producer = acc.length ? acc.reduce((s, l) => s + (l._prod ?? 0.85), 0) / acc.length : 0.85;
+      const cand = { legs: [...acc], prob, imp, edgeScore, diff, odds: accOdds, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, avgCushion, producer };
       if (diff <= NEAR) combos.push(cand);                  // keep only in-window combos (memory + a small sort)
       if (!closest || diff < closest.diff) closest = cand;  // closest tracked over ALL combos (the fallback)
       // Chance-floor cap: the longest build (highest odds, not past target) that still
@@ -2145,7 +2196,12 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       const aband = Math.floor(a.diff / 0.20);
       const bband = Math.floor(b.diff / 0.20);
       if (aband !== bband) return aband - bband;                                 // near target (coarse 20c band)
-      if (b.prob !== a.prob) return b.prob - a.prob;                             // HIGHEST combined chance
+      // Combined CHANCE, tilted toward on-role ball-winners (role fit + volume). A gun mid's
+      // role-secure line beats a low-volume role player's deep line that merely LOOKS safe.
+      // W=0.30 is small enough that a big real chance gap still wins — only marginal ones flip.
+      const aS = (a.prob ?? 0) + 0.30 * (a.producer ?? 0);
+      const bS = (b.prob ?? 0) + 0.30 * (b.producer ?? 0);
+      if (aS !== bS) return bS - aS;                                             // chance, tilted to producers
       if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length; // fewest legs (tiebreak)
       if (b.edgeScore !== a.edgeScore) return b.edgeScore - a.edgeScore;         // then value
       return a.diff - b.diff;                                                    // exact closest
