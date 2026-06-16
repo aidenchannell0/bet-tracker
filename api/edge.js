@@ -1381,6 +1381,15 @@ function legProducer(p) {
   return fit + 0.15 * vol;
 }
 
+// Non-diluted SELECTION penalty from the producer score (ranking ONLY — the displayed
+// chance/EV stay the true calibrated values). A genuine producer (prod ≥ 1.0) gets no
+// penalty; an off-role low-volume leg multiplies the combo's RANK chance by ~0.87, so one
+// such leg sinks the whole combo below an all-on-role one even when its true chance is a
+// touch higher. Multiplicative (not averaged) so it targets the offending leg, not the mean.
+function producerFactor(prod) {
+  return Math.min(1, 0.55 + 0.45 * (prod ?? 0.85));
+}
+
 function matchStatsForProp(prop, statsMap) {
   const normName = String(prop.playerName || "").toLowerCase();
   const propWords = normName.split(" ").filter(Boolean);
@@ -2101,8 +2110,8 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     return Math.round(Math.sqrt(variance) / 0.1);
   };
 
-  // Producer score per shortlist leg, computed ONCE (the DFS below visits many combos).
-  for (const leg of shortlist) leg._prod = legProducer(leg);
+  // Producer score + selection penalty per shortlist leg, computed ONCE (the DFS visits many combos).
+  for (const leg of shortlist) { leg._prod = legProducer(leg); leg._pf = producerFactor(leg._prod); }
 
   const NEAR = 0.30; // ±30c target window — also keeps this search lean (only in-window combos kept)
   const CHANCE_FLOOR = riskProfile === "Best Chance" ? 0.60 : 0; // Low: never present below 60% combined chance
@@ -2137,10 +2146,12 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       const czs = acc.map((l) => (l.cushionZ == null ? 0 : l.cushionZ));
       const minCushion = czs.length ? Math.min(...czs) : 0;
       const avgCushion = czs.length ? czs.reduce((s, z) => s + z, 0) / czs.length : 0;
-      // Average producer quality of the combo (role fit + volume) — biases the Best Chance
-      // objective toward on-role ball-winners over low-volume role players. Selection only.
+      // Producer-penalized RANK chance (selection only): each off-role/low-volume leg
+      // multiplies the combo's ranking chance down, so Best Chance prefers on-role
+      // ball-winners. `prob` (the true chance) is what's displayed — rankProb never is.
       const producer = acc.length ? acc.reduce((s, l) => s + (l._prod ?? 0.85), 0) / acc.length : 0.85;
-      const cand = { legs: [...acc], prob, imp, edgeScore, diff, odds: accOdds, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, avgCushion, producer };
+      const rankProb = prob * acc.reduce((s, l) => s * (l._pf ?? 1), 1);
+      const cand = { legs: [...acc], prob, rankProb, imp, edgeScore, diff, odds: accOdds, legPenalty, diversityPenalty, teamPenalty, balance: balanceBucket(acc), minCushion, avgCushion, producer };
       if (diff <= NEAR) combos.push(cand);                  // keep only in-window combos (memory + a small sort)
       if (!closest || diff < closest.diff) closest = cand;  // closest tracked over ALL combos (the fallback)
       // Chance-floor cap: the longest build (highest odds, not past target) that still
@@ -2196,12 +2207,11 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
       const aband = Math.floor(a.diff / 0.20);
       const bband = Math.floor(b.diff / 0.20);
       if (aband !== bband) return aband - bband;                                 // near target (coarse 20c band)
-      // Combined CHANCE, tilted toward on-role ball-winners (role fit + volume). A gun mid's
-      // role-secure line beats a low-volume role player's deep line that merely LOOKS safe.
-      // W=0.30 is small enough that a big real chance gap still wins — only marginal ones flip.
-      const aS = (a.prob ?? 0) + 0.30 * (a.producer ?? 0);
-      const bS = (b.prob ?? 0) + 0.30 * (b.producer ?? 0);
-      if (aS !== bS) return bS - aS;                                             // chance, tilted to producers
+      // Highest PRODUCER-PENALIZED chance: the true combined chance with each off-role/
+      // low-volume leg discounted, so a gun mid's role-secure line beats a low-volume role
+      // player's deep line that merely LOOKS safe. The floor above still gates on TRUE prob,
+      // and the displayed chance is TRUE prob — only this ranking key is penalized.
+      if (b.rankProb !== a.rankProb) return b.rankProb - a.rankProb;             // producer-penalized chance
       if (a.legs.length !== b.legs.length) return a.legs.length - b.legs.length; // fewest legs (tiebreak)
       if (b.edgeScore !== a.edgeScore) return b.edgeScore - a.edgeScore;         // then value
       return a.diff - b.diff;                                                    // exact closest
