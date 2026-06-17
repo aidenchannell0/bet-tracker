@@ -11,6 +11,9 @@
     "backtest": "node scripts/backtest.mjs"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "@react-three/postprocessing": "^3.0.4",
     "@supabase/supabase-js": "^2.105.1",
     "@tailwindcss/vite": "^4.2.4",
     "@vercel/analytics": "^2.0.1",
@@ -20,7 +23,8 @@
     "react-dom": "^19.2.5",
     "recharts": "^3.8.1",
     "stripe": "^22.1.1",
-    "tailwindcss": "^4.2.4"
+    "tailwindcss": "^4.2.4",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
