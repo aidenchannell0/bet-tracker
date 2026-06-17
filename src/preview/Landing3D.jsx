@@ -83,9 +83,11 @@ function makeNet(M) {
     const near = nodes.map((n, j) => ({ j, d: nodes[i].distanceToSquared(n) })).filter((o) => o.j !== i).sort((a, b) => a.d - b.d);
     for (let k = 0; k < 3; k++) { const j = near[k].j, key = i < j ? `${i}-${j}` : `${j}-${i}`; if (!seen.has(key)) { seen.add(key); edges.push([i, j]); } }
   }
+  const adj = nodes.map(() => []);
+  edges.forEach(([a, b]) => { adj[a].push(b); adj[b].push(a); });
   const nodePos = new Float32Array(M * 3); nodes.forEach((n, i) => n.toArray(nodePos, i * 3));
   const linePos = new Float32Array(edges.length * 6); edges.forEach(([a, b], i) => { nodes[a].toArray(linePos, i * 6); nodes[b].toArray(linePos, i * 6 + 3); });
-  return { nodes, edges, nodePos, linePos };
+  return { nodes, edges, adj, nodePos, linePos };
 }
 function Brain() {
   const group = useRef(), pulseRef = useRef(), sprite = useSprite();
@@ -102,16 +104,19 @@ function Brain() {
   }, [scene]);
   // neural pulses travelling through a brain-ish volume
   const net = useMemo(() => makeNet(54), []);
-  const pulses = useRef(Array.from({ length: 12 }, () => ({ e: (Math.random() * net.edges.length) | 0, t: Math.random() })));
+  // Pulses WALK the graph — when one reaches a node it continues to a connected neighbour,
+  // so it flows smoothly instead of teleporting to a random edge (the old jolt).
+  const pulses = useRef(Array.from({ length: 16 }, () => { const from = (Math.random() * net.nodes.length) | 0, nb = net.adj[from]; return { from, to: nb.length ? nb[(Math.random() * nb.length) | 0] : from, t: Math.random() }; }));
   useFrame((s, dt) => {
     if (group.current) group.current.rotation.y += dt * 0.05;
     const pp = pulseRef.current; if (!pp) return; const arr = pp.geometry.attributes.position.array;
     pulses.current.forEach((pl, i) => {
-      pl.t += dt * 0.5; if (pl.t > 1) { pl.t = 0; pl.e = (Math.random() * net.edges.length) | 0; }
-      const [a, b] = net.edges[pl.e];
-      arr[i * 3] = net.nodes[a].x + (net.nodes[b].x - net.nodes[a].x) * pl.t;
-      arr[i * 3 + 1] = net.nodes[a].y + (net.nodes[b].y - net.nodes[a].y) * pl.t;
-      arr[i * 3 + 2] = net.nodes[a].z + (net.nodes[b].z - net.nodes[a].z) * pl.t;
+      pl.t += dt * 0.4;
+      while (pl.t > 1) { pl.t -= 1; pl.from = pl.to; const nb = net.adj[pl.from]; pl.to = nb.length ? nb[(Math.random() * nb.length) | 0] : pl.from; }
+      const A = net.nodes[pl.from], B = net.nodes[pl.to];
+      arr[i * 3] = A.x + (B.x - A.x) * pl.t;
+      arr[i * 3 + 1] = A.y + (B.y - A.y) * pl.t;
+      arr[i * 3 + 2] = A.z + (B.z - A.z) * pl.t;
     });
     pp.geometry.attributes.position.needsUpdate = true;
   });
@@ -144,38 +149,42 @@ function CardInner({ k }) {
   // pricing — two columns
   return <>{bar([-0.42, 0.1, 0.04], 0.5, 0.55, "#23262b", "c1")}{bar([0.42, 0.16, 0.04], 0.5, 0.72, "#2f3a16", "c2")}{bar([0.42, 0.46, 0.05], 0.5, 0.1, LIME, "c2t")}{bar([-0.42, 0.1, 0.05], 0.28, 0.05, "#7a7d72", "p1")}{bar([0.42, 0.16, 0.05], 0.28, 0.05, LIME, "p2")}</>;
 }
-function FeaturePlanet({ f }) {
-  const ref = useRef();
-  useFrame((s) => { if (ref.current) ref.current.rotation.y = Math.sin(s.clock.elapsedTime * 0.3 + f.a) * 0.18 - d2r(f.a); });
+// A feature card that flies IN from a different angle onto the right as you scroll to its
+// station (index), settles, and fades out as you leave. Semi-transparent so the brain shows
+// through. `activeness` is driven purely by scroll proximity → smooth, deterministic.
+function FeatureCard({ f, index }) {
+  const ref = useRef(), scroll = useScroll(), mats = useRef(null);
   const w = f.k === "multi" ? 1.7 : 2, h = f.k === "multi" ? 1.5 : 1.3;
+  useFrame((s) => {
+    const g = ref.current; if (!g) return;
+    if (!mats.current) { mats.current = []; g.traverse((o) => { if (o.material) { o.material.transparent = true; o.material.userData.base = o.material.opacity ?? 1; mats.current.push(o.material); } }); }
+    const a = Math.max(0, 1 - Math.min(1, Math.abs(scroll.offset * 5 - index))), e = a * a * (3 - 2 * a);
+    g.visible = a > 0.004; if (!g.visible) return;
+    const bob = Math.sin(s.clock.elapsedTime * 1.1 + index) * 0.05;
+    g.position.set(THREE.MathUtils.lerp(6.8, 3.05, e), THREE.MathUtils.lerp(-1.8, 0.12, e) + bob, THREE.MathUtils.lerp(-1.8, 1.3, e));
+    g.rotation.set(THREE.MathUtils.lerp(0.42, 0.05, e), THREE.MathUtils.lerp(-1.25, -0.34, e), THREE.MathUtils.lerp(0.2, 0, e));
+    g.scale.setScalar(THREE.MathUtils.lerp(0.7, 1, e));
+    for (const m of mats.current) m.opacity = m.userData.base * e;
+  });
   return (
-    <group position={planetPos(f)}>
-      <Float speed={1} rotationIntensity={0.15} floatIntensity={0.5}>
-        <group ref={ref}>
-          <RoundedBox args={[w, h, 0.05]} radius={0.07} smoothness={4}><meshBasicMaterial color="#13151a" transparent opacity={0.62} /><Edges threshold={15} color={LIME} /></RoundedBox>
-          <CardInner k={f.k} />
-        </group>
-      </Float>
+    <group ref={ref} visible={false}>
+      <RoundedBox args={[w, h, 0.05]} radius={0.07} smoothness={4}><meshBasicMaterial color="#13151a" transparent opacity={0.32} /><Edges threshold={15} color={LIME} /></RoundedBox>
+      <CardInner k={f.k} />
     </group>
   );
 }
 
 /* ── scroll flies the camera through the orbital STATIONS ── */
 const ease = (t) => t * t * (3 - 2 * t);
-function OrbitalRig() {
+function Rig() {
   const scroll = useScroll(), pointer = usePointer(), { camera } = useThree();
-  const tmp = useRef(new THREE.Vector3()), lookAt = useRef(new THREE.Vector3());
   useFrame(() => {
-    const n = STATIONS.length, t = THREE.MathUtils.clamp(scroll.offset, 0, 1) * (n - 1);
-    const i = Math.min(n - 2, Math.floor(t)), f = ease(t - i), A = STATIONS[i], B = STATIONS[i + 1];
-    tmp.current.set(
-      THREE.MathUtils.lerp(A.pos[0], B.pos[0], f) + pointer.current.x * 0.5,
-      THREE.MathUtils.lerp(A.pos[1], B.pos[1], f) - pointer.current.y * 0.3,
-      THREE.MathUtils.lerp(A.pos[2], B.pos[2], f)
-    );
-    camera.position.lerp(tmp.current, 0.07);
-    lookAt.current.set(THREE.MathUtils.lerp(A.look[0], B.look[0], f), THREE.MathUtils.lerp(A.look[1], B.look[1], f), THREE.MathUtils.lerp(A.look[2], B.look[2], f));
-    camera.lookAt(lookAt.current);
+    const o = scroll.offset;
+    const tz = 8.4 - o * 1.6, ty = 0.4 - o * 0.6; // gentle dolly-in + drift; brain held centre-right
+    camera.position.x += (pointer.current.x * 0.7 - camera.position.x) * 0.05;
+    camera.position.y += (ty - pointer.current.y * 0.3 - camera.position.y) * 0.05;
+    camera.position.z += (tz - camera.position.z) * 0.05;
+    camera.lookAt(-0.5, 0.05, 0);
   });
   return null;
 }
@@ -187,8 +196,8 @@ function Scene() {
       <fog attach="fog" args={[BG, 10, 34]} />
       <Particles count={1400} />
       <Brain />
-      {FEATURES.map((f) => <FeaturePlanet key={f.k} f={f} />)}
-      <OrbitalRig />
+      {FEATURES.map((f, i) => <FeatureCard key={f.k} f={f} index={i + 1} />)}
+      <Rig />
       <EffectComposer disableNormalPass>
         <Bloom intensity={0.8} luminanceThreshold={0.2} luminanceSmoothing={0.9} mipmapBlur />
         <Vignette offset={0.3} darkness={0.8} />
