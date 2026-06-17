@@ -72,9 +72,14 @@ function Brain() {
   const { scene } = useGLTF("/brain.glb");
   const brain = useMemo(() => {
     const c = scene.clone(true);
-    c.traverse((o) => { if (o.isMesh) { o.material = new THREE.MeshBasicMaterial({ color: LIME, wireframe: true, transparent: true, opacity: 0.13, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending }); o.frustumCulled = false; } });
     const box = new THREE.Box3().setFromObject(c), center = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
-    return { obj: c, scale: 3.0 / (Math.max(size.x, size.y, size.z) || 1), cx: center.x, cy: center.y, cz: center.z };
+    const scale = 3.0 / (Math.max(size.x, size.y, size.z) || 1);
+    // Clip the brain STEM off the bottom: drop the lower ~33% of the model. World-space Y plane
+    // (after centring + scale; the group's Y-spin doesn't affect a horizontal cut).
+    const clipWorldY = (0.39 - 0.5) * size.y * scale;
+    const stemPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -clipWorldY);
+    c.traverse((o) => { if (o.isMesh) { o.material = new THREE.MeshBasicMaterial({ color: LIME, wireframe: true, transparent: true, opacity: 0.13, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending, clippingPlanes: [stemPlane] }); o.frustumCulled = false; } });
+    return { obj: c, scale, cx: center.x, cy: center.y, cz: center.z };
   }, [scene]);
   const net = useMemo(() => makeNet(54), []);
   const pulses = useRef(Array.from({ length: 16 }, () => { const from = (Math.random() * net.nodes.length) | 0, nb = net.adj[from]; return { from, to: nb.length ? nb[(Math.random() * nb.length) | 0] : from, t: Math.random() }; }));
@@ -302,7 +307,7 @@ export default function Landing3D() {
       <PreviewBanner mode={mode} setMode={setMode} />
       {!show2D && (
         <div style={{ position: "fixed", inset: 0, zIndex: 0 }}>
-          <Canvas dpr={[1, 2]} camera={{ position: [0, 0.5, 8.2], fov: 45 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
+          <Canvas dpr={[1, 2]} camera={{ position: [0, 0.5, 8.2], fov: 45 }} gl={{ antialias: true, powerPreference: "high-performance" }} onCreated={({ gl }) => { gl.localClippingEnabled = true; }}>
             <Suspense fallback={null}><Scene scrollRef={scrollRef} /></Suspense>
           </Canvas>
         </div>
