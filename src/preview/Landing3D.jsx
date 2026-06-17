@@ -106,13 +106,11 @@ useGLTF.preload("/brain.glb");
 /* ── camera ORBITS the brain as you scroll (scrollRef = page progress 0..1) ── */
 function Rig({ scrollRef }) {
   const { camera } = useThree();
-  const sm = useRef(0); // eased scroll value → buttery orbit, immune to raw wheel jitter
   useFrame((_, dt) => {
-    sm.current += (scrollRef.current - sm.current) * Math.min(1, dt * 3.8);
-    const o = sm.current;
+    const o = scrollRef.current || 0;                 // raw scroll; CSS snap keeps it smooth between sections
     const az = -0.45 + o * 3.3;                       // orbit ~190° around the brain
     const rad = 8.2 - Math.sin(o * Math.PI) * 1.7;    // dip closer through the middle
-    const k = Math.min(1, dt * 5);                    // frame-rate-independent camera follow
+    const k = Math.min(1, dt * 7);                    // single responsive follow (no laggy double-smoothing)
     camera.position.x += (Math.sin(az) * rad + pointer.x * 0.5 - camera.position.x) * k;
     camera.position.y += (0.5 - o * 0.4 - pointer.y * 0.3 - camera.position.y) * k;
     camera.position.z += (Math.cos(az) * rad - camera.position.z) * k;
@@ -247,7 +245,7 @@ function FeatureSection({ f, scrollRoot, flip }) {
   const Card = CARDS[f.k];
   // flip → card on the left, text on the right; card flies in from the matching side.
   return (
-    <section ref={ref} style={{ minHeight: "100vh", display: "flex", flexDirection: flip ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between", gap: "4vw", padding: "10vh 7vw", boxSizing: "border-box" }}>
+    <section ref={ref} style={{ minHeight: "100vh", display: "flex", flexDirection: flip ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between", gap: "4vw", padding: "10vh 7vw", boxSizing: "border-box", scrollSnapAlign: "start" }}>
       <div style={{ flex: "0 1 440px", color: "#e9e9ec", pointerEvents: "none", textAlign: flip ? "right" : "left" }}>
         <div style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: LIME, marginBottom: 14 }}>{f.tag}</div>
         <h2 style={{ fontSize: "clamp(34px,4.4vw,60px)", lineHeight: 0.98, letterSpacing: "-0.03em", fontWeight: 700, margin: "0 0 18px", whiteSpace: "pre-line" }}>{f.title.replace(/\.\s*$/, "")}<span style={{ color: LIME }}>.</span></h2>
@@ -265,7 +263,7 @@ function FeatureSection({ f, scrollRoot, flip }) {
 
 function HeroSection() {
   return (
-    <section style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 7vw", color: "#e9e9ec", pointerEvents: "none" }}>
+    <section style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 7vw", color: "#e9e9ec", pointerEvents: "none", scrollSnapAlign: "start" }}>
       <span style={{ display: "inline-block", width: "fit-content", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: LIME, border: `1px solid ${LIME}55`, borderRadius: 999, padding: "5px 12px", marginBottom: 22 }}>AI Multi Builder</span>
       <h1 style={{ fontSize: "clamp(54px,9vw,120px)", lineHeight: 0.95, letterSpacing: "-0.04em", fontWeight: 700, margin: "0 0 18px" }}>Pickd<span style={{ color: LIME }}>.</span></h1>
       <p style={{ fontSize: "clamp(16px,2vw,21px)", lineHeight: 1.5, color: "#c2c2c9", maxWidth: 440, margin: "0 0 30px" }}>One AI brain behind every tool — multi builder, tracker, betslip OCR. Scroll to orbit it.</p>
@@ -310,7 +308,7 @@ export default function Landing3D() {
         </div>
       )}
       <div style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", background: show2D ? `radial-gradient(900px 520px at 72% 12%, ${LIME}10, transparent 60%)` : "linear-gradient(90deg, rgba(10,10,11,0.62) 0%, rgba(10,10,11,0.12) 27%, rgba(10,10,11,0) 50%, rgba(10,10,11,0.12) 73%, rgba(10,10,11,0.62) 100%)" }} />
-      <div ref={rootRef} onScroll={(e) => { const el = e.currentTarget; scrollRef.current = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight); }} style={{ position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", zIndex: 2 }}>
+      <div ref={rootRef} onScroll={(e) => { const el = e.currentTarget; scrollRef.current = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight); }} style={{ position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", zIndex: 2, scrollSnapType: "y mandatory" }}>
         <HeroSection />
         {FEATURES.map((f, i) => <FeatureSection key={f.k} f={f} scrollRoot={rootRef} flip={i % 2 === 1} />)}
       </div>
