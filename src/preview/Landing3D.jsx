@@ -5,7 +5,7 @@
 // the live app never ships Three.js. (Brain is stylised/procedural — swap a real
 // anatomical .glb in later for medical detail.)
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ScrollControls, Scroll, useScroll, Float, RoundedBox, Edges, Line } from "@react-three/drei";
+import { ScrollControls, Scroll, useScroll, Float, RoundedBox, Edges, Line, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import { useRef, useMemo, useState, useEffect, Suspense } from "react";
 import * as THREE from "three";
@@ -70,23 +70,7 @@ function Particles({ count = 1400 }) {
   );
 }
 
-/* ── procedural folded brain: dense surface cloud + neural net + pulses ── */
-const fold = (x, y, z) => 1 + 0.085 * Math.sin(x * 9 + z * 7) * Math.cos(y * 8) + 0.05 * Math.sin(z * 15 + y * 6) + 0.04 * Math.cos(x * 13 + y * 5);
-function makeSurface(N) {
-  const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
-  const lime = new THREE.Color(LIME), white = new THREE.Color("#e8ecd6");
-  for (let i = 0; i < N; i++) {
-    const cere = Math.random() < 0.12; let x, y, z, m;
-    do { x = Math.random() * 2 - 1; y = Math.random() * 2 - 1; z = Math.random() * 2 - 1; m = x * x + y * y + z * z; } while (m > 1 || m < 0.02);
-    const inv = 1 / Math.sqrt(m); x *= inv; y *= inv; z *= inv; const fd = fold(x, y, z);
-    let px, py, pz;
-    if (cere) { px = x * 0.4 * fd; py = -0.66 + y * 0.3 * fd; pz = -0.92 + z * 0.34 * fd; }
-    else { const lobe = i % 2 ? 1 : -1; px = lobe * 0.42 + x * 0.55 * fd; py = y * 0.72 * fd; pz = z * 0.95 * fd; if (py < 0) py *= 0.82; }
-    pos[i * 3] = px; pos[i * 3 + 1] = py; pos[i * 3 + 2] = pz;
-    const c = Math.random() < 0.22 ? lime : white; col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-  }
-  return { pos, col };
-}
+/* ── neural pulses that travel through the brain volume (real model: Brain above) ── */
 function makeNet(M) {
   const nodes = [];
   for (let i = 0; i < M; i++) {
@@ -105,11 +89,22 @@ function makeNet(M) {
 }
 function Brain() {
   const group = useRef(), pulseRef = useRef(), sprite = useSprite();
-  const surf = useMemo(() => makeSurface(2900), []);
-  const net = useMemo(() => makeNet(66), []);
-  const pulses = useRef(Array.from({ length: 13 }, () => ({ e: (Math.random() * net.edges.length) | 0, t: Math.random() })));
+  const { scene } = useGLTF("/brain.glb");
+  // Clone + re-skin every mesh as a glowing lime wireframe (the real gyri/folds read as a
+  // digital "AI brain"), and normalise scale/centre from the model's bounding box.
+  const brain = useMemo(() => {
+    const c = scene.clone(true);
+    c.traverse((o) => {
+      if (o.isMesh) { o.material = new THREE.MeshBasicMaterial({ color: LIME, wireframe: true, transparent: true, opacity: 0.13, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending }); o.frustumCulled = false; }
+    });
+    const box = new THREE.Box3().setFromObject(c), center = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+    return { obj: c, scale: 2.9 / (Math.max(size.x, size.y, size.z) || 1), cx: center.x, cy: center.y, cz: center.z };
+  }, [scene]);
+  // neural pulses travelling through a brain-ish volume
+  const net = useMemo(() => makeNet(54), []);
+  const pulses = useRef(Array.from({ length: 12 }, () => ({ e: (Math.random() * net.edges.length) | 0, t: Math.random() })));
   useFrame((s, dt) => {
-    if (group.current) group.current.rotation.y += dt * 0.04;
+    if (group.current) group.current.rotation.y += dt * 0.05;
     const pp = pulseRef.current; if (!pp) return; const arr = pp.geometry.attributes.position.array;
     pulses.current.forEach((pl, i) => {
       pl.t += dt * 0.5; if (pl.t > 1) { pl.t = 0; pl.e = (Math.random() * net.edges.length) | 0; }
@@ -121,22 +116,20 @@ function Brain() {
     pp.geometry.attributes.position.needsUpdate = true;
   });
   return (
-    <group ref={group} scale={1.25}>
-      <points>
-        <bufferGeometry><bufferAttribute attach="attributes-position" args={[surf.pos, 3]} /><bufferAttribute attach="attributes-color" args={[surf.col, 3]} /></bufferGeometry>
-        <pointsMaterial size={0.032} map={sprite} vertexColors transparent opacity={0.85} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} />
-      </points>
-      <lineSegments>
-        <bufferGeometry><bufferAttribute attach="attributes-position" args={[net.linePos, 3]} /></bufferGeometry>
-        <lineBasicMaterial color={LIME} transparent opacity={0.16} />
-      </lineSegments>
-      <points ref={pulseRef}>
-        <bufferGeometry><bufferAttribute attach="attributes-position" args={[new Float32Array(pulses.current.length * 3), 3]} /></bufferGeometry>
-        <pointsMaterial color="#ffffff" size={0.15} map={sprite} sizeAttenuation transparent depthWrite={false} toneMapped={false} blending={THREE.AdditiveBlending} />
-      </points>
+    <group ref={group}>
+      <group scale={brain.scale}>
+        <primitive object={brain.obj} position={[-brain.cx, -brain.cy, -brain.cz]} />
+      </group>
+      <group scale={1.25}>
+        <points ref={pulseRef}>
+          <bufferGeometry><bufferAttribute attach="attributes-position" args={[new Float32Array(pulses.current.length * 3), 3]} /></bufferGeometry>
+          <pointsMaterial color="#ffffff" size={0.16} map={sprite} sizeAttenuation transparent depthWrite={false} toneMapped={false} blending={THREE.AdditiveBlending} />
+        </points>
+      </group>
     </group>
   );
 }
+useGLTF.preload("/brain.glb");
 
 /* ── a feature "planet": glass card with a per-feature visual ── */
 const bar = (pos, w, h, color, key) => <mesh key={key} position={pos}><boxGeometry args={[w, h, 0.01]} /><meshBasicMaterial color={color} toneMapped={color === LIME} /></mesh>;
