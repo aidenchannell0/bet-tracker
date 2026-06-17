@@ -106,13 +106,16 @@ useGLTF.preload("/brain.glb");
 /* ── camera ORBITS the brain as you scroll (scrollRef = page progress 0..1) ── */
 function Rig({ scrollRef }) {
   const { camera } = useThree();
-  useFrame(() => {
-    const o = scrollRef.current || 0;
+  const sm = useRef(0); // eased scroll value → buttery orbit, immune to raw wheel jitter
+  useFrame((_, dt) => {
+    sm.current += (scrollRef.current - sm.current) * Math.min(1, dt * 3.8);
+    const o = sm.current;
     const az = -0.45 + o * 3.3;                       // orbit ~190° around the brain
     const rad = 8.2 - Math.sin(o * Math.PI) * 1.7;    // dip closer through the middle
-    camera.position.x += (Math.sin(az) * rad + pointer.x * 0.5 - camera.position.x) * 0.05;
-    camera.position.y += (0.5 - o * 0.4 - pointer.y * 0.3 - camera.position.y) * 0.05;
-    camera.position.z += (Math.cos(az) * rad - camera.position.z) * 0.05;
+    const k = Math.min(1, dt * 5);                    // frame-rate-independent camera follow
+    camera.position.x += (Math.sin(az) * rad + pointer.x * 0.5 - camera.position.x) * k;
+    camera.position.y += (0.5 - o * 0.4 - pointer.y * 0.3 - camera.position.y) * k;
+    camera.position.z += (Math.cos(az) * rad - camera.position.z) * k;
     camera.lookAt(0, 0.05, 0);
   });
   return null;
@@ -123,7 +126,7 @@ function Scene({ scrollRef }) {
     <>
       <color attach="background" args={[BG]} />
       <fog attach="fog" args={[BG, 11, 34]} />
-      <Particles count={2800} />
+      <Particles count={3400} />
       <Brain />
       <Rig scrollRef={scrollRef} />
       <EffectComposer disableNormalPass>
@@ -247,7 +250,7 @@ function FeatureSection({ f, scrollRoot, flip }) {
     <section ref={ref} style={{ minHeight: "100vh", display: "flex", flexDirection: flip ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between", gap: "4vw", padding: "10vh 7vw", boxSizing: "border-box" }}>
       <div style={{ flex: "0 1 440px", color: "#e9e9ec", pointerEvents: "none", textAlign: flip ? "right" : "left" }}>
         <div style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: LIME, marginBottom: 14 }}>{f.tag}</div>
-        <h2 style={{ fontSize: "clamp(34px,4.4vw,60px)", lineHeight: 0.98, letterSpacing: "-0.03em", fontWeight: 700, margin: "0 0 18px", whiteSpace: "pre-line" }}>{f.title}<span style={{ color: LIME }}>.</span></h2>
+        <h2 style={{ fontSize: "clamp(34px,4.4vw,60px)", lineHeight: 0.98, letterSpacing: "-0.03em", fontWeight: 700, margin: "0 0 18px", whiteSpace: "pre-line" }}>{f.title.replace(/\.\s*$/, "")}<span style={{ color: LIME }}>.</span></h2>
         <p style={{ fontSize: 17, lineHeight: 1.55, color: "#c2c2c9", maxWidth: 430, margin: flip ? "0 0 22px auto" : "0 0 22px" }}>{f.body}</p>
         <div style={{ fontSize: 12.5, color: "#6f6f79", letterSpacing: "0.02em" }}>{f.note}</div>
       </div>
