@@ -32,7 +32,7 @@ function Particles({ count = 1400 }) {
     const pos = new Float32Array(count * 3), col = new Float32Array(count * 3);
     const lime = new THREE.Color(LIME), white = new THREE.Color("#cfd2c8"), grey = new THREE.Color("#5f5f68");
     for (let i = 0; i < count; i++) {
-      const r = 6 + Math.random() * 13, th = Math.random() * Math.PI * 2, ph = Math.acos(Math.random() * 2 - 1);
+      const r = 4 + Math.random() * 18, th = Math.random() * Math.PI * 2, ph = Math.acos(Math.random() * 2 - 1);
       pos[i * 3] = Math.sin(ph) * Math.cos(th) * r; pos[i * 3 + 1] = Math.cos(ph) * r * 0.8; pos[i * 3 + 2] = Math.sin(ph) * Math.sin(th) * r;
       const c = Math.random() < 0.16 ? lime : Math.random() < 0.5 ? white : grey;
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
@@ -123,7 +123,7 @@ function Scene({ scrollRef }) {
     <>
       <color attach="background" args={[BG]} />
       <fog attach="fog" args={[BG, 11, 34]} />
-      <Particles count={1400} />
+      <Particles count={2800} />
       <Brain />
       <Rig scrollRef={scrollRef} />
       <EffectComposer disableNormalPass>
@@ -234,7 +234,7 @@ const FEATURES = [
   { k: "pricing", tag: "Pricing", title: "Start free.\nUpgrade when ready.", body: "Everything you need to track for free — or unlock unlimited MultiPick on Pickd Pro. Founding price locked in forever.", note: "Cancel anytime · No long-term commitment" },
 ];
 
-function FeatureSection({ f, scrollRoot }) {
+function FeatureSection({ f, scrollRoot, flip }) {
   const ref = useRef(), [inView, setInView] = useState(false);
   useEffect(() => {
     const el = ref.current; if (!el) return;
@@ -242,16 +242,17 @@ function FeatureSection({ f, scrollRoot }) {
     ob.observe(el); return () => ob.disconnect();
   }, [scrollRoot]);
   const Card = CARDS[f.k];
+  // flip → card on the left, text on the right; card flies in from the matching side.
   return (
-    <section ref={ref} style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4vw", padding: "10vh 7vw", boxSizing: "border-box" }}>
-      <div style={{ flex: "0 1 440px", color: "#e9e9ec", pointerEvents: "none" }}>
+    <section ref={ref} style={{ minHeight: "100vh", display: "flex", flexDirection: flip ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between", gap: "4vw", padding: "10vh 7vw", boxSizing: "border-box" }}>
+      <div style={{ flex: "0 1 440px", color: "#e9e9ec", pointerEvents: "none", textAlign: flip ? "right" : "left" }}>
         <div style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: LIME, marginBottom: 14 }}>{f.tag}</div>
         <h2 style={{ fontSize: "clamp(34px,4.4vw,60px)", lineHeight: 0.98, letterSpacing: "-0.03em", fontWeight: 700, margin: "0 0 18px", whiteSpace: "pre-line" }}>{f.title}<span style={{ color: LIME }}>.</span></h2>
-        <p style={{ fontSize: 17, lineHeight: 1.55, color: "#c2c2c9", maxWidth: 430, margin: "0 0 22px" }}>{f.body}</p>
+        <p style={{ fontSize: 17, lineHeight: 1.55, color: "#c2c2c9", maxWidth: 430, margin: flip ? "0 0 22px auto" : "0 0 22px" }}>{f.body}</p>
         <div style={{ fontSize: 12.5, color: "#6f6f79", letterSpacing: "0.02em" }}>{f.note}</div>
       </div>
       <div style={{ flex: "0 1 540px", maxWidth: 560, perspective: 1200, pointerEvents: "auto" }}>
-        <div style={{ transformStyle: "preserve-3d", transform: inView ? "none" : "translateX(80px) translateY(20px) rotateY(-16deg)", opacity: inView ? 1 : 0, transition: "transform 1s cubic-bezier(.2,.7,.2,1), opacity .8s ease" }}>
+        <div style={{ transformStyle: "preserve-3d", transform: inView ? "none" : `translateX(${flip ? -80 : 80}px) translateY(20px) rotateY(${flip ? 16 : -16}deg)`, opacity: inView ? 1 : 0, transition: "transform 1s cubic-bezier(.2,.7,.2,1), opacity .8s ease" }}>
           <Card />
         </div>
       </div>
@@ -305,10 +306,10 @@ export default function Landing3D() {
           </Canvas>
         </div>
       )}
-      <div style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", background: show2D ? `radial-gradient(900px 520px at 72% 12%, ${LIME}10, transparent 60%)` : "linear-gradient(100deg, rgba(10,10,11,0.7) 0%, rgba(10,10,11,0.2) 34%, rgba(10,10,11,0) 56%)" }} />
+      <div style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", background: show2D ? `radial-gradient(900px 520px at 72% 12%, ${LIME}10, transparent 60%)` : "linear-gradient(90deg, rgba(10,10,11,0.62) 0%, rgba(10,10,11,0.12) 27%, rgba(10,10,11,0) 50%, rgba(10,10,11,0.12) 73%, rgba(10,10,11,0.62) 100%)" }} />
       <div ref={rootRef} onScroll={(e) => { const el = e.currentTarget; scrollRef.current = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight); }} style={{ position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", zIndex: 2 }}>
         <HeroSection />
-        {FEATURES.map((f) => <FeatureSection key={f.k} f={f} scrollRoot={rootRef} />)}
+        {FEATURES.map((f, i) => <FeatureSection key={f.k} f={f} scrollRoot={rootRef} flip={i % 2 === 1} />)}
       </div>
     </div>
   );
