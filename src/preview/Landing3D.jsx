@@ -1,31 +1,16 @@
 // Pickd — 3D landing PROTOTYPE (staging only, behind /preview).
-// Concept: a folded neural BRAIN at the centre; your real landing features orbit it
-// like planets; scrolling flies the camera on an orbital tour, visiting each one.
-// Star-dust field kept. Graceful 2D fallback + Preview-Mode banner. Lazy-loaded so
-// the live app never ships Three.js. (Brain is stylised/procedural — swap a real
-// anatomical .glb in later for medical detail.)
+// Architecture: a FIXED, orbiting neural-brain canvas as the living backdrop; your real
+// landing sections (heading left · detailed data-card right) scroll OVER it, each card flying
+// in from an angle. Scroll drives the camera's orbit around the brain. Star-dust kept.
+// Graceful 2D fallback + Preview-Mode banner. Lazy-loaded so the live app never ships Three.js.
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ScrollControls, Scroll, useScroll, Float, RoundedBox, Edges, Line, useGLTF } from "@react-three/drei";
+import { useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import { useRef, useMemo, useState, useEffect, Suspense } from "react";
 import * as THREE from "three";
 
 const LIME = "#d4f23a";
 const BG = "#0a0a0b";
-const d2r = (d) => (d * Math.PI) / 180;
-
-/* ── your real landing features → the orbiting "planets" ── */
-const R_PL = 4.3, R_CAM = 7.3;
-const FEATURES = [
-  { k: "gauge", a: 55, h: 1.15, tag: "Receipts · live track record", title: "We log every leg.\nYou see every miss.", body: "When MultiPick rates a leg 80% likely, it should hit ~80% of the time. Last 328 calls — no cherry-picking.", stats: [["Actual", "82%"], ["Predicted", "89%"], ["Gap", "±7%"]] },
-  { k: "graph", a: 122, h: -1.25, tag: "01 · Tracker", title: "Your bets,\nby the numbers.", body: "Profit/loss · win rate · ROI · in-flight — at every cadence, charted automatically.", stats: [["P/L", "+$246"], ["Win rate", "58.3%"], ["ROI", "+12.8%"]] },
-  { k: "multi", a: 188, h: 1.3, tag: "02 · MultiPick", title: "Multis backed\nby real form.", body: "Recent form, live market lines and a transparent edge model — example multis with honest +EV.", stats: [["Example", "$2.12"], ["Chance", "~48%"], ["Legs", "3"]] },
-  { k: "scan", a: 250, h: -1.05, tag: "03 · Quick add", title: "Paste a screenshot.\nWe do the rest.", body: "AI vision reads the stake, odds and every leg from any Aussie betslip — then fills the form.", stats: [["Stake", "$25"], ["Odds", "$4.20"], ["Legs", "3"]] },
-  { k: "pricing", a: 314, h: 0.75, tag: "Pricing", title: "Start free.\nUpgrade when ready.", body: "Everything you need to track for free — or unlock unlimited MultiPick on Pickd Pro.", stats: [["Free", "$0"], ["Pro", "$4.99"], ["Founding", "13 left"]], cta: "Upgrade to Pro →" },
-];
-const planetPos = (f) => [Math.sin(d2r(f.a)) * R_PL, f.h, Math.cos(d2r(f.a)) * R_PL];
-const stationFor = (f) => { const ca = d2r(f.a + 14), p = planetPos(f); return { pos: [Math.sin(ca) * R_CAM, f.h * 0.5 + 0.6, Math.cos(ca) * R_CAM], look: [p[0] * 0.42, f.h * 0.45, p[2] * 0.42] }; };
-const STATIONS = [{ pos: [0, 0.5, 7.9], look: [0, 0.1, 0] }, ...FEATURES.map(stationFor)];
 
 /* ── shared bits ── */
 function useSprite() {
@@ -37,19 +22,12 @@ function useSprite() {
     const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
   }, []);
 }
-function usePointer() {
-  const p = useRef({ x: 0, y: 0 });
-  useEffect(() => {
-    const f = (e) => { p.current.x = e.clientX / window.innerWidth - 0.5; p.current.y = e.clientY / window.innerHeight - 0.5; };
-    window.addEventListener("pointermove", f, { passive: true });
-    return () => window.removeEventListener("pointermove", f);
-  }, []);
-  return p;
-}
+const pointer = { x: 0, y: 0 };
+if (typeof window !== "undefined") window.addEventListener("pointermove", (e) => { pointer.x = e.clientX / window.innerWidth - 0.5; pointer.y = e.clientY / window.innerHeight - 0.5; }, { passive: true });
 
-/* ── star-dust (kept) ── */
+/* ── star-dust ── */
 function Particles({ count = 1400 }) {
-  const ref = useRef(), sprite = useSprite(), pointer = usePointer();
+  const ref = useRef(), sprite = useSprite();
   const [positions, colors] = useMemo(() => {
     const pos = new Float32Array(count * 3), col = new Float32Array(count * 3);
     const lime = new THREE.Color(LIME), white = new THREE.Color("#cfd2c8"), grey = new THREE.Color("#5f5f68");
@@ -61,7 +39,7 @@ function Particles({ count = 1400 }) {
     }
     return [pos, col];
   }, [count]);
-  useFrame((_, dt) => { const g = ref.current; if (g) { g.rotation.y += dt * 0.01; g.rotation.x += (pointer.current.y * 0.12 - g.rotation.x) * 0.03; } });
+  useFrame((_, dt) => { const g = ref.current; if (g) { g.rotation.y += dt * 0.01; g.rotation.x += (pointer.y * 0.1 - g.rotation.x) * 0.02; } });
   return (
     <points ref={ref}>
       <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /><bufferAttribute attach="attributes-color" args={[colors, 3]} /></bufferGeometry>
@@ -70,7 +48,7 @@ function Particles({ count = 1400 }) {
   );
 }
 
-/* ── neural pulses that travel through the brain volume (real model: Brain above) ── */
+/* ── neural network of pulses that walk the graph through the brain ── */
 function makeNet(M) {
   const nodes = [];
   for (let i = 0; i < M; i++) {
@@ -85,27 +63,20 @@ function makeNet(M) {
   }
   const adj = nodes.map(() => []);
   edges.forEach(([a, b]) => { adj[a].push(b); adj[b].push(a); });
-  const nodePos = new Float32Array(M * 3); nodes.forEach((n, i) => n.toArray(nodePos, i * 3));
-  const linePos = new Float32Array(edges.length * 6); edges.forEach(([a, b], i) => { nodes[a].toArray(linePos, i * 6); nodes[b].toArray(linePos, i * 6 + 3); });
-  return { nodes, edges, adj, nodePos, linePos };
+  return { nodes, adj };
 }
+
+/* ── real anatomical brain (MIT model) re-skinned as a glowing lime wireframe ── */
 function Brain() {
   const group = useRef(), pulseRef = useRef(), sprite = useSprite();
   const { scene } = useGLTF("/brain.glb");
-  // Clone + re-skin every mesh as a glowing lime wireframe (the real gyri/folds read as a
-  // digital "AI brain"), and normalise scale/centre from the model's bounding box.
   const brain = useMemo(() => {
     const c = scene.clone(true);
-    c.traverse((o) => {
-      if (o.isMesh) { o.material = new THREE.MeshBasicMaterial({ color: LIME, wireframe: true, transparent: true, opacity: 0.13, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending }); o.frustumCulled = false; }
-    });
+    c.traverse((o) => { if (o.isMesh) { o.material = new THREE.MeshBasicMaterial({ color: LIME, wireframe: true, transparent: true, opacity: 0.13, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending }); o.frustumCulled = false; } });
     const box = new THREE.Box3().setFromObject(c), center = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
-    return { obj: c, scale: 2.9 / (Math.max(size.x, size.y, size.z) || 1), cx: center.x, cy: center.y, cz: center.z };
+    return { obj: c, scale: 3.0 / (Math.max(size.x, size.y, size.z) || 1), cx: center.x, cy: center.y, cz: center.z };
   }, [scene]);
-  // neural pulses travelling through a brain-ish volume
   const net = useMemo(() => makeNet(54), []);
-  // Pulses WALK the graph — when one reaches a node it continues to a connected neighbour,
-  // so it flows smoothly instead of teleporting to a random edge (the old jolt).
   const pulses = useRef(Array.from({ length: 16 }, () => { const from = (Math.random() * net.nodes.length) | 0, nb = net.adj[from]; return { from, to: nb.length ? nb[(Math.random() * nb.length) | 0] : from, t: Math.random() }; }));
   useFrame((s, dt) => {
     if (group.current) group.current.rotation.y += dt * 0.05;
@@ -114,17 +85,13 @@ function Brain() {
       pl.t += dt * 0.4;
       while (pl.t > 1) { pl.t -= 1; pl.from = pl.to; const nb = net.adj[pl.from]; pl.to = nb.length ? nb[(Math.random() * nb.length) | 0] : pl.from; }
       const A = net.nodes[pl.from], B = net.nodes[pl.to];
-      arr[i * 3] = A.x + (B.x - A.x) * pl.t;
-      arr[i * 3 + 1] = A.y + (B.y - A.y) * pl.t;
-      arr[i * 3 + 2] = A.z + (B.z - A.z) * pl.t;
+      arr[i * 3] = A.x + (B.x - A.x) * pl.t; arr[i * 3 + 1] = A.y + (B.y - A.y) * pl.t; arr[i * 3 + 2] = A.z + (B.z - A.z) * pl.t;
     });
     pp.geometry.attributes.position.needsUpdate = true;
   });
   return (
     <group ref={group}>
-      <group scale={brain.scale}>
-        <primitive object={brain.obj} position={[-brain.cx, -brain.cy, -brain.cz]} />
-      </group>
+      <group scale={brain.scale}><primitive object={brain.obj} position={[-brain.cx, -brain.cy, -brain.cz]} /></group>
       <group scale={1.25}>
         <points ref={pulseRef}>
           <bufferGeometry><bufferAttribute attach="attributes-position" args={[new Float32Array(pulses.current.length * 3), 3]} /></bufferGeometry>
@@ -136,160 +103,213 @@ function Brain() {
 }
 useGLTF.preload("/brain.glb");
 
-/* ── a feature "planet": glass card with a per-feature visual ── */
-const bar = (pos, w, h, color, key) => <mesh key={key} position={pos}><boxGeometry args={[w, h, 0.01]} /><meshBasicMaterial color={color} toneMapped={color === LIME} /></mesh>;
-function CardInner({ k }) {
-  if (k === "graph") {
-    const pts = []; let y = -0.3; for (let i = 0; i < 12; i++) { y += Math.random() * 0.16 - 0.03; y = Math.max(-0.35, Math.min(0.38, y)); pts.push([-0.78 + (i / 11) * 1.56, y, 0.05]); }
-    return <>{bar([-0.5, 0.46, 0.04], 0.7, 0.06, LIME, "h")}{bar([0, -0.4, 0.04], 1.6, 0.012, "#33363c", "b")}<Line points={pts} color={LIME} lineWidth={2} /></>;
-  }
-  if (k === "multi") return <>{bar([-0.4, 0.5, 0.04], 0.6, 0.07, LIME, "t")}<mesh position={[0.5, 0.5, 0.04]}><boxGeometry args={[0.42, 0.2, 0.01]} /><meshBasicMaterial color={LIME} toneMapped={false} /></mesh>{[0, 1, 2].map((i) => <group key={i} position={[0, 0.18 - i * 0.3, 0.04]}><mesh position={[-0.62, 0, 0]}><circleGeometry args={[0.05, 16]} /><meshBasicMaterial color={LIME} toneMapped={false} /></mesh>{bar([0, 0.05, 0], 0.9, 0.05, "#c4c7bd", "n")}{bar([-0.22, -0.07, 0], 0.46, 0.04, "#4a4d54", "o")}</group>)}</>;
-  if (k === "gauge") return <>{bar([-0.5, 0.46, 0.04], 0.7, 0.06, LIME, "h")}{bar([0, 0, 0.04], 1.5, 0.16, "#23262b", "track")}{bar([-0.135, 0, 0.05], 1.23, 0.16, LIME, "fill")}{bar([0, -0.45, 0.04], 1.5, 0.012, "#33363c", "b")}</>;
-  if (k === "scan") return <>{[[-0.7, 0.45], [0.7, 0.45], [-0.7, -0.45], [0.7, -0.45]].map(([x, y], i) => <group key={i}>{bar([x, y, 0.04], 0.34, 0.05, LIME, "a")}{bar([x + (x < 0 ? 0.145 : -0.145), y + (y < 0 ? 0.145 : -0.145), 0.04], 0.05, 0.34, LIME, "b")}</group>)}{bar([0, 0.08, 0.04], 0.5, 0.06, "#c4c7bd", "m1")}{bar([-0.12, -0.1, 0.04], 0.7, 0.05, "#4a4d54", "m2")}</>;
-  // pricing — two columns
-  return <>{bar([-0.42, 0.1, 0.04], 0.5, 0.55, "#23262b", "c1")}{bar([0.42, 0.16, 0.04], 0.5, 0.72, "#2f3a16", "c2")}{bar([0.42, 0.46, 0.05], 0.5, 0.1, LIME, "c2t")}{bar([-0.42, 0.1, 0.05], 0.28, 0.05, "#7a7d72", "p1")}{bar([0.42, 0.16, 0.05], 0.28, 0.05, LIME, "p2")}</>;
-}
-// A feature card that flies IN from a different angle onto the right as you scroll to its
-// station (index), settles, and fades out as you leave. Semi-transparent so the brain shows
-// through. `activeness` is driven purely by scroll proximity → smooth, deterministic.
-function FeatureCard({ f, index }) {
-  const ref = useRef(), scroll = useScroll(), mats = useRef(null);
-  const w = f.k === "multi" ? 1.7 : 2, h = f.k === "multi" ? 1.5 : 1.3;
-  useFrame((s) => {
-    const g = ref.current; if (!g) return;
-    if (!mats.current) { mats.current = []; g.traverse((o) => { if (o.material) { o.material.transparent = true; o.material.userData.base = o.material.opacity ?? 1; mats.current.push(o.material); } }); }
-    const a = Math.max(0, 1 - Math.min(1, Math.abs(scroll.offset * 5 - index))), e = a * a * (3 - 2 * a);
-    g.visible = a > 0.004; if (!g.visible) return;
-    const bob = Math.sin(s.clock.elapsedTime * 1.1 + index) * 0.05;
-    g.position.set(THREE.MathUtils.lerp(6.8, 3.05, e), THREE.MathUtils.lerp(-1.8, 0.12, e) + bob, THREE.MathUtils.lerp(-1.8, 1.3, e));
-    g.rotation.set(THREE.MathUtils.lerp(0.42, 0.05, e), THREE.MathUtils.lerp(-1.25, -0.34, e), THREE.MathUtils.lerp(0.2, 0, e));
-    g.scale.setScalar(THREE.MathUtils.lerp(0.7, 1, e));
-    for (const m of mats.current) m.opacity = m.userData.base * e;
-  });
-  return (
-    <group ref={ref} visible={false}>
-      <RoundedBox args={[w, h, 0.05]} radius={0.07} smoothness={4}><meshBasicMaterial color="#13151a" transparent opacity={0.32} /><Edges threshold={15} color={LIME} /></RoundedBox>
-      <CardInner k={f.k} />
-    </group>
-  );
-}
-
-/* ── scroll flies the camera through the orbital STATIONS ── */
-const ease = (t) => t * t * (3 - 2 * t);
-function Rig() {
-  const scroll = useScroll(), pointer = usePointer(), { camera } = useThree();
+/* ── camera ORBITS the brain as you scroll (scrollRef = page progress 0..1) ── */
+function Rig({ scrollRef }) {
+  const { camera } = useThree();
   useFrame(() => {
-    const o = scroll.offset;
-    const tz = 8.4 - o * 1.6, ty = 0.4 - o * 0.6; // gentle dolly-in + drift; brain held centre-right
-    camera.position.x += (pointer.current.x * 0.7 - camera.position.x) * 0.05;
-    camera.position.y += (ty - pointer.current.y * 0.3 - camera.position.y) * 0.05;
-    camera.position.z += (tz - camera.position.z) * 0.05;
-    camera.lookAt(-0.5, 0.05, 0);
+    const o = scrollRef.current || 0;
+    const az = -0.45 + o * 3.3;                       // orbit ~190° around the brain
+    const rad = 8.2 - Math.sin(o * Math.PI) * 1.7;    // dip closer through the middle
+    camera.position.x += (Math.sin(az) * rad + pointer.x * 0.5 - camera.position.x) * 0.05;
+    camera.position.y += (0.5 - o * 0.4 - pointer.y * 0.3 - camera.position.y) * 0.05;
+    camera.position.z += (Math.cos(az) * rad - camera.position.z) * 0.05;
+    camera.lookAt(0, 0.05, 0);
   });
   return null;
 }
 
-function Scene() {
+function Scene({ scrollRef }) {
   return (
     <>
       <color attach="background" args={[BG]} />
-      <fog attach="fog" args={[BG, 10, 34]} />
+      <fog attach="fog" args={[BG, 11, 34]} />
       <Particles count={1400} />
       <Brain />
-      {FEATURES.map((f, i) => <FeatureCard key={f.k} f={f} index={i + 1} />)}
-      <Rig />
+      <Rig scrollRef={scrollRef} />
       <EffectComposer disableNormalPass>
-        <Bloom intensity={0.8} luminanceThreshold={0.2} luminanceSmoothing={0.9} mipmapBlur />
-        <Vignette offset={0.3} darkness={0.8} />
+        <Bloom intensity={0.85} luminanceThreshold={0.2} luminanceSmoothing={0.9} mipmapBlur />
+        <Vignette offset={0.3} darkness={0.82} />
       </EffectComposer>
     </>
   );
 }
 
-/* ── HTML, synced to scroll (one section per station) ── */
-const badge = { display: "inline-block", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: LIME, border: `1px solid ${LIME}55`, borderRadius: 999, padding: "5px 12px", marginBottom: 20 };
-const primaryBtn = { pointerEvents: "auto", background: LIME, color: "#0a0a0b", fontWeight: 700, fontSize: 14, border: "none", borderRadius: 12, padding: "13px 22px", cursor: "pointer" };
-const ghostBtn = { pointerEvents: "auto", background: "rgba(10,10,11,0.5)", color: "#e9e9ec", fontWeight: 600, fontSize: 14, border: "1px solid #2a2a31", borderRadius: 12, padding: "13px 22px", cursor: "pointer" };
-function Section({ children }) {
-  return <section style={{ position: "relative", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 8vw", pointerEvents: "none" }}>{children}</section>;
-}
-function Overlay() {
+/* ─────────────────────────── HTML LAYER (your real sections) ─────────────────────────── */
+const card = { position: "relative", borderRadius: 22, border: "1px solid #23242b", background: "rgba(11,12,16,0.72)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", padding: "26px 28px", boxShadow: "0 30px 80px rgba(0,0,0,0.45)" };
+const label = { fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6f6f79", fontWeight: 600 };
+const mono = { fontFamily: "ui-monospace, 'JetBrains Mono', monospace" };
+
+function ReceiptsCard() {
   return (
-    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", color: "#e9e9ec" }}>
-      <div style={{ position: "absolute", inset: 0, height: "100%", pointerEvents: "none", background: "linear-gradient(100deg, rgba(10,10,11,0.92) 0%, rgba(10,10,11,0.5) 36%, rgba(10,10,11,0) 62%)" }} />
-      <Section>
-        <div style={{ maxWidth: 560 }}>
-          <span style={badge}>AI Multi Builder</span>
-          <h1 style={{ fontSize: "clamp(52px,9vw,116px)", lineHeight: 0.95, letterSpacing: "-0.04em", fontWeight: 700, margin: "0 0 18px" }}>Pickd<span style={{ color: LIME }}>.</span></h1>
-          <p style={{ fontSize: "clamp(16px,2vw,21px)", lineHeight: 1.5, color: "#c2c2c9", maxWidth: 430, margin: "0 0 30px" }}>One AI brain. Every tool orbits it — tracker, multi builder, betslip OCR, the lot. Scroll to tour them.</p>
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}><button style={primaryBtn}>Build a multi →</button><button style={ghostBtn}>See how it works</button></div>
+    <div style={card}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 22 }}>
+        <div style={{ fontSize: 20, fontWeight: 700 }}>MultiPick<span style={{ color: LIME }}>.</span> hit rate</div>
+        <div style={label}>Last 328 picks</div>
+      </div>
+      <div style={label}>Actual hit rate</div>
+      <div style={{ ...mono, fontSize: 84, fontWeight: 700, color: "#5bd06a", lineHeight: 1, margin: "6px 0 8px" }}>82%</div>
+      <div style={{ fontSize: 14, color: "#9a9aa4" }}><b style={{ color: "#e9e9ec" }}>269</b> of <b style={{ color: "#e9e9ec" }}>328</b> legs hit their line</div>
+      <div style={{ display: "flex", gap: 40, marginTop: 26, paddingTop: 22, borderTop: "1px solid #1d1d25" }}>
+        <div><div style={label}>We predicted</div><div style={{ ...mono, fontSize: 30, fontWeight: 700, marginTop: 4 }}>89%</div><div style={{ fontSize: 11.5, color: "#6f6f79", marginTop: 2 }}>Average confidence</div></div>
+        <div><div style={label}>Gap</div><div style={{ ...mono, fontSize: 30, fontWeight: 700, marginTop: 4 }}>±7%</div><div style={{ fontSize: 11.5, color: "#6f6f79", marginTop: 2 }}>Prediction vs reality</div></div>
+      </div>
+    </div>
+  );
+}
+function TrackerCard() {
+  const form = "WWLWWWWLWWLWWWLWWWWL";
+  return (
+    <div style={card}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}><div style={label}>Dashboard · April 2026</div><div style={{ ...label, color: LIME }}>● Live</div></div>
+      <div style={{ display: "flex", gap: 26, flexWrap: "wrap", marginBottom: 24 }}>
+        {[["Profit / loss", "+$246.50", "#5bd06a"], ["Win rate", "58.3%", "#e9e9ec"], ["Return on stake", "+12.8%", "#5bd06a"], ["In flight", "$84.00", "#e9e9ec"]].map(([l, v, c]) => (
+          <div key={l}><div style={label}>{l}</div><div style={{ ...mono, fontSize: 24, fontWeight: 700, color: c, marginTop: 4 }}>{v}</div></div>
+        ))}
+      </div>
+      <div style={{ ...label, marginBottom: 8 }}>Cumulative P/L · 12 weeks</div>
+      <svg viewBox="0 0 320 70" style={{ width: "100%", height: 64, display: "block", marginBottom: 22 }} preserveAspectRatio="none">
+        <polyline points="0,60 30,52 60,55 90,42 120,46 150,34 180,30 210,22 240,26 270,14 300,8 320,4" fill="none" stroke="#5bd06a" strokeWidth="2" />
+        <polyline points="0,60 30,52 60,55 90,42 120,46 150,34 180,30 210,22 240,26 270,14 300,8 320,4 320,70 0,70" fill="rgba(91,208,106,0.12)" stroke="none" />
+      </svg>
+      <div style={{ ...label, marginBottom: 8 }}>Recent form · last 20</div>
+      <div style={{ display: "flex", gap: 4 }}>{form.split("").map((r, i) => <div key={i} style={{ width: 13, height: 16, borderRadius: 3, background: r === "W" ? "#3f9d4e" : "#a04646" }} />)}</div>
+    </div>
+  );
+}
+function MultiPickCard() {
+  const legs = [["M. Bontempelli", "25+ disposals", "9/10", "79%", "+7% value", "$1.38"], ["C. Curnow", "1+ goals", "8/10", "84%", "+3% value", "$1.30"], ["T. Stengle", "20+ disposals", "8/10", "76%", "−2% edge", "$1.18"]];
+  return (
+    <div style={card}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+        <div><div style={label}>MultiPick output · example</div><div style={{ fontSize: 21, fontWeight: 700, marginTop: 6 }}>3-leg AFL multi</div><div style={{ fontSize: 12.5, color: "#9a9aa4", marginTop: 2 }}>Geelong vs Carlton · 7:50pm</div></div>
+        <div style={{ textAlign: "right", border: "1px solid #2a2a31", borderRadius: 12, padding: "8px 12px" }}><div style={{ ...label, fontSize: 9.5 }}>Combined</div><div style={{ ...mono, fontSize: 22, fontWeight: 700 }}>$2.12</div><div style={{ fontSize: 10.5, color: "#6f6f79" }}>~48% chance</div></div>
+      </div>
+      <div style={{ display: "inline-block", fontSize: 11.5, color: "#5bd06a", background: "rgba(91,208,106,0.1)", border: "1px solid rgba(91,208,106,0.25)", borderRadius: 8, padding: "4px 10px", marginBottom: 8 }}>● Value vs market +4% · 2 of 3 legs positive edge</div>
+      {legs.map(([n, l, hit, conf, val, odds], i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 0", borderTop: i ? "1px solid #1a1a20" : "none" }}>
+          <div><div style={{ fontSize: 14.5, fontWeight: 600 }}>{n} <span style={{ color: "#9a9aa4", fontWeight: 400 }}>— {l}</span></div><div style={{ fontSize: 11.5, color: "#6f6f79", marginTop: 2 }}>Hit {hit} · Conf {conf} · <span style={{ color: val[0] === "−" ? "#9a9aa4" : "#5bd06a" }}>{val}</span></div></div>
+          <div style={{ ...mono, fontSize: 16, fontWeight: 600 }}>{odds}</div>
         </div>
-        <div style={{ position: "absolute", bottom: 34, left: "8vw", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#5f5f6a" }}>Scroll to orbit ↓</div>
-      </Section>
-      {FEATURES.map((f) => (
-        <Section key={f.k}>
-          <div style={{ maxWidth: 470 }}>
-            <span style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: LIME }}>{f.tag}</span>
-            <h2 style={{ fontSize: "clamp(30px,5vw,58px)", letterSpacing: "-0.03em", fontWeight: 700, margin: "12px 0 14px", whiteSpace: "pre-line", lineHeight: 1 }}>{f.title}<span style={{ color: LIME }}>.</span></h2>
-            <p style={{ color: "#c2c2c9", fontSize: 17, lineHeight: 1.5, margin: "0 0 22px" }}>{f.body}</p>
-            <div style={{ display: "flex", gap: 26, marginBottom: f.cta ? 26 : 0 }}>
-              {f.stats.map(([l, v]) => (
-                <div key={l}><div style={{ fontSize: 24, fontWeight: 700, color: "#fff" }}>{v}</div><div style={{ fontSize: 11.5, color: "#9a9aa4", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>{l}</div></div>
-              ))}
-            </div>
-            {f.cta ? <button style={primaryBtn}>{f.cta}</button> : null}
-          </div>
-        </Section>
       ))}
     </div>
   );
 }
-
-function Fallback2D() {
+function QuickAddCard() {
   return (
-    <div style={{ position: "absolute", inset: 0, background: `radial-gradient(900px 500px at 70% 20%, ${LIME}14, transparent 60%), ${BG}`, color: "#e9e9ec", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 8vw" }}>
-      <span style={badge}>AI Multi Builder</span>
-      <h1 style={{ fontSize: "clamp(46px,13vw,84px)", lineHeight: 0.95, letterSpacing: "-0.04em", fontWeight: 700, margin: "0 0 16px" }}>Pickd<span style={{ color: LIME }}>.</span></h1>
-      <p style={{ fontSize: 18, lineHeight: 1.5, color: "#c2c2c9", maxWidth: 520, margin: "0 0 28px" }}>MultiPick builds smarter AFL &amp; NBA multis — the safest legs, real edge, dialled to your target odds.</p>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}><button style={primaryBtn}>Build a multi →</button><button style={ghostBtn}>See how it works</button></div>
-      <div style={{ marginTop: 40, fontSize: 12, color: "#5f5f6a", letterSpacing: "0.06em" }}>2D fallback — the full WebGL experience loads on desktop.</div>
+    <div style={card}>
+      <div style={{ ...label, marginBottom: 14 }}>Quick add · AI vision</div>
+      <div style={{ fontSize: 16, lineHeight: 1.5, marginBottom: 18 }}>Drop, paste, or upload a betslip screenshot — <span style={{ color: "#9a9aa4" }}>we'll read the stake, odds and legs and fill the form for you.</span></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.5, color: "#6f6f79", marginBottom: 20 }}><span style={{ ...mono, border: "1px solid #2a2a31", borderRadius: 6, padding: "3px 8px" }}>⌘V</span> to paste · or click anywhere to upload</div>
+      <div style={{ display: "flex", gap: 34, paddingTop: 18, borderTop: "1px solid #1d1d25" }}>
+        {[["Stake", "$25.00"], ["Odds", "$4.20"], ["Legs", "3"]].map(([l, v]) => <div key={l}><div style={label}>{l}</div><div style={{ ...mono, fontSize: 24, fontWeight: 700, marginTop: 4 }}>{v}</div></div>)}
+      </div>
     </div>
   );
 }
-function PreviewBanner({ mode, setMode }) {
-  const seg = (val, label) => <button onClick={() => setMode(val)} style={{ background: mode === val ? LIME : "transparent", color: mode === val ? "#0a0a0b" : "#9a9aa4", border: "none", borderRadius: 7, padding: "4px 11px", fontSize: 11, fontWeight: 700, cursor: "pointer", letterSpacing: "0.04em" }}>{label}</button>;
+function PricingCard() {
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 16px", background: "rgba(10,10,11,0.7)", backdropFilter: "blur(10px)", borderBottom: "1px solid #1d1d25", pointerEvents: "auto" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "#9a9aa4" }}>
-        <span style={{ width: 7, height: 7, borderRadius: 999, background: LIME, boxShadow: `0 0 8px ${LIME}` }} />
-        Preview Mode · Pickd 3D landing <span style={{ color: "#5f5f6a" }}>(staging — not live)</span>
+    <div style={{ display: "flex", gap: 14 }}>
+      <div style={{ ...card, flex: 1, padding: "22px 22px" }}>
+        <div style={label}>Free</div>
+        <div style={{ ...mono, fontSize: 40, fontWeight: 700, margin: "4px 0 14px" }}>$0<span style={{ fontSize: 14, color: "#6f6f79", fontWeight: 400 }}> forever</span></div>
+        {["Unlimited bet tracking", "Full analytics", "Betslip OCR", "3 MultiPick / week"].map((t) => <div key={t} style={{ fontSize: 13, color: "#9a9aa4", padding: "4px 0" }}>· {t}</div>)}
       </div>
+      <div style={{ ...card, flex: 1, padding: "22px 22px", border: `1px solid ${LIME}`, boxShadow: `0 30px 80px rgba(212,242,58,0.12)` }}>
+        <div style={{ ...label, color: LIME }}>Pickd Pro · founding</div>
+        <div style={{ ...mono, fontSize: 40, fontWeight: 700, margin: "4px 0 4px" }}>$4.99<span style={{ fontSize: 14, color: "#6f6f79", fontWeight: 400 }}> /wk</span></div>
+        <div style={{ fontSize: 11, color: LIME, marginBottom: 12 }}>🔒 13 spots left · locked in forever</div>
+        {["Everything in Free", "Unlimited MultiPick", "Priority support", "Early access"].map((t) => <div key={t} style={{ fontSize: 13, color: "#c2c2c9", padding: "4px 0" }}>· {t}</div>)}
+        <button style={{ marginTop: 12, width: "100%", background: LIME, color: "#0a0a0b", fontWeight: 700, fontSize: 14, border: "none", borderRadius: 12, padding: "12px", cursor: "pointer" }}>Upgrade to Pro →</button>
+      </div>
+    </div>
+  );
+}
+const CARDS = { receipts: ReceiptsCard, tracker: TrackerCard, multipick: MultiPickCard, quickadd: QuickAddCard, pricing: PricingCard };
+
+const FEATURES = [
+  { k: "receipts", tag: "Receipts · live track record", title: "We log every leg.\nYou see every miss.", body: "When MultiPick rates a leg 80% likely, it should hit ~80% of the time. Our last 328 calls — no cherry-picking, no curated highlights.", note: "Calibrating · Updates weekly · Every prediction included" },
+  { k: "tracker", tag: "01 — Tracker", title: "Your bets,\nby the numbers.", body: "Profit/loss · win rate · ROI · in-flight exposure — at every cadence (week, month, year), charted automatically.", note: "Cumulative P/L · Sport-by-sport edge · Form heatmap" },
+  { k: "multipick", tag: "02 — MultiPick", title: "Multis backed\nby real form.", body: "Recent form, live market lines and a transparent edge model — example multis with honest +EV. Refine by chat: \"swap leg 2\", \"around $3\".", note: "Last-5/10 hit rates · Edge vs the book · Correlation-aware" },
+  { k: "quickadd", tag: "03 — Quick add", title: "Paste a screenshot.\nWe do the rest.", body: "Drop or paste a betslip from any Aussie bookmaker. AI vision reads the stake, odds and every leg — then pre-fills your Add Bet form.", note: "Sportsbet · PointsBet · TAB · Ladbrokes · Bet365 · Neds" },
+  { k: "pricing", tag: "Pricing", title: "Start free.\nUpgrade when ready.", body: "Everything you need to track for free — or unlock unlimited MultiPick on Pickd Pro. Founding price locked in forever.", note: "Cancel anytime · No long-term commitment" },
+];
+
+function FeatureSection({ f, scrollRoot }) {
+  const ref = useRef(), [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const ob = new IntersectionObserver(([e]) => setInView(e.intersectionRatio > 0.4), { root: scrollRoot.current, threshold: [0, 0.4, 0.7] });
+    ob.observe(el); return () => ob.disconnect();
+  }, [scrollRoot]);
+  const Card = CARDS[f.k];
+  return (
+    <section ref={ref} style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4vw", padding: "10vh 7vw", boxSizing: "border-box" }}>
+      <div style={{ flex: "0 1 440px", color: "#e9e9ec", pointerEvents: "none" }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: LIME, marginBottom: 14 }}>{f.tag}</div>
+        <h2 style={{ fontSize: "clamp(34px,4.4vw,60px)", lineHeight: 0.98, letterSpacing: "-0.03em", fontWeight: 700, margin: "0 0 18px", whiteSpace: "pre-line" }}>{f.title}<span style={{ color: LIME }}>.</span></h2>
+        <p style={{ fontSize: 17, lineHeight: 1.55, color: "#c2c2c9", maxWidth: 430, margin: "0 0 22px" }}>{f.body}</p>
+        <div style={{ fontSize: 12.5, color: "#6f6f79", letterSpacing: "0.02em" }}>{f.note}</div>
+      </div>
+      <div style={{ flex: "0 1 540px", maxWidth: 560, perspective: 1200, pointerEvents: "auto" }}>
+        <div style={{ transformStyle: "preserve-3d", transform: inView ? "none" : "translateX(80px) translateY(20px) rotateY(-16deg)", opacity: inView ? 1 : 0, transition: "transform 1s cubic-bezier(.2,.7,.2,1), opacity .8s ease" }}>
+          <Card />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HeroSection() {
+  return (
+    <section style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 7vw", color: "#e9e9ec", pointerEvents: "none" }}>
+      <span style={{ display: "inline-block", width: "fit-content", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: LIME, border: `1px solid ${LIME}55`, borderRadius: 999, padding: "5px 12px", marginBottom: 22 }}>AI Multi Builder</span>
+      <h1 style={{ fontSize: "clamp(54px,9vw,120px)", lineHeight: 0.95, letterSpacing: "-0.04em", fontWeight: 700, margin: "0 0 18px" }}>Pickd<span style={{ color: LIME }}>.</span></h1>
+      <p style={{ fontSize: "clamp(16px,2vw,21px)", lineHeight: 1.5, color: "#c2c2c9", maxWidth: 440, margin: "0 0 30px" }}>One AI brain behind every tool — multi builder, tracker, betslip OCR. Scroll to orbit it.</p>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", pointerEvents: "auto" }}>
+        <button style={{ background: LIME, color: "#0a0a0b", fontWeight: 700, fontSize: 14, border: "none", borderRadius: 12, padding: "13px 22px", cursor: "pointer" }}>Build a multi →</button>
+        <button style={{ background: "rgba(10,10,11,0.5)", color: "#e9e9ec", fontWeight: 600, fontSize: 14, border: "1px solid #2a2a31", borderRadius: 12, padding: "13px 22px", cursor: "pointer" }}>See how it works</button>
+      </div>
+      <div style={{ position: "absolute", bottom: 32, fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#5f5f6a" }}>Scroll to orbit ↓</div>
+    </section>
+  );
+}
+
+function PreviewBanner({ mode, setMode }) {
+  const seg = (val, l) => <button onClick={() => setMode(val)} style={{ background: mode === val ? LIME : "transparent", color: mode === val ? "#0a0a0b" : "#9a9aa4", border: "none", borderRadius: 7, padding: "4px 11px", fontSize: 11, fontWeight: 700, cursor: "pointer", letterSpacing: "0.04em" }}>{l}</button>;
+  return (
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 16px", background: "rgba(10,10,11,0.7)", backdropFilter: "blur(10px)", borderBottom: "1px solid #1d1d25" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "#9a9aa4" }}><span style={{ width: 7, height: 7, borderRadius: 999, background: LIME, boxShadow: `0 0 8px ${LIME}` }} />Preview Mode · Pickd 3D landing <span style={{ color: "#5f5f6a" }}>(staging — not live)</span></div>
       <div style={{ display: "flex", gap: 3, background: "rgba(255,255,255,0.04)", borderRadius: 9, padding: 3 }}>{seg("auto", "AUTO")}{seg("3d", "3D")}{seg("2d", "2D")}</div>
     </div>
   );
 }
 function useIsMobile() {
-  const [m, setM] = useState(() => typeof window !== "undefined" && (window.innerWidth < 820 || window.matchMedia("(prefers-reduced-motion: reduce)").matches));
-  useEffect(() => { const f = () => setM(window.innerWidth < 820 || window.matchMedia("(prefers-reduced-motion: reduce)").matches); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
+  const [m, setM] = useState(() => typeof window !== "undefined" && (window.innerWidth < 880 || window.matchMedia("(prefers-reduced-motion: reduce)").matches));
+  useEffect(() => { const f = () => setM(window.innerWidth < 880 || window.matchMedia("(prefers-reduced-motion: reduce)").matches); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
   return m;
 }
+
 export default function Landing3D() {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState("auto");
   const show2D = mode === "2d" || (mode === "auto" && isMobile);
+  const scrollRef = useRef(0);
+  const rootRef = useRef(null);
   return (
     <div style={{ position: "fixed", inset: 0, background: BG, overflow: "hidden" }}>
       <PreviewBanner mode={mode} setMode={setMode} />
-      {show2D ? <Fallback2D /> : (
-        <Canvas dpr={[1, 2]} camera={{ position: [0, 0.5, 7.9], fov: 45 }} gl={{ antialias: true, powerPreference: "high-performance" }} style={{ position: "absolute", inset: 0 }}>
-          <Suspense fallback={null}>
-            <ScrollControls pages={STATIONS.length} damping={0.28}>
-              <Scene />
-              <Scroll html style={{ width: "100%" }}><Overlay /></Scroll>
-            </ScrollControls>
-          </Suspense>
-        </Canvas>
+      {!show2D && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 0 }}>
+          <Canvas dpr={[1, 2]} camera={{ position: [0, 0.5, 8.2], fov: 45 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
+            <Suspense fallback={null}><Scene scrollRef={scrollRef} /></Suspense>
+          </Canvas>
+        </div>
       )}
+      <div style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", background: show2D ? `radial-gradient(900px 520px at 72% 12%, ${LIME}10, transparent 60%)` : "linear-gradient(100deg, rgba(10,10,11,0.7) 0%, rgba(10,10,11,0.2) 34%, rgba(10,10,11,0) 56%)" }} />
+      <div ref={rootRef} onScroll={(e) => { const el = e.currentTarget; scrollRef.current = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight); }} style={{ position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", zIndex: 2 }}>
+        <HeroSection />
+        {FEATURES.map((f) => <FeatureSection key={f.k} f={f} scrollRoot={rootRef} />)}
+      </div>
     </div>
   );
 }
