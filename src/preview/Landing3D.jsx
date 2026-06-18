@@ -266,6 +266,64 @@ function FeatureSection({ f, scrollRoot, flip }) {
   );
 }
 
+const FAQS = [
+  ["Is this a tipping service?", "No. Pickd shows you the maths — recent form, edge vs the market, and a calibrated hit-rate — not 'locks'. Informational analysis, never betting advice."],
+  ["Do you accept bets?", "Never. Pickd doesn't hold money or take wagers. You bet with your own bookmaker; we just help you track and analyse what you've placed."],
+  ["What sports?", "AFL and NBA today, with more leagues on the way."],
+  ["How does the AI work?", "MultiPick reads last-5 and last-10 form from real game logs, compares it to live market lines, and builds example multis with honest edge — then logs every call against the result."],
+  ["Refund policy?", "Pro is billed weekly with no lock-in — cancel anytime from Settings and you keep access until the period ends."],
+  ["Is my data private?", "Yes. Your bets and history are yours. We don't sell your data, and you can export or delete it whenever you like."],
+];
+function FAQItem({ q, a }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ borderTop: "1px solid #1d1d25" }}>
+      <button onClick={() => setOpen((o) => !o)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, background: "transparent", border: "none", color: "#e9e9ec", fontSize: 18, fontWeight: 500, padding: "20px 0", cursor: "pointer", textAlign: "left" }}>
+        <span>{q}</span><span style={{ color: LIME, fontSize: 22, lineHeight: 1, transition: "transform .2s" }}>{open ? "−" : "+"}</span>
+      </button>
+      {open ? <p style={{ color: "#9a9aa4", fontSize: 15, lineHeight: 1.55, margin: "-4px 0 20px", maxWidth: 620 }}>{a}</p> : null}
+    </div>
+  );
+}
+function FAQSection() {
+  return (
+    <section style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "5vw", padding: "10vh 7vw", boxSizing: "border-box", scrollSnapAlign: "start" }}>
+      <div style={{ flex: "0 1 360px", color: "#e9e9ec", pointerEvents: "none" }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: LIME, marginBottom: 14 }}>FAQ</div>
+        <h2 style={{ fontSize: "clamp(34px,4.4vw,60px)", lineHeight: 0.98, letterSpacing: "-0.03em", fontWeight: 700, margin: 0 }}>Questions,<br />answered<span style={{ color: LIME }}>.</span></h2>
+      </div>
+      <div style={{ flex: "0 1 640px", maxWidth: 680, pointerEvents: "auto" }}>
+        {FAQS.map(([q, a]) => <FAQItem key={q} q={q} a={a} />)}
+      </div>
+    </section>
+  );
+}
+function FinalCTASection() {
+  return (
+    <section style={{ minHeight: "100vh", display: "flex", flexDirection: "column", scrollSnapAlign: "start" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "12vh 7vw 0", color: "#e9e9ec" }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: LIME, marginBottom: 24 }}>● Last word</div>
+        <h2 style={{ fontSize: "clamp(46px,7.5vw,100px)", lineHeight: 0.95, letterSpacing: "-0.04em", fontWeight: 700, margin: "0 0 24px" }}>Bet smart<span style={{ color: LIME }}>.</span><br />Track smarter<span style={{ color: LIME }}>.</span></h2>
+        <p style={{ fontSize: 18, color: "#c2c2c9", maxWidth: 540, margin: "0 0 30px" }}>Free to start. Three MultiPick builds a week. Unlimited bet tracking. No card required.</p>
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center", pointerEvents: "auto" }}>
+          <button style={{ background: LIME, color: "#0a0a0b", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 12, padding: "14px 26px", cursor: "pointer" }}>Start free →</button>
+          <button style={{ background: "transparent", color: "#e9e9ec", fontWeight: 600, fontSize: 15, border: "1px solid #2a2a31", borderRadius: 12, padding: "14px 26px", cursor: "pointer" }}>I have an account</button>
+        </div>
+        <div style={{ marginTop: 22, fontSize: 12.5, color: "#6f6f79" }}>18+ · Gamble responsibly · Pickd does not accept bets</div>
+      </div>
+      <footer style={{ borderTop: "1px solid #1d1d25", padding: "26px 7vw", display: "flex", flexWrap: "wrap", gap: 20, justifyContent: "space-between", alignItems: "flex-start", pointerEvents: "auto" }}>
+        <div style={{ maxWidth: 520 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: "#e9e9ec" }}>Pickd<span style={{ color: LIME }}>.</span></div>
+          <div style={{ fontSize: 12, color: "#6f6f79", lineHeight: 1.5 }}>Pickd is an analytics tool for tracking sports betting activity. Informational only — not betting advice, not a tipping service, does not accept wagers. © 2026 Pickd.</div>
+        </div>
+        <div style={{ display: "flex", gap: 24, fontSize: 13, color: "#9a9aa4", flexWrap: "wrap" }}>
+          <span>Disclaimer</span><span>Responsible Gambling</span><span>Privacy</span><span>Terms</span>
+        </div>
+      </footer>
+    </section>
+  );
+}
+
 function HeroSection() {
   return (
     <section style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "0 7vw", color: "#e9e9ec", pointerEvents: "none", scrollSnapAlign: "start" }}>
@@ -318,6 +376,8 @@ export default function Landing3D() {
       <div ref={rootRef} onScroll={(e) => { const el = e.currentTarget; scrollRef.current = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight); }} style={{ position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", zIndex: 2, scrollSnapType: "y mandatory" }}>
         <HeroSection />
         {FEATURES.map((f, i) => <FeatureSection key={f.k} f={f} scrollRoot={rootRef} flip={i % 2 === 1} />)}
+        <FAQSection />
+        <FinalCTASection />
       </div>
     </div>
   );
