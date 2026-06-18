@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@supabase/supabase-js";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LineChart, Line, AreaChart, Area, ComposedChart, ReferenceLine } from "recharts";
@@ -9,6 +9,27 @@ const supabaseUrl = env.VITE_SUPABASE_URL || "";
 const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || "";
 const hasSupabaseKeys = Boolean(supabaseUrl && supabaseAnonKey);
 const supabase = hasSupabaseKeys ? createClient(supabaseUrl, supabaseAnonKey) : null;
+
+// Logged-out landing. Lazy-loaded so the bundle the app/dashboard ships never includes
+// landing or Three.js code. Desktop gets the orbiting 3D landing; narrow viewports and
+// reduced-motion users get the light static version (no WebGL download).
+const Landing3D = lazy(() => import("./preview/Landing3D.jsx"));
+const Landing2D = lazy(() => import("./preview/Landing2D.jsx"));
+const wantsLightLanding = () => typeof window !== "undefined" && (window.innerWidth < 880 || window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+function LandingGate({ onStartFree, onLogin }) {
+  const [light, setLight] = useState(wantsLightLanding);
+  useEffect(() => {
+    const f = () => setLight(wantsLightLanding());
+    window.addEventListener("resize", f);
+    return () => window.removeEventListener("resize", f);
+  }, []);
+  const Landing = light ? Landing2D : Landing3D;
+  return (
+    <Suspense fallback={<div style={{ position: "fixed", inset: 0, background: "#0a0a0b" }} />}>
+      <Landing onStartFree={onStartFree} onLogin={onLogin} />
+    </Suspense>
+  );
+}
 
 function createId() {
   return "bet_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10);
@@ -5623,7 +5644,9 @@ export default function BettingTrackerWebsite() {
   if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} gridBuildStats={gridBuildStats} prefill={edgePrefill} onPrefillConsumed={() => setEdgePrefill(null)} fmtMoney={fmtMoney} />;
   if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} handleLogout={handleLogout} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} onReplayTour={replayTour} unitSize={unitSize} setUnitSize={setUnitSize} showUnits={showUnits} setShowUnits={setShowUnits} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
-  if (!session && activePage !== "auth") return <LandingPage setActivePage={setActivePage} setAuthMode={setAuthMode} />;
+  // New landing: orbiting 3D on desktop, light static version on mobile/reduced-motion.
+  // (Old <LandingPage> kept in this file as a one-line revert if ever needed.)
+  if (!session && activePage !== "auth") return <LandingGate onStartFree={() => { setAuthMode("signup"); setActivePage("auth"); }} onLogin={() => { setAuthMode("login"); setActivePage("auth"); }} />;
   if (!session) return <AuthScreen authMode={authMode} setAuthMode={setAuthMode} email={email} setEmail={setEmail} password={password} setPassword={setPassword} firstName={firstName} setFirstName={setFirstName} loading={authLoading} message={message} onSubmit={handleAuthSubmit} onResetPassword={handlePasswordResetRequest} />;
 
   // MultiPick mini-builder card — rendered in two spots so it sits high on every
