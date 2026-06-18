@@ -130,7 +130,7 @@ function Scene({ scrollRef }) {
       <color attach="background" args={[BG]} />
       <fog attach="fog" args={[BG, 11, 34]} />
       <Particles count={3400} />
-      <Brain />
+      {/* <Brain />  — toggled off to preview dust-only */}
       <Rig scrollRef={scrollRef} />
       <EffectComposer disableNormalPass>
         <Bloom intensity={0.85} luminanceThreshold={0.2} luminanceSmoothing={0.9} mipmapBlur />
@@ -268,15 +268,17 @@ function FeatureSection({ f, scrollRoot, flip }) {
 
 function HeroSection() {
   return (
-    <section style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 7vw", color: "#e9e9ec", pointerEvents: "none", scrollSnapAlign: "start" }}>
-      <span style={{ display: "inline-block", width: "fit-content", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: LIME, border: `1px solid ${LIME}55`, borderRadius: 999, padding: "5px 12px", marginBottom: 22 }}>AI Multi Builder</span>
-      <h1 style={{ fontSize: "clamp(54px,9vw,120px)", lineHeight: 0.95, letterSpacing: "-0.04em", fontWeight: 700, margin: "0 0 18px" }}>Pickd<span style={{ color: LIME }}>.</span></h1>
-      <p style={{ fontSize: "clamp(16px,2vw,21px)", lineHeight: 1.5, color: "#c2c2c9", maxWidth: 440, margin: "0 0 30px" }}>One AI brain behind every tool — multi builder, tracker, betslip OCR. Scroll to orbit it.</p>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", pointerEvents: "auto" }}>
+    <section style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "0 7vw", color: "#e9e9ec", pointerEvents: "none", scrollSnapAlign: "start" }}>
+      {/* soft green glow behind the hero */}
+      <div style={{ position: "absolute", top: "47%", left: "50%", transform: "translate(-50%,-50%)", width: 680, height: 680, maxWidth: "92vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(212,242,58,0.17) 0%, rgba(212,242,58,0.06) 36%, transparent 68%)", pointerEvents: "none" }} />
+      <span style={{ position: "relative", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: LIME, border: `1px solid ${LIME}55`, borderRadius: 999, padding: "5px 12px", marginBottom: 22 }}>AI Multi Builder</span>
+      <h1 style={{ position: "relative", fontSize: "clamp(54px,9vw,120px)", lineHeight: 0.95, letterSpacing: "-0.04em", fontWeight: 700, margin: "0 0 18px" }}>Pickd<span style={{ color: LIME }}>.</span></h1>
+      <p style={{ position: "relative", fontSize: "clamp(16px,2vw,21px)", lineHeight: 1.5, color: "#c2c2c9", maxWidth: 520, margin: "0 0 30px" }}>One AI brain behind every tool — multi builder, tracker, betslip OCR. Scroll to explore.</p>
+      <div style={{ position: "relative", display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center", pointerEvents: "auto" }}>
         <button style={{ background: LIME, color: "#0a0a0b", fontWeight: 700, fontSize: 14, border: "none", borderRadius: 12, padding: "13px 22px", cursor: "pointer" }}>Build a multi →</button>
         <button style={{ background: "rgba(10,10,11,0.5)", color: "#e9e9ec", fontWeight: 600, fontSize: 14, border: "1px solid #2a2a31", borderRadius: 12, padding: "13px 22px", cursor: "pointer" }}>See how it works</button>
       </div>
-      <div style={{ position: "absolute", bottom: 32, fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#5f5f6a" }}>Scroll to orbit ↓</div>
+      <div style={{ position: "absolute", bottom: 32, left: 0, right: 0, textAlign: "center", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#5f5f6a" }}>Scroll to explore ↓</div>
     </section>
   );
 }
