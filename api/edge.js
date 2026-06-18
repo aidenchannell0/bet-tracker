@@ -238,6 +238,44 @@ async function recordPredictions(rated, selectedSet, season, userId) {
   }
 }
 
+// Log the multi the user actually built, as ONE row (not deduped across users/builds),
+// so the private founder view can track real per-multi, per-user win/loss. Player-prop
+// legs only — those are what we can resolve against game logs later.
+async function recordMulti(computed, sport, userId, targetOdds) {
+  if (!supabaseAdmin || !computed?.selected?.length) return;
+  try {
+    const legs = computed.selected
+      .filter((p) => p && p.playerName && p.metric && p.line != null)
+      .map((p) => ({
+        player_name: p.playerName,
+        name_key: nameKeyFromName(p.playerName),
+        metric: p.metric,
+        line: Number(p.line),
+        predicted_prob: Number((p.empirical ?? 0).toFixed(4)),
+        odds: Number(p.odds) || null,
+        game_label: p.gameLabel || null,
+      }));
+    if (!legs.length) return;
+    const m = computed.metrics || {};
+    const tgt =
+      typeof targetOdds === "number" ? targetOdds
+      : typeof targetOdds === "string" ? Number(String(targetOdds).replace(/[^0-9.]/g, "")) || null
+      : null;
+    await supabaseAdmin.from("grid_build_multis").insert({
+      user_id: userId || null,
+      sport: sport || null,
+      leg_count: legs.length,
+      combined_odds: m.combinedOdds ?? null,
+      predicted_prob: m.combinedProb != null ? Number(Number(m.combinedProb).toFixed(4)) : null,
+      profile: computed.profileUsed || null,
+      target_odds: tgt,
+      legs,
+    });
+  } catch (error) {
+    console.error("record multi error:", error);
+  }
+}
+
 const EDGE_SYSTEM_PROMPT = `
 You are Grid Build, Bet Grid's AI-powered multi builder and sports market analysis assistant.
 
@@ -4340,6 +4378,7 @@ ${buildAnalysisDataBlock(analysis)}`,
             (computed.selected || []).map((p) => `${nameKeyFromName(p.playerName)}|${p.metric}|${p.line}`)
           );
           await recordPredictions(ratedPool, selectedSet, defenseContext?.season, access.userId);
+          await recordMulti(computed, sport, access.userId);
         }
 
         return res.status(200).json({

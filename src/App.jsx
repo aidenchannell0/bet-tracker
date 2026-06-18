@@ -31,6 +31,150 @@ function LandingGate({ onStartFree, onLogin }) {
   );
 }
 
+// Private founder analytics. Gated client-side (only shown/openable for this account) AND
+// server-side (api/founder-stats verifies the JWT email). Keep both in sync.
+const FOUNDER_EMAIL = "aidenchannell0@gmail.com";
+
+function FounderTile({ label, value, sub, tone }) {
+  return (
+    <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
+      <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">{label}</p>
+      <p className={"mt-2 text-[32px] font-semibold leading-none tracking-[-0.03em] " + (tone || "text-[var(--text-new)]")} style={{ fontFamily: "ui-monospace, 'JetBrains Mono', monospace" }}>{value}</p>
+      {sub ? <p className="mt-1.5 text-[12.5px] text-[var(--text-2-new)]">{sub}</p> : null}
+    </div>
+  );
+}
+
+function founderStatusBadge(status) {
+  const map = {
+    won: ["Won", "bg-emerald-100 text-emerald-700 border-emerald-200"],
+    lost: ["Lost", "bg-rose-100 text-rose-700 border-rose-200"],
+    pending: ["Pending", "bg-amber-50 text-amber-700 border-amber-200"],
+  };
+  const [t, cls] = map[status] || ["—", "bg-slate-100 text-slate-600 border-slate-200"];
+  return <span className={"inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold " + cls}>{t}</span>;
+}
+
+function FounderPage({ setActivePage, accessToken }) {
+  const [state, setState] = useState({ loading: true });
+  const load = React.useCallback(async () => {
+    setState({ loading: true });
+    try {
+      const r = await fetch("/api/founder-stats", { headers: { Authorization: `Bearer ${accessToken}` } });
+      const data = await r.json();
+      if (!r.ok) return setState({ loading: false, error: data?.error || `Error ${r.status}` });
+      setState({ loading: false, data });
+    } catch (e) {
+      setState({ loading: false, error: e.message });
+    }
+  }, [accessToken]);
+  useEffect(() => { load(); }, [load]);
+
+  const d = state.data;
+  const o = d?.overall;
+  const gap = o && o.predicted != null && o.winRate != null ? o.predicted - o.winRate : null;
+  const calLabel = gap == null ? null : Math.abs(gap) <= 4 ? "Well calibrated" : gap > 0 ? "Model overconfident" : "Model underconfident";
+  const fmtRate = (v) => (v == null ? "—" : `${v}%`);
+
+  return (
+    <div className="page-fade-in min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
+      <main className="p-4 md:p-8">
+        <div className="mx-auto max-w-7xl space-y-6"><TopNav activePage="founder" setActivePage={setActivePage} /></div>
+        <div className="mx-auto max-w-5xl">
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border-new)] pb-7 md:pb-8">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">PICKD · Private · Founder only</p>
+              <h1 className="brand-wordmark mt-3.5 text-[36px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[44px]">MultiPick performance.</h1>
+              <p className="mt-3 max-w-[520px] text-[14px] leading-relaxed text-[var(--text-2-new)]">Real win/loss across every multi built with MultiPick — yours and all users'. Outcomes resolve automatically from game logs. Visible only to you.</p>
+            </div>
+            <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] px-4 py-2.5 text-[13px] font-semibold text-[var(--text-new)] transition-colors hover:border-[var(--accent-new)]">↻ Refresh</button>
+          </div>
+
+          {state.loading ? (
+            <p className="py-16 text-center text-[14px] text-[var(--text-2-new)]">Loading performance…</p>
+          ) : state.error ? (
+            <p className="py-16 text-center text-[14px] text-[var(--danger-new)]">Couldn't load: {state.error}</p>
+          ) : !d?.available ? (
+            <p className="py-16 text-center text-[14px] text-[var(--text-2-new)]">Not available yet{d?.error ? ` — ${d.error}` : ""}.</p>
+          ) : o.total === 0 ? (
+            <p className="py-16 text-center text-[14px] text-[var(--text-2-new)]">No multis logged yet. They'll appear here as users build them.</p>
+          ) : (
+            <div className="space-y-8 pt-7">
+              {/* Headline tiles */}
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <FounderTile label="Win rate" value={fmtRate(o.winRate)} sub={`${o.won} won · ${o.lost} lost`} tone="text-emerald-600" />
+                <FounderTile label="Multis built" value={o.total} sub={`${d.distinctUsers} user${d.distinctUsers === 1 ? "" : "s"}`} />
+                <FounderTile label="Settled" value={o.resolved} sub={`${o.pending} pending`} />
+                <FounderTile label="Avg odds" value={o.avgOdds != null ? `$${o.avgOdds}` : "—"} sub="settled multis" />
+              </div>
+
+              {/* Calibration headline */}
+              <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
+                <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Honesty check · predicted vs actual</p>
+                <div className="mt-3 flex flex-wrap items-baseline gap-x-8 gap-y-2">
+                  <div><span className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "ui-monospace, monospace" }}>{fmtRate(o.predicted)}</span> <span className="text-[12.5px] text-[var(--text-2-new)]">we predicted</span></div>
+                  <div><span className="text-[26px] font-semibold tracking-[-0.02em] text-emerald-600" style={{ fontFamily: "ui-monospace, monospace" }}>{fmtRate(o.winRate)}</span> <span className="text-[12.5px] text-[var(--text-2-new)]">actually won</span></div>
+                  {calLabel ? <span className="text-[12.5px] font-medium text-[var(--text-new)]">{calLabel}{gap != null ? ` (${gap > 0 ? "+" : ""}${gap}%)` : ""}</span> : null}
+                </div>
+              </div>
+
+              {/* You vs others */}
+              <div>
+                <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">You vs other users</p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {[["Your multis", d.you], ["Other users", d.others]].map(([label, s]) => (
+                    <div key={label} className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
+                      <div className="flex items-baseline justify-between">
+                        <p className="text-[13px] font-semibold text-[var(--text-new)]">{label}</p>
+                        <p className="text-[24px] font-semibold tracking-[-0.02em] text-emerald-600" style={{ fontFamily: "ui-monospace, monospace" }}>{fmtRate(s.winRate)}</p>
+                      </div>
+                      <p className="mt-1.5 text-[12.5px] text-[var(--text-2-new)]">{s.total} built · {s.won} won · {s.lost} lost · {s.pending} pending</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* By sport */}
+              {Object.keys(d.bySport || {}).length ? (
+                <div>
+                  <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">By sport</p>
+                  <div className="overflow-hidden rounded-2xl border border-[var(--border-new)]">
+                    {Object.entries(d.bySport).map(([sp, s], i) => (
+                      <div key={sp} className={"flex items-center justify-between px-5 py-3.5 " + (i ? "border-t border-[var(--border-new)] " : "") + "bg-[var(--surface-new)]"}>
+                        <span className="text-[14px] font-semibold uppercase text-[var(--text-new)]">{sp}</span>
+                        <span className="text-[13px] text-[var(--text-2-new)]">{s.total} built · <b className="text-emerald-600">{fmtRate(s.winRate)}</b> · {s.won}–{s.lost} <span className="text-[var(--text-3-new)]">({s.pending} pending)</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Recent multis */}
+              <div>
+                <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Recent multis</p>
+                <div className="overflow-hidden rounded-2xl border border-[var(--border-new)]">
+                  {d.recent.map((m, i) => (
+                    <div key={i} className={"flex items-center gap-3 px-4 py-3 " + (i ? "border-t border-[var(--border-new)] " : "") + "bg-[var(--surface-new)]"}>
+                      <div className="w-[78px] shrink-0 text-[12px] text-[var(--text-3-new)]">{new Date(m.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13.5px] font-medium text-[var(--text-new)]">{(m.legs || []).map((l) => l.name).join(" · ") || `${m.legCount} legs`}</p>
+                        <p className="text-[11.5px] text-[var(--text-3-new)]">{m.sport ? m.sport.toUpperCase() + " · " : ""}{m.legCount} legs · {m.odds != null ? `$${m.odds}` : "—"} · pred {m.predicted != null ? m.predicted + "%" : "—"}{m.isYou ? " · you" : ""}</p>
+                      </div>
+                      <div className="shrink-0">{founderStatusBadge(m.status)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {d.generatedAt ? <p className="pt-2 text-center text-[11px] text-[var(--text-3-new)]">Resolved live from game logs · {new Date(d.generatedAt).toLocaleString()}</p> : null}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
 function createId() {
   return "bet_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10);
 }
@@ -1152,7 +1296,7 @@ function Footer({ setActivePage }) {
   );
 }
 
-function SettingsPage({ setActivePage, handleLogout, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode, onReplayTour, unitSize, setUnitSize, showUnits, setShowUnits }) {
+function SettingsPage({ setActivePage, handleLogout, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode, onReplayTour, unitSize, setUnitSize, showUnits, setShowUnits, isFounder }) {
   return (
     <div className="page-fade-in min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
@@ -1172,6 +1316,15 @@ function SettingsPage({ setActivePage, handleLogout, bets, exportCsv, exportBack
               <button type="button" onClick={handleLogout} className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] px-5 py-2.5 text-[14px] font-semibold text-[var(--text-new)] transition-colors hover:border-[var(--danger-new)] hover:text-[var(--danger-new)]">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 Log out
+              </button>
+            ) : null}
+            {isFounder ? (
+              <button type="button" onClick={() => setActivePage("founder")} className="mt-6 flex w-full items-center justify-between gap-4 rounded-xl border border-[var(--border-strong-new)] bg-[var(--surface-new)] px-5 py-4 text-left transition-colors hover:border-[var(--accent-new)]">
+                <span>
+                  <span className="block text-[14px] font-semibold text-[var(--text-new)]">Founder analytics →</span>
+                  <span className="block text-[12.5px] text-[var(--text-2-new)]">Private MultiPick win/loss across all users</span>
+                </span>
+                <span className="shrink-0 rounded-md border border-[var(--accent-new)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-new)]">Private</span>
               </button>
             ) : null}
           </div>
@@ -5642,7 +5795,8 @@ export default function BettingTrackerWebsite() {
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
   if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} gridBuildStats={gridBuildStats} prefill={edgePrefill} onPrefillConsumed={() => setEdgePrefill(null)} fmtMoney={fmtMoney} />;
-  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} handleLogout={handleLogout} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} onReplayTour={replayTour} unitSize={unitSize} setUnitSize={setUnitSize} showUnits={showUnits} setShowUnits={setShowUnits} />;
+  if (activePage === "founder" && session && (session.user?.email || "").toLowerCase() === FOUNDER_EMAIL) return <FounderPage setActivePage={setActivePage} accessToken={session?.access_token} />;
+  if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} handleLogout={handleLogout} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} onReplayTour={replayTour} unitSize={unitSize} setUnitSize={setUnitSize} showUnits={showUnits} setShowUnits={setShowUnits} isFounder={(session.user?.email || "").toLowerCase() === FOUNDER_EMAIL} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
   // New landing: orbiting 3D on desktop, light static version on mobile/reduced-motion.
   // (Old <LandingPage> kept in this file as a one-line revert if ever needed.)
