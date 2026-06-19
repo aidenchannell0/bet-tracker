@@ -1361,13 +1361,33 @@ function ValueCard({ pick, accessToken, subscribed, onUpgrade }) {
       </div>
       <ValueHitTrack values={pick.last5Values} line={pick.line} meta={pick.last5Meta} />
       <p className="mt-3.5 text-[13.5px] leading-relaxed text-[var(--text-2-new)]">{pick.analysis}</p>
-      <div className="mt-3.5 flex items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <span className="text-[11px] uppercase tracking-wide text-[var(--text-3-new)]">{pick.bookmaker || "Best"}</span>
-          <span className="text-[18px] font-extrabold text-[var(--accent-new)]">${Number(pick.odds).toFixed(2)}</span>
+      {pick.allOdds?.length ? (
+        <div className="mt-3.5">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wide text-[var(--text-3-new)]">Best prices</span>
+            {pick.edgePct != null ? <span className="text-[11px] font-semibold text-[var(--text-2-new)]">+{pick.edgePct}% edge</span> : null}
+          </div>
+          <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(pick.allOdds.length, 4)}, minmax(0, 1fr))` }}>
+            {pick.allOdds.slice(0, 4).map((o, i) => (
+              <div key={i} className="rounded-lg border px-2 py-1.5 text-center"
+                style={i === 0
+                  ? { borderColor: "color-mix(in srgb, var(--accent-new) 50%, transparent)", background: "color-mix(in srgb, var(--accent-new) 8%, transparent)" }
+                  : { borderColor: "var(--border-new)", background: "var(--surface-2-new)" }}>
+                <div className="truncate text-[9px] font-semibold uppercase tracking-wide text-[var(--text-3-new)]">{o.book}</div>
+                <div className="text-[15px] font-extrabold" style={{ color: i === 0 ? "var(--accent-new)" : "var(--text-new)" }}>${Number(o.price).toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
         </div>
-        {pick.edgePct != null ? <span className="text-[12px] font-semibold text-[var(--text-2-new)]">+{pick.edgePct}% edge</span> : null}
-      </div>
+      ) : (
+        <div className="mt-3.5 flex items-center justify-between gap-3">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[11px] uppercase tracking-wide text-[var(--text-3-new)]">{pick.bookmaker || "Best"}</span>
+            <span className="text-[18px] font-extrabold text-[var(--accent-new)]">${Number(pick.odds).toFixed(2)}</span>
+          </div>
+          {pick.edgePct != null ? <span className="text-[12px] font-semibold text-[var(--text-2-new)]">+{pick.edgePct}% edge</span> : null}
+        </div>
+      )}
       <button type="button" onClick={runAi} disabled={ai?.loading} className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-new)] bg-[var(--surface-2-new)] py-2.5 text-[13.5px] font-semibold text-[var(--text-2-new)] transition-colors hover:border-[var(--accent-new)] hover:text-[var(--accent-new)] disabled:opacity-60">
         <span style={{ color: "var(--accent-new)" }}>✦</span> {ai?.loading ? "Analysing…" : subscribed ? "AI deep-dive" : "AI deep-dive · Pro"}
       </button>

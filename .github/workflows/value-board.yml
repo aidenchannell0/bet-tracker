@@ -1,0 +1,29 @@
+name: Warm value board
+
+# Pre-computes the AFL value board on a schedule so live visitors never trigger the
+# slow slate rating (one event-odds call per game). Runs 30 min past every 6h — shortly
+# after the stats scrape — so the board uses fresh data. The board's cache TTL is 8h, so
+# a 6h refresh keeps it permanently warm.
+#
+# Required secret (Settings -> Secrets and variables -> Actions): CRON_SECRET
+# Must match the CRON_SECRET env var set on the Vercel project.
+
+on:
+  schedule:
+    - cron: "30 */6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh AFL value board
+        run: |
+          code=$(curl -s -o /tmp/resp.json -w "%{http_code}" -m 110 -X POST \
+            https://pickd.tech/api/edge \
+            -H "Content-Type: application/json" \
+            -d "{\"intent\":\"value_refresh\",\"sport\":\"AFL\",\"secret\":\"${CRON_SECRET}\"}")
+          echo "HTTP $code"; cat /tmp/resp.json; echo
+          test "$code" = "200"
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

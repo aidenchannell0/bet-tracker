@@ -1069,6 +1069,8 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
   const bestByKey = new Map();
   // For Unders: indexed by player+market+line+book. Filled in pass 1, looked up in pass 2.
   const undersByKey = new Map();
+  // Every book's best Over price per player+metric+line — powers the multi-book odds row.
+  const booksByKey = new Map();
 
   for (const bookmaker of event?.bookmakers || []) {
     if (!bookmakerMatches(bookmaker, preferredBook)) continue;
@@ -1113,6 +1115,13 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
         // double up and the combo search would see noise.
         const metric = metricFromMarket[market.key] || "disposals";
         const key = `${player}-${metric}-${outcome.point}`;
+
+        // Record this book's price for the prop (keep each book's best across markets).
+        let bookMap = booksByKey.get(key);
+        if (!bookMap) { bookMap = new Map(); booksByKey.set(key, bookMap); }
+        const prevBook = bookMap.get(bookmaker.title);
+        if (prevBook == null || price > prevBook) bookMap.set(bookmaker.title, price);
+
         const existing = bestByKey.get(key);
         if (existing && price <= existing.odds) continue;
 
@@ -1139,6 +1148,10 @@ function extractPlayerPropsFromEvent(event, preferredBook = null) {
   // leave it null — de-vig in enrichProps falls back to raw 1/odds.
   for (const prop of bestByKey.values()) {
     prop.underOdds = undersByKey.get(prop.bookKey) ?? null;
+    const bm = booksByKey.get(`${prop.playerName}-${prop.metric}-${prop.line}`);
+    prop.allOdds = bm
+      ? [...bm.entries()].map(([book, price]) => ({ book, price })).sort((a, b) => b.price - a.price).slice(0, 6)
+      : [];
     delete prop.bookKey; // internal — not useful downstream
   }
 
@@ -3615,6 +3628,7 @@ function valueCard(p) {
     ...analysisLeg(p),
     name_key: nameKeyFromName(p.playerName),
     line: Number(p.line),
+    allOdds: Array.isArray(p.allOdds) ? p.allOdds.slice(0, 5) : [],
     last5Values: Array.isArray(p.last5Values) ? p.last5Values.slice(0, 5) : [], // newest first
     hr5: p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : null,
     sampleSize: p.sampleSize ?? null,
@@ -3714,11 +3728,11 @@ async function computeValueBoard(req, sport) {
 // Cached board read (compute-on-stale). Full board cached 6h; an empty result (off-season /
 // feed blip) retried after 30m. Cache lives in the value_board table; missing table degrades
 // to compute-every-time (still works, just no caching).
-const VALUE_BOARD_TTL_MS = 6 * 60 * 60 * 1000;
+const VALUE_BOARD_TTL_MS = 8 * 60 * 60 * 1000; // > the 6h pre-warm cron, so reads never go cold
 const VALUE_BOARD_EMPTY_TTL_MS = 30 * 60 * 1000;
 // Bump to invalidate every cached board after a ranking/filter change (e.g. the odds cap),
 // so users see the new logic immediately instead of waiting out the TTL.
-const VALUE_BOARD_VERSION = 3;
+const VALUE_BOARD_VERSION = 4;
 async function getValueBoard(req, sport) {
   const key = (sport || "AFL").toUpperCase();
   if (supabaseAdmin) {
@@ -3915,8 +3929,21 @@ export default async function handler(req, res) {
     // Branch: value board (top value props across the slate) + on-tap AI deep-dive.
     // Folded here to stay within Vercel Hobby's 12-function limit. Isolated from the
     // build flow. Free users get 1 pick; Pro gets the full board.
-    if (body.intent === "value" || body.intent === "value_explain") {
+    if (body.intent === "value" || body.intent === "value_explain" || body.intent === "value_refresh") {
       const vsport = getSafeString(body.sport, "AFL").toUpperCase() === "NBA" ? "NBA" : "AFL";
+      // Pre-warm path: a cron forces a recompute + cache write so live visitors never
+      // trigger the slow slate rating. Secret-gated (CRON_SECRET).
+      if (body.intent === "value_refresh") {
+        const secret = process.env.CRON_SECRET;
+        if (!secret || body.secret !== secret) return res.status(401).json({ error: "Unauthorized" });
+        const board = await computeValueBoard(req, vsport);
+        const computedAt = new Date().toISOString();
+        if (supabaseAdmin) {
+          try { await supabaseAdmin.from("value_board").upsert({ sport: vsport, board: { v: VALUE_BOARD_VERSION, picks: board }, computed_at: computedAt }, { onConflict: "sport" }); }
+          catch (e) { console.error("value_refresh upsert error:", e.message); }
+        }
+        return res.status(200).json({ refreshed: true, sport: vsport, count: board.length, computedAt });
+      }
       const access = await checkGridBuildAccess(req);
       if (body.intent === "value_explain") {
         if (!access.subscribed) return res.status(200).json({ locked: true });
