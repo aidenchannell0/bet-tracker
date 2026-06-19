@@ -3613,13 +3613,58 @@ function valueAnalysis(p) {
 function valueCard(p) {
   return {
     ...analysisLeg(p),
+    name_key: nameKeyFromName(p.playerName),
     line: Number(p.line),
-    last5Values: Array.isArray(p.last5Values) ? p.last5Values.slice(-5) : [],
+    last5Values: Array.isArray(p.last5Values) ? p.last5Values.slice(0, 5) : [], // newest first
     hr5: p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : null,
     sampleSize: p.sampleSize ?? null,
     gameLabel: p.gameLabel || null,
     analysis: valueAnalysis(p),
   };
+}
+
+// Attach per-game meta (date + opponent) for each card's last 5, newest-first to match
+// last5Values. afl_player_games has no opponent column, so opponent = the other team
+// sharing the game_code. Best-effort — failures just leave cards without labels.
+async function attachGameMeta(cards) {
+  if (!supabaseAdmin || !cards.length) return cards;
+  try {
+    const keys = [...new Set(cards.map((c) => c.name_key).filter(Boolean))];
+    if (!keys.length) return cards;
+    const since = new Date(Date.now() - 140 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const { data: games } = await supabaseAdmin
+      .from("afl_player_games")
+      .select("name_key,game_date,game_code,team")
+      .in("name_key", keys)
+      .gte("game_date", since)
+      .order("game_date", { ascending: false });
+    if (!games?.length) return cards;
+    const byPlayer = new Map();
+    const codes = new Set();
+    for (const g of games) {
+      const arr = byPlayer.get(g.name_key) || byPlayer.set(g.name_key, []).get(g.name_key);
+      if (arr.length < 5) { arr.push(g); codes.add(g.game_code); }
+    }
+    // Opponent = the other team on the same game_code.
+    const teamsByCode = new Map();
+    if (codes.size) {
+      const { data: codeRows } = await supabaseAdmin.from("afl_player_games").select("game_code,team").in("game_code", [...codes]);
+      for (const r of codeRows || []) {
+        const set = teamsByCode.get(r.game_code) || teamsByCode.set(r.game_code, new Set()).get(r.game_code);
+        set.add(r.team);
+      }
+    }
+    for (const c of cards) {
+      const gs = byPlayer.get(c.name_key) || [];
+      c.last5Meta = gs.map((g) => {
+        const teams = [...(teamsByCode.get(g.game_code) || [])];
+        return { date: g.game_date, opp: teams.find((t) => t && t !== g.team) || null };
+      });
+    }
+  } catch (e) {
+    console.error("attachGameMeta error:", e.message);
+  }
+  return cards;
 }
 
 // Odds ceiling for the value board — this tool surfaces low-odds value to ADD to a multi,
@@ -3663,7 +3708,7 @@ async function computeValueBoard(req, sport) {
   const curve = await loadCalibrationCurve("AFL");
   const defenseContext = await fetchDefenseContext(req);
   const enriched = enrichProps(allProps, statsContext, defenseContext?.factors || null, curve);
-  return rankValueBoard(enriched, 25);
+  return await attachGameMeta(rankValueBoard(enriched, 25));
 }
 
 // Cached board read (compute-on-stale). Full board cached 6h; an empty result (off-season /
@@ -3673,7 +3718,7 @@ const VALUE_BOARD_TTL_MS = 6 * 60 * 60 * 1000;
 const VALUE_BOARD_EMPTY_TTL_MS = 30 * 60 * 1000;
 // Bump to invalidate every cached board after a ranking/filter change (e.g. the odds cap),
 // so users see the new logic immediately instead of waiting out the TTL.
-const VALUE_BOARD_VERSION = 2;
+const VALUE_BOARD_VERSION = 3;
 async function getValueBoard(req, sport) {
   const key = (sport || "AFL").toUpperCase();
   if (supabaseAdmin) {

@@ -1278,14 +1278,18 @@ function PasswordRecoveryScreen({ newPassword, setNewPassword, loading, message,
 // MultiPick, and Settings pages on desktop. Mobile uses MobileBottomNav.
 // ── Value feed ───────────────────────────────────────────────────────────────
 // Evolved hit-track: horizontal bars, value on each tip, one dashed prop line.
-function ValueHitTrack({ values, line }) {
-  const v = (values || []).filter((x) => x != null).slice(-5);
+function ValueHitTrack({ values, line, meta }) {
+  const v = (values || []).filter((x) => x != null).slice(0, 5); // newest first (matches backend)
   if (!v.length || !(line > 0)) return null;
-  const rows = [...v].reverse(); // newest first
+  const m = Array.isArray(meta) ? meta : [];
+  const hasLabels = m.some((x) => x && (x.date || x.opp));
   const maxV = Math.max(...v);
   const max = Math.max(line * 1.3, maxV) * 1.18; // headroom so tip numbers fit
   const thr = Math.min(90, (line / max) * 100);
   const cleared = v.filter((x) => x >= line).length;
+  const LBL = 74, GAP = 12; // label column + gap (px) when labels present
+  const fmtDate = (d) => { try { return new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" }); } catch { return ""; } };
+  const lineLeft = hasLabels ? `calc(${LBL + GAP}px + (100% - ${LBL + GAP}px) * ${thr / 100})` : `${thr}%`;
   return (
     <div className="mt-3">
       <div className="mb-2 flex items-center justify-between">
@@ -1293,18 +1297,27 @@ function ValueHitTrack({ values, line }) {
         <span className="text-[11px] font-bold text-[var(--accent-new)]">{cleared}/{v.length} cleared {Math.ceil(line)}+</span>
       </div>
       <div className="relative pt-[18px]">
-        <div className="pointer-events-none absolute inset-y-0 z-[3]" style={{ left: `${thr}%` }}>
+        <div className="pointer-events-none absolute inset-y-0 z-[3]" style={{ left: lineLeft }}>
           <span className="absolute top-0 -translate-x-1/2 rounded px-1.5 py-[1px] text-[9px] font-bold leading-none" style={{ background: "var(--text-new)", color: "var(--bg-new)" }}>{line}</span>
           <span className="absolute" style={{ top: 16, bottom: 0, left: 0, borderLeft: "2px dashed rgba(255,255,255,0.85)", filter: "drop-shadow(0 0 1px rgba(0,0,0,0.85))" }} />
         </div>
         <div className="space-y-1.5">
-          {rows.map((val, i) => {
+          {v.map((val, i) => {
             const hit = val >= line;
             const w = Math.max(7, Math.round((val / max) * 100));
+            const mi = m[i];
             return (
-              <div key={i} className="relative h-[22px] overflow-visible rounded-lg" style={{ background: "var(--surface-2-new)" }}>
-                <div className="relative h-full rounded-lg" style={{ width: `${w}%`, background: hit ? "var(--accent-new)" : "var(--danger-new)" }}>
-                  <span className="absolute left-full top-1/2 ml-2 -translate-y-1/2 text-[13px] font-extrabold text-[var(--text-new)]">{val}</span>
+              <div key={i} className="flex items-center" style={{ gap: hasLabels ? GAP : 0 }}>
+                {hasLabels ? (
+                  <div className="shrink-0 text-right leading-tight" style={{ width: LBL }}>
+                    <div className="text-[11.5px] font-bold text-[var(--text-new)]">{mi?.date ? fmtDate(mi.date) : `G${v.length - i}`}</div>
+                    {mi?.opp ? <div className="text-[10px] text-[var(--text-3-new)]">vs {teamShort(mi.opp)}</div> : null}
+                  </div>
+                ) : null}
+                <div className="relative h-[22px] flex-1 overflow-visible rounded-lg" style={{ background: "var(--surface-2-new)" }}>
+                  <div className="relative h-full rounded-lg" style={{ width: `${w}%`, background: hit ? "var(--accent-new)" : "var(--danger-new)" }}>
+                    <span className="absolute left-full top-1/2 ml-2 -translate-y-1/2 text-[13px] font-extrabold text-[var(--text-new)]">{val}</span>
+                  </div>
                 </div>
               </div>
             );
@@ -1339,14 +1352,14 @@ function ValueCard({ pick, accessToken, subscribed, onUpgrade }) {
   return (
     <div className="rounded-[22px] border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
       <div className="flex items-center gap-3.5">
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] text-[15px] font-bold text-[var(--text-2-new)]">{initials}</div>
+        {pick.team ? <TeamCrest team={pick.team} className="h-12 w-12 flex-shrink-0" /> : <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] text-[15px] font-bold text-[var(--text-2-new)]">{initials}</div>}
         <div className="min-w-0 flex-1">
           <div className="truncate text-[18px] font-bold text-[var(--text-new)]">{pick.player}</div>
           <div className="text-[14px] font-semibold" style={{ color: "#f0b429" }}>🔥 {pick.label}</div>
         </div>
         <div className="flex-shrink-0 rounded-[10px] border px-2.5 py-1.5 text-[13px] font-bold" style={{ borderColor: "color-mix(in srgb, var(--accent-new) 45%, transparent)", background: "color-mix(in srgb, var(--accent-new) 12%, transparent)", color: "var(--accent-new)" }}>✦ {pick.confidence}%</div>
       </div>
-      <ValueHitTrack values={pick.last5Values} line={pick.line} />
+      <ValueHitTrack values={pick.last5Values} line={pick.line} meta={pick.last5Meta} />
       <p className="mt-3.5 text-[13.5px] leading-relaxed text-[var(--text-2-new)]">{pick.analysis}</p>
       <div className="mt-3.5 flex items-center justify-between gap-3">
         <div className="flex items-baseline gap-2">
