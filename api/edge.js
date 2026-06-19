@@ -3725,6 +3725,27 @@ async function computeValueBoard(req, sport) {
   return await attachGameMeta(rankValueBoard(enriched, 25));
 }
 
+// TEMP diagnostic: per-game prop fetch breakdown, to find why the board only spans one game.
+async function debugSlate(req, sport) {
+  const oddsContext = await fetchOddsContext(req, "AFL", null, null);
+  const events = (oddsContext.events || []).slice(0, 12);
+  const playerMarkets = { label: "AFL props", markets: ANALYSIS_PLAYER_MARKETS };
+  const perGame = [];
+  let total = 0;
+  for (const ev of events) {
+    const t0 = Date.now();
+    let n = 0, ok = false, err = null, quota = null;
+    try {
+      const ctx = await fetchEventOddsContext(req, "AFL", ev.id, playerMarkets);
+      ok = !!ctx?.event; quota = ctx?.quota ?? null;
+      if (ctx?.event) { n = extractPlayerPropsFromEvent(ctx.event).length; total += n; }
+      else err = String(ctx?.summary || "no event").slice(0, 140);
+    } catch (e) { err = e.message; }
+    perGame.push({ game: `${ev.homeTeam} v ${ev.awayTeam}`, ok, props: n, ms: Date.now() - t0, quota, err });
+  }
+  return { eventsAvailable: oddsContext.events?.length || 0, eventsUsed: events.length, totalProps: total, perGame };
+}
+
 // Cached board read (compute-on-stale). Full board cached 6h; an empty result (off-season /
 // feed blip) retried after 30m. Cache lives in the value_board table; missing table degrades
 // to compute-every-time (still works, just no caching).
@@ -3931,6 +3952,7 @@ export default async function handler(req, res) {
     // build flow. Free users get 1 pick; Pro gets the full board.
     if (body.intent === "value" || body.intent === "value_explain" || body.intent === "value_refresh") {
       const vsport = getSafeString(body.sport, "AFL").toUpperCase() === "NBA" ? "NBA" : "AFL";
+      if (body.debug === "slate") return res.status(200).json(await debugSlate(req, vsport));
       // Pre-warm path: a cron forces a recompute + cache write so live visitors never
       // trigger the slow slate rating. Secret-gated (CRON_SECRET).
       if (body.intent === "value_refresh") {
