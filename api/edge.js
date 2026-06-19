@@ -3725,37 +3725,6 @@ async function computeValueBoard(req, sport) {
   return await attachGameMeta(rankValueBoard(enriched, 25));
 }
 
-// TEMP diagnostic: trace the full funnel per game (fetch -> enrich -> stats -> edge -> board).
-async function debugSlate(req, sport) {
-  const oddsContext = await fetchOddsContext(req, "AFL", null, null);
-  const events = (oddsContext.events || []).slice(0, 12);
-  const playerMarkets = { label: "AFL props", markets: ANALYSIS_PLAYER_MARKETS };
-  const allProps = [];
-  for (const ev of events) {
-    const ctx = await fetchEventOddsContext(req, "AFL", ev.id, playerMarkets);
-    if (ctx?.event) allProps.push(...extractPlayerPropsFromEvent(ctx.event));
-  }
-  const players = [...new Set(allProps.map((p) => p.playerName))];
-  const metrics = [...new Set(allProps.map((p) => p.metric))];
-  const statsContext = await fetchStatsContext(req, "AFL", players.slice(0, 500), metrics);
-  const curve = await loadCalibrationCurve("AFL");
-  const defenseContext = await fetchDefenseContext(req);
-  const enriched = enrichProps(allProps, statsContext, defenseContext?.factors || null, curve);
-  const board = rankValueBoard(enriched, 25);
-  const perGame = {};
-  const bump = (g, k) => { (perGame[g] = perGame[g] || {})[k] = (perGame[g][k] || 0) + 1; };
-  for (const p of allProps) bump(p.gameLabel || "?", "props");
-  for (const p of enriched) { if (p.statsAvailable) bump(p.gameLabel || "?", "statsOK"); if (p.edge != null) bump(p.gameLabel || "?", "edge"); }
-  for (const c of board) bump(c.gameLabel || "?", "board");
-  return {
-    distinctPlayers: players.length,
-    statsPlayersReturned: Array.isArray(statsContext?.players) ? statsContext.players.length : (statsContext?.available ? "avail-no-list" : "none"),
-    statsAvailable: statsContext?.available ?? null,
-    totalProps: allProps.length, enrichedTotal: enriched.length, boardSize: board.length,
-    perGame,
-  };
-}
-
 // Cached board read (compute-on-stale). Full board cached 6h; an empty result (off-season /
 // feed blip) retried after 30m. Cache lives in the value_board table; missing table degrades
 // to compute-every-time (still works, just no caching).
@@ -3962,7 +3931,6 @@ export default async function handler(req, res) {
     // build flow. Free users get 1 pick; Pro gets the full board.
     if (body.intent === "value" || body.intent === "value_explain" || body.intent === "value_refresh") {
       const vsport = getSafeString(body.sport, "AFL").toUpperCase() === "NBA" ? "NBA" : "AFL";
-      if (body.debug === "slate") return res.status(200).json(await debugSlate(req, vsport));
       // Pre-warm path: a cron forces a recompute + cache write so live visitors never
       // trigger the slow slate rating. Secret-gated (CRON_SECRET).
       if (body.intent === "value_refresh") {
