@@ -4,6 +4,6 @@
     { "source": "/preview/:path*", "destination": "/index.html" }
   ],
   "crons": [
-    { "path": "/api/founder-digest", "schedule": "0 22 * * 0" }
+    { "path": "/api/calibration?mode=digest", "schedule": "0 22 * * 0" }
   ]
 }

@@ -32,7 +32,7 @@ function LandingGate({ onStartFree, onLogin }) {
 }
 
 // Private founder analytics. Gated client-side (only shown/openable for this account) AND
-// server-side (api/founder-stats verifies the JWT email). Keep both in sync.
+// server-side (/api/calibration?view=founder verifies the JWT email). Keep both in sync.
 const FOUNDER_EMAIL = "aidenchannell0@gmail.com";
 
 function FounderTile({ label, value, sub, tone }) {
@@ -60,7 +60,7 @@ function FounderPage({ setActivePage, accessToken }) {
   const load = React.useCallback(async () => {
     setState({ loading: true });
     try {
-      const r = await fetch("/api/founder-stats", { headers: { Authorization: `Bearer ${accessToken}` } });
+      const r = await fetch("/api/calibration?view=founder", { headers: { Authorization: `Bearer ${accessToken}` } });
       const data = await r.json();
       if (!r.ok) return setState({ loading: false, error: data?.error || `Error ${r.status}` });
       setState({ loading: false, data });
