@@ -1276,6 +1276,157 @@ function PasswordRecoveryScreen({ newPassword, setNewPassword, loading, message,
 
 // Shared top nav — Layout B editorial style. Appears on Dashboard, Tracker,
 // MultiPick, and Settings pages on desktop. Mobile uses MobileBottomNav.
+// ── Value feed ───────────────────────────────────────────────────────────────
+// Evolved hit-track: horizontal bars, value on each tip, one dashed prop line.
+function ValueHitTrack({ values, line }) {
+  const v = (values || []).filter((x) => x != null).slice(-5);
+  if (!v.length || !(line > 0)) return null;
+  const rows = [...v].reverse(); // newest first
+  const maxV = Math.max(...v);
+  const max = Math.max(line * 1.3, maxV) * 1.18; // headroom so tip numbers fit
+  const thr = Math.min(90, (line / max) * 100);
+  const cleared = v.filter((x) => x >= line).length;
+  return (
+    <div className="mt-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-3-new)]">Last {v.length} · recent first</span>
+        <span className="text-[11px] font-bold text-[var(--accent-new)]">{cleared}/{v.length} cleared {Math.ceil(line)}+</span>
+      </div>
+      <div className="relative">
+        <div className="pointer-events-none absolute top-[-3px] bottom-[-3px] z-[2] border-l border-dashed border-[var(--border-strong-new)]" style={{ left: `${thr}%` }} />
+        <div className="space-y-1.5">
+          {rows.map((val, i) => {
+            const hit = val >= line;
+            const w = Math.max(7, Math.round((val / max) * 100));
+            return (
+              <div key={i} className="relative h-[22px] overflow-visible rounded-lg" style={{ background: "var(--surface-2-new)" }}>
+                <div className="relative h-full rounded-lg" style={{ width: `${w}%`, background: hit ? "var(--accent-new)" : "var(--danger-new)" }}>
+                  <span className="absolute left-full top-1/2 ml-2 -translate-y-1/2 text-[13px] font-extrabold text-[var(--text-new)]">{val}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <p className="mt-2 text-[10.5px] text-[var(--text-3-new)]">Dashed line = {line} · bars past it cleared</p>
+    </div>
+  );
+}
+
+function ValueCard({ pick, accessToken, subscribed, onUpgrade }) {
+  const [ai, setAi] = useState(null);
+  const initials = (pick.player || "").split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+  const runAi = async () => {
+    if (!subscribed) return onUpgrade();
+    setAi({ loading: true });
+    try {
+      const r = await fetch("/api/edge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ intent: "value_explain", pick }),
+      });
+      const d = await r.json();
+      setAi({ text: d.locked ? null : d.analysis || "Couldn't generate right now." });
+      if (d.locked) onUpgrade();
+    } catch {
+      setAi({ text: "Couldn't generate right now." });
+    }
+  };
+  return (
+    <div className="rounded-[22px] border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
+      <div className="flex items-center gap-3.5">
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] text-[15px] font-bold text-[var(--text-2-new)]">{initials}</div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[18px] font-bold text-[var(--text-new)]">{pick.player}</div>
+          <div className="text-[14px] font-semibold" style={{ color: "#f0b429" }}>🔥 {pick.label}</div>
+        </div>
+        <div className="flex-shrink-0 rounded-[10px] border px-2.5 py-1.5 text-[13px] font-bold" style={{ borderColor: "color-mix(in srgb, var(--accent-new) 45%, transparent)", background: "color-mix(in srgb, var(--accent-new) 12%, transparent)", color: "var(--accent-new)" }}>✦ {pick.confidence}%</div>
+      </div>
+      <ValueHitTrack values={pick.last5Values} line={pick.line} />
+      <p className="mt-3.5 text-[13.5px] leading-relaxed text-[var(--text-2-new)]">{pick.analysis}</p>
+      <div className="mt-3.5 flex items-center justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[11px] uppercase tracking-wide text-[var(--text-3-new)]">{pick.bookmaker || "Best"}</span>
+          <span className="text-[18px] font-extrabold text-[var(--accent-new)]">${Number(pick.odds).toFixed(2)}</span>
+        </div>
+        {pick.edgePct != null ? <span className="text-[12px] font-semibold text-[var(--text-2-new)]">+{pick.edgePct}% edge</span> : null}
+      </div>
+      <button type="button" onClick={runAi} disabled={ai?.loading} className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-new)] bg-[var(--surface-2-new)] py-2.5 text-[13.5px] font-semibold text-[var(--text-2-new)] transition-colors hover:border-[var(--accent-new)] hover:text-[var(--accent-new)] disabled:opacity-60">
+        <span style={{ color: "var(--accent-new)" }}>✦</span> {ai?.loading ? "Analysing…" : subscribed ? "AI deep-dive" : "AI deep-dive · Pro"}
+      </button>
+      {ai?.text ? <p className="mt-3 rounded-xl border border-[var(--border-new)] bg-[var(--surface-2-new)] p-3.5 text-[13.5px] leading-relaxed text-[var(--text-new)]">{ai.text}</p> : null}
+    </div>
+  );
+}
+
+function ValuePage({ setActivePage, accessToken }) {
+  const [sport, setSport] = useState("AFL");
+  const [state, setState] = useState({ loading: true });
+  const load = React.useCallback(async (sp) => {
+    setState({ loading: true });
+    try {
+      const r = await fetch("/api/edge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ intent: "value", sport: sp }),
+      });
+      const d = await r.json();
+      setState({ loading: false, data: d });
+    } catch (e) {
+      setState({ loading: false, error: e.message });
+    }
+  }, [accessToken]);
+  useEffect(() => { load(sport); }, [sport, load]);
+  const onUpgrade = () => setActivePage("edge");
+  const d = state.data;
+
+  return (
+    <div className="page-fade-in min-h-screen pb-24 md:pb-0" style={{ background: "var(--bg-new)", color: "var(--text-new)" }}>
+      <main className="p-4 md:p-8">
+        <div className="mx-auto max-w-7xl space-y-6"><TopNav activePage="value" setActivePage={setActivePage} /></div>
+        <div className="mx-auto max-w-2xl">
+          <div className="border-b border-[var(--border-new)] pb-6">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">Pickd · value board</p>
+            <h1 className="brand-wordmark mt-3 text-[34px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[40px]">Value picks<span style={{ color: "var(--accent-new)" }}>.</span></h1>
+            <p className="mt-3 max-w-[480px] text-[14px] leading-relaxed text-[var(--text-2-new)]">The slate's best player props, ranked by edge vs the market. Outcomes resolve from game logs.</p>
+            <div className="mt-4 inline-flex gap-1 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] p-1">
+              {["AFL", "NBA"].map((s) => (
+                <button key={s} type="button" onClick={() => s === "AFL" && setSport(s)} disabled={s === "NBA"}
+                  className={"rounded-lg px-4 py-2 text-[13px] font-semibold transition " + (sport === s ? "text-black" : s === "NBA" ? "cursor-default text-[var(--text-3-new)] opacity-50" : "text-[var(--text-2-new)] hover:text-[var(--text-new)]")}
+                  style={sport === s ? { background: "var(--accent-new)" } : undefined}>
+                  {s}{s === "NBA" ? " · soon" : ""}
+                </button>
+              ))}
+            </div>
+          </div>
+          {state.loading ? (
+            <p className="py-16 text-center text-[14px] text-[var(--text-2-new)]">Loading value picks…</p>
+          ) : state.error ? (
+            <p className="py-16 text-center text-[14px] text-[var(--danger-new)]">{state.error}</p>
+          ) : !d?.board?.length ? (
+            <p className="py-16 text-center text-[14px] text-[var(--text-2-new)]">No value picks right now — check back when the next slate's odds are up.</p>
+          ) : (
+            <div className="space-y-4 pt-6">
+              {d.board.map((pick, i) => <ValueCard key={i} pick={pick} accessToken={accessToken} subscribed={d.subscribed} onUpgrade={onUpgrade} />)}
+              {d.locked > 0 ? (
+                <div className="rounded-[22px] border border-[var(--accent-new)] bg-[var(--surface-new)] p-7 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--accent-new)]" style={{ background: "color-mix(in srgb, var(--accent-new) 12%, transparent)" }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-new)" strokeWidth="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                  </div>
+                  <h3 className="text-[22px] font-bold tracking-[-0.02em] text-[var(--text-new)]">{d.locked} more value picks</h3>
+                  <p className="mx-auto mt-2 max-w-[330px] text-[14px] text-[var(--text-2-new)]">You're seeing today's #1 pick free. Unlock the full ranked board with Pro.</p>
+                  <button type="button" onClick={onUpgrade} className="mt-5 rounded-xl px-6 py-3 text-[15px] font-bold text-black" style={{ background: "var(--accent-new)" }}>Unlock with Pro</button>
+                </div>
+              ) : null}
+              {d.computedAt ? <p className="pt-2 text-center text-[11px] text-[var(--text-3-new)]">Updated {new Date(d.computedAt).toLocaleString()} · refreshes through the day</p> : null}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
 function TopNav({ activePage, setActivePage }) {
   const tabClass = (key) =>
     "text-[13px] md:text-[14px] uppercase tracking-[0.08em] transition-colors " +
@@ -1302,6 +1453,7 @@ function TopNav({ activePage, setActivePage }) {
         <button onClick={() => setActivePage("edge")} className={tabClass("edge") + " inline-flex items-center gap-2 whitespace-nowrap"}>
           <span className="h-2 w-2 rounded-full bg-[var(--accent-new)]" style={{ boxShadow: "0 0 8px var(--accent-new)" }} />MultiPick
         </button>
+        <button onClick={() => setActivePage("value")} className={tabClass("value") + " whitespace-nowrap"}>Value</button>
         <button onClick={() => setActivePage("settings")} className={tabClass("settings") + " whitespace-nowrap"}>Settings</button>
       </div>
     </nav>
@@ -4238,6 +4390,9 @@ function MobileBottomNav({ activePage, setActivePage, formRef }) {
         <button type="button" onClick={() => setActivePage("edge")} className={tab(activePage === "edge")}>
           {NAV_ICONS.build}<span>MultiPick</span>
         </button>
+        <button type="button" onClick={() => setActivePage("value")} className={tab(activePage === "value")}>
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg><span>Value</span>
+        </button>
         <button type="button" onClick={() => setActivePage("settings")} className={tab(activePage === "settings")}>
           {NAV_ICONS.settings}<span>Settings</span>
         </button>
@@ -5789,6 +5944,7 @@ export default function BettingTrackerWebsite() {
 
   if (["disclaimer", "responsible", "privacy", "terms"].includes(activePage)) return <LegalPage page={activePage} setActivePage={setActivePage} />;
   if (activePage === "edge" && session) return <EdgePage setActivePage={setActivePage} onSaveMulti={saveMultiAsBet} accessToken={session?.access_token} gridBuildStats={gridBuildStats} prefill={edgePrefill} onPrefillConsumed={() => setEdgePrefill(null)} fmtMoney={fmtMoney} />;
+  if (activePage === "value" && session) return <ValuePage setActivePage={setActivePage} accessToken={session?.access_token} />;
   if (activePage === "founder" && session && (session.user?.email || "").toLowerCase() === FOUNDER_EMAIL) return <FounderPage setActivePage={setActivePage} accessToken={session?.access_token} />;
   if (activePage === "settings" && session) return <SettingsPage setActivePage={setActivePage} handleLogout={handleLogout} bets={bets} exportCsv={exportCsv} exportBackup={exportBackup} clearAllBets={clearAllBets} fileInputRef={fileInputRef} importBackup={importBackup} darkMode={darkMode} setDarkMode={chooseTheme} onReplayTour={replayTour} unitSize={unitSize} setUnitSize={setUnitSize} showUnits={showUnits} setShowUnits={setShowUnits} isFounder={(session.user?.email || "").toLowerCase() === FOUNDER_EMAIL} />;
   if (recoveryMode) return <PasswordRecoveryScreen newPassword={newPassword} setNewPassword={setNewPassword} loading={authLoading} message={message} onSubmit={handleUpdatePassword} />;
