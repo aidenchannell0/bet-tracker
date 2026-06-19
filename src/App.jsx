@@ -1292,8 +1292,11 @@ function ValueHitTrack({ values, line }) {
         <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-3-new)]">Last {v.length} · recent first</span>
         <span className="text-[11px] font-bold text-[var(--accent-new)]">{cleared}/{v.length} cleared {Math.ceil(line)}+</span>
       </div>
-      <div className="relative">
-        <div className="pointer-events-none absolute top-[-3px] bottom-[-3px] z-[2] border-l border-dashed border-[var(--border-strong-new)]" style={{ left: `${thr}%` }} />
+      <div className="relative pt-[18px]">
+        <div className="pointer-events-none absolute inset-y-0 z-[3]" style={{ left: `${thr}%` }}>
+          <span className="absolute top-0 -translate-x-1/2 rounded px-1.5 py-[1px] text-[9px] font-bold leading-none" style={{ background: "var(--text-new)", color: "var(--bg-new)" }}>{line}</span>
+          <span className="absolute" style={{ top: 16, bottom: 0, left: 0, borderLeft: "2px dashed rgba(255,255,255,0.85)", filter: "drop-shadow(0 0 1px rgba(0,0,0,0.85))" }} />
+        </div>
         <div className="space-y-1.5">
           {rows.map((val, i) => {
             const hit = val >= line;
@@ -1326,7 +1329,8 @@ function ValueCard({ pick, accessToken, subscribed, onUpgrade }) {
         body: JSON.stringify({ intent: "value_explain", pick }),
       });
       const d = await r.json();
-      setAi({ text: d.locked ? null : d.analysis || "Couldn't generate right now." });
+      const clean = (d.analysis || "").replace(/\*\*/g, "").replace(/\*/g, "").trim();
+      setAi({ text: d.locked ? null : clean || "Couldn't generate right now." });
       if (d.locked) onUpgrade();
     } catch {
       setAi({ text: "Couldn't generate right now." });

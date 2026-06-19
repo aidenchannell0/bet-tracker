@@ -3622,10 +3622,14 @@ function valueCard(p) {
   };
 }
 
-// Same ranking as topValuePlays (best edge per player, positive only) but mapped to
-// the richer feed card.
+// Odds ceiling for the value board — this tool surfaces low-odds value to ADD to a multi,
+// not longshots, so cap the price. Tweak here to change the cap.
+const VALUE_ODDS_MAX = 2.0;
+
+// Same ranking as topValuePlays (best edge per player, positive only) but mapped to the
+// richer feed card. Capped at VALUE_ODDS_MAX so every pick is multi-friendly.
 function rankValueBoard(enriched, n = 25) {
-  const eligible = enriched.filter((p) => p.statsAvailable && p.edge != null && p.sampleSize >= 3 && Number(p.odds) > 1);
+  const eligible = enriched.filter((p) => p.statsAvailable && p.edge != null && p.sampleSize >= 3 && Number(p.odds) > 1 && Number(p.odds) <= VALUE_ODDS_MAX);
   const best = new Map();
   for (const p of eligible) {
     const cur = best.get(p.playerName);
@@ -3667,22 +3671,27 @@ async function computeValueBoard(req, sport) {
 // to compute-every-time (still works, just no caching).
 const VALUE_BOARD_TTL_MS = 6 * 60 * 60 * 1000;
 const VALUE_BOARD_EMPTY_TTL_MS = 30 * 60 * 1000;
+// Bump to invalidate every cached board after a ranking/filter change (e.g. the odds cap),
+// so users see the new logic immediately instead of waiting out the TTL.
+const VALUE_BOARD_VERSION = 2;
 async function getValueBoard(req, sport) {
   const key = (sport || "AFL").toUpperCase();
   if (supabaseAdmin) {
     try {
       const { data } = await supabaseAdmin.from("value_board").select("board,computed_at").eq("sport", key).maybeSingle();
-      if (data?.computed_at) {
+      // Cache is {v, picks}; old array-shaped or wrong-version rows are treated as stale.
+      const picks = data?.board && !Array.isArray(data.board) && data.board.v === VALUE_BOARD_VERSION ? data.board.picks : null;
+      if (picks && data?.computed_at) {
         const age = Date.now() - new Date(data.computed_at).getTime();
-        const ttl = data.board?.length ? VALUE_BOARD_TTL_MS : VALUE_BOARD_EMPTY_TTL_MS;
-        if (age < ttl) return { board: data.board || [], computedAt: data.computed_at };
+        const ttl = picks.length ? VALUE_BOARD_TTL_MS : VALUE_BOARD_EMPTY_TTL_MS;
+        if (age < ttl) return { board: picks, computedAt: data.computed_at };
       }
     } catch (e) { console.error("value_board read error:", e.message); }
   }
   const board = await computeValueBoard(req, key);
   const computedAt = new Date().toISOString();
   if (supabaseAdmin) {
-    try { await supabaseAdmin.from("value_board").upsert({ sport: key, board, computed_at: computedAt }, { onConflict: "sport" }); }
+    try { await supabaseAdmin.from("value_board").upsert({ sport: key, board: { v: VALUE_BOARD_VERSION, picks: board }, computed_at: computedAt }, { onConflict: "sport" }); }
     catch (e) { console.error("value_board upsert error:", e.message); }
   }
   return { board, computedAt };
@@ -3695,16 +3704,21 @@ async function explainValuePick(pick) {
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: [
-        { role: "system", content: EDGE_SYSTEM_PROMPT },
-        { role: "user", content: `Write a short (3-4 sentence) analysis of why this player prop has value, using ONLY this data. Ground every claim in the numbers; invent nothing (no injuries/news/scores). Informational only.\n\n${JSON.stringify({
+        { role: "system", content: `You're a sharp, friendly footy analyst for Pickd. In 2-3 short sentences, give a natural, conversational read on why this player prop looks like value — like texting a mate who knows their footy, not writing a corporate report.
+Rules:
+- Plain sentences only. No markdown, no asterisks, no bold, no bullet points, no headings, no labels like "Confidence:".
+- Ground every claim in the numbers given. Invent nothing — no injuries, team news, weather, or stats you weren't handed.
+- Never call it safe, guaranteed, a lock, certain, or a sure thing. It's an informational example and outcomes are uncertain.
+- Keep it punchy and genuinely easy to read.` },
+        { role: "user", content: `Give the quick read on this prop, in plain language:\n${JSON.stringify({
           player: pick.player, prop: pick.label, confidence: `${pick.confidence}%`, edge: pick.edgePct != null ? `${pick.edgePct}%` : null,
           recentAverage: pick.recentAvg, last10HitRate: pick.hr10, last5Outputs: pick.last5Values, line: pick.line,
           opponent: pick.opponent, opponentConcedes: pick.matchupPct ? `${pick.matchupPct}%` : null, bestOdds: pick.odds, bookmaker: pick.bookmaker,
         })}` },
       ],
-      temperature: 0.3, max_tokens: 240,
+      temperature: 0.65, max_tokens: 200,
     });
-    return completion.choices?.[0]?.message?.content || "Couldn't generate the deep-dive right now.";
+    return (completion.choices?.[0]?.message?.content || "Couldn't generate the deep-dive right now.").replace(/\*\*/g, "").replace(/\*/g, "").trim();
   } catch (e) {
     console.error("explainValuePick error:", e.message);
     return "Couldn't generate the deep-dive right now.";
