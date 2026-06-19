@@ -103,7 +103,7 @@ export default async function handler(req, res) {
       .split(",")
       .map((p) => p.trim())
       .filter(Boolean)
-      .slice(0, 40);
+      .slice(0, 500); // was 40 (one game); the value board sends a whole slate's players
 
     const metrics = String(req.query.metrics || config.defaultMetric)
       .split(",")
@@ -121,15 +121,25 @@ export default async function handler(req, res) {
     const keys = [...new Set(players.map(nameKey).filter(Boolean))];
     const columns = metrics.map((m) => config.metrics[m]);
 
-    const { data, error } = await supabase
-      .from(config.table)
-      .select(`name_key,player_name,team,game_date,${columns.join(",")}`)
-      .in("name_key", keys)
-      .order("game_date", { ascending: false })
-      .limit(40 * keys.length);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    // Supabase caps a single response at 1000 rows. With a whole slate's players that
+    // truncates most of them (only the first ~40 ever came back). Paginate in 1000-row
+    // pages, newest-first, up to ~40 games per player (capped) so every player is covered.
+    const maxRows = Math.min(40 * keys.length, 9000);
+    const data = [];
+    const PAGE = 1000;
+    for (let from = 0; from < maxRows; from += PAGE) {
+      const { data: page, error } = await supabase
+        .from(config.table)
+        .select(`name_key,player_name,team,game_date,${columns.join(",")}`)
+        .in("name_key", keys)
+        .order("game_date", { ascending: false })
+        .range(from, Math.min(from + PAGE, maxRows) - 1);
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      if (!page?.length) break;
+      data.push(...page);
+      if (page.length < PAGE) break;
     }
 
     const byKey = new Map();

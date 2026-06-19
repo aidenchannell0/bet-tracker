@@ -3716,7 +3716,7 @@ async function computeValueBoard(req, sport) {
     if (ctx?.event) allProps.push(...extractPlayerPropsFromEvent(ctx.event));
   }
   if (!allProps.length) return [];
-  const players = [...new Set(allProps.map((p) => p.playerName))].slice(0, 240);
+  const players = [...new Set(allProps.map((p) => p.playerName))].slice(0, 500);
   const metrics = [...new Set(allProps.map((p) => p.metric))];
   const statsContext = await fetchStatsContext(req, "AFL", players, metrics);
   const curve = await loadCalibrationCurve("AFL");
@@ -3737,7 +3737,7 @@ async function debugSlate(req, sport) {
   }
   const players = [...new Set(allProps.map((p) => p.playerName))];
   const metrics = [...new Set(allProps.map((p) => p.metric))];
-  const statsContext = await fetchStatsContext(req, "AFL", players.slice(0, 240), metrics);
+  const statsContext = await fetchStatsContext(req, "AFL", players.slice(0, 500), metrics);
   const curve = await loadCalibrationCurve("AFL");
   const defenseContext = await fetchDefenseContext(req);
   const enriched = enrichProps(allProps, statsContext, defenseContext?.factors || null, curve);
@@ -3763,7 +3763,7 @@ const VALUE_BOARD_TTL_MS = 8 * 60 * 60 * 1000; // > the 6h pre-warm cron, so rea
 const VALUE_BOARD_EMPTY_TTL_MS = 30 * 60 * 1000;
 // Bump to invalidate every cached board after a ranking/filter change (e.g. the odds cap),
 // so users see the new logic immediately instead of waiting out the TTL.
-const VALUE_BOARD_VERSION = 4;
+const VALUE_BOARD_VERSION = 5;
 async function getValueBoard(req, sport) {
   const key = (sport || "AFL").toUpperCase();
   if (supabaseAdmin) {
