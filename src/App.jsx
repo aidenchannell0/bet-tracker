@@ -57,6 +57,7 @@ function founderStatusBadge(status) {
 
 function FounderPage({ setActivePage, accessToken }) {
   const [state, setState] = useState({ loading: true });
+  const [oddsFilter, setOddsFilter] = useState(null); // null = all odds, else a bracket key
   const load = React.useCallback(async () => {
     setState({ loading: true });
     try {
@@ -72,8 +73,13 @@ function FounderPage({ setActivePage, accessToken }) {
 
   const d = state.data;
   const o = d?.overall;
-  const gap = o && o.predicted != null && o.winRate != null ? o.predicted - o.winRate : null;
+  const activeBracket = oddsFilter && d?.byOdds ? d.byOdds.find((b) => b.key === oddsFilter) : null;
+  const view = activeBracket || o; // headline + calibration + recent reflect the selected odds bracket
+  const gap = view && view.predicted != null && view.winRate != null ? view.predicted - view.winRate : null;
   const calLabel = gap == null ? null : Math.abs(gap) <= 4 ? "Well calibrated" : gap > 0 ? "Model overconfident" : "Model underconfident";
+  const recentView = activeBracket
+    ? (d?.recent || []).filter((m) => m.odds != null && m.odds >= activeBracket.lo && (activeBracket.hi == null || m.odds < activeBracket.hi))
+    : (d?.recent || []);
   const fmtRate = (v) => (v == null ? "—" : `${v}%`);
 
   return (
@@ -100,20 +106,41 @@ function FounderPage({ setActivePage, accessToken }) {
             <p className="py-16 text-center text-[14px] text-[var(--text-2-new)]">No multis logged yet. They'll appear here as users build them.</p>
           ) : (
             <div className="space-y-8 pt-7">
+              {/* Win rate by odds — clickable filter */}
+              {d.byOdds && d.byOdds.some((b) => b.total > 0) ? (
+                <div>
+                  <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Win rate by odds</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[{ key: null, label: "All odds", winRate: o.winRate, total: o.total }].concat(d.byOdds.map((b) => ({ key: b.key, label: b.key, winRate: b.winRate, total: b.total }))).map((c) => {
+                      const active = oddsFilter === c.key;
+                      return (
+                        <button key={c.label} type="button" onClick={() => setOddsFilter(c.key)} disabled={c.total === 0}
+                          className={"rounded-xl border px-3.5 py-2 text-left transition-colors bg-[var(--surface-new)] " + (active ? "border-[var(--accent-new)]" : "border-[var(--border-new)] hover:border-[var(--border-strong-new)]") + (c.total === 0 ? " opacity-40" : "")}>
+                          <span className="block text-[12px] font-semibold text-[var(--text-new)]">{c.label}</span>
+                          <span className="block text-[15px] font-semibold tracking-[-0.02em] text-emerald-600" style={{ fontFamily: "ui-monospace, monospace" }}>{fmtRate(c.winRate)}</span>
+                          <span className="block text-[10.5px] text-[var(--text-3-new)]">{c.total} built</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {activeBracket ? <p className="mt-2.5 text-[11.5px] text-[var(--text-2-new)]">Summary &amp; recent filtered to <b className="text-[var(--text-new)]">{activeBracket.key}</b> odds · <button type="button" onClick={() => setOddsFilter(null)} className="text-emerald-600 underline">clear</button></p> : null}
+                </div>
+              ) : null}
+
               {/* Headline tiles */}
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <FounderTile label="Win rate" value={fmtRate(o.winRate)} sub={`${o.won} won · ${o.lost} lost`} tone="text-emerald-600" />
-                <FounderTile label="Multis built" value={o.total} sub={`${d.distinctUsers} user${d.distinctUsers === 1 ? "" : "s"}`} />
-                <FounderTile label="Settled" value={o.resolved} sub={`${o.pending} pending`} />
-                <FounderTile label="Avg odds" value={o.avgOdds != null ? `$${o.avgOdds}` : "—"} sub="settled multis" />
+                <FounderTile label="Win rate" value={fmtRate(view.winRate)} sub={`${view.won} won · ${view.lost} lost`} tone="text-emerald-600" />
+                <FounderTile label="Multis built" value={view.total} sub={activeBracket ? "in this odds range" : `${d.distinctUsers} user${d.distinctUsers === 1 ? "" : "s"}`} />
+                <FounderTile label="Settled" value={view.resolved} sub={`${view.pending} pending`} />
+                <FounderTile label="Avg odds" value={view.avgOdds != null ? `$${view.avgOdds}` : "—"} sub="settled multis" />
               </div>
 
               {/* Calibration headline */}
               <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
-                <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Honesty check · predicted vs actual</p>
+                <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Honesty check · predicted vs actual{activeBracket ? ` · ${activeBracket.key}` : ""}</p>
                 <div className="mt-3 flex flex-wrap items-baseline gap-x-8 gap-y-2">
-                  <div><span className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "ui-monospace, monospace" }}>{fmtRate(o.predicted)}</span> <span className="text-[12.5px] text-[var(--text-2-new)]">we predicted</span></div>
-                  <div><span className="text-[26px] font-semibold tracking-[-0.02em] text-emerald-600" style={{ fontFamily: "ui-monospace, monospace" }}>{fmtRate(o.winRate)}</span> <span className="text-[12.5px] text-[var(--text-2-new)]">actually won</span></div>
+                  <div><span className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "ui-monospace, monospace" }}>{fmtRate(view.predicted)}</span> <span className="text-[12.5px] text-[var(--text-2-new)]">we predicted</span></div>
+                  <div><span className="text-[26px] font-semibold tracking-[-0.02em] text-emerald-600" style={{ fontFamily: "ui-monospace, monospace" }}>{fmtRate(view.winRate)}</span> <span className="text-[12.5px] text-[var(--text-2-new)]">actually won</span></div>
                   {calLabel ? <span className="text-[12.5px] font-medium text-[var(--text-new)]">{calLabel}{gap != null ? ` (${gap > 0 ? "+" : ""}${gap}%)` : ""}</span> : null}
                 </div>
               </div>
@@ -153,7 +180,7 @@ function FounderPage({ setActivePage, accessToken }) {
               <div>
                 <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Recent multis</p>
                 <div className="overflow-hidden rounded-2xl border border-[var(--border-new)]">
-                  {d.recent.map((m, i) => (
+                  {recentView.length ? recentView.map((m, i) => (
                     <div key={i} className={"flex items-center gap-3 px-4 py-3 " + (i ? "border-t border-[var(--border-new)] " : "") + "bg-[var(--surface-new)]"}>
                       <div className="w-[78px] shrink-0 text-[12px] text-[var(--text-3-new)]">{new Date(m.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</div>
                       <div className="min-w-0 flex-1">
@@ -162,7 +189,9 @@ function FounderPage({ setActivePage, accessToken }) {
                       </div>
                       <div className="shrink-0">{founderStatusBadge(m.status)}</div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="bg-[var(--surface-new)] px-4 py-6 text-center text-[12.5px] text-[var(--text-3-new)]">No recent multis in this odds range.</div>
+                  )}
                 </div>
               </div>
 
