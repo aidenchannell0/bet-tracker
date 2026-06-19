@@ -3591,6 +3591,126 @@ function topValuePlays(enriched, n = 5) {
     .map(analysisLeg);
 }
 
+// ── Value board: top value player props across the whole slate, cached ───────
+// Plain-English, data-only writeup for a value pick (no LLM — instant + free).
+function valueAnalysis(p) {
+  const line = Math.ceil(Number(p.line));
+  const mlabel = metricLabel(p.metric);
+  const parts = [];
+  if (p.recentAvg != null) parts.push(`Averaging ${p.recentAvg} ${mlabel} lately`);
+  if (p.hr10) parts.push(`cleared ${line}+ in ${p.hr10.hits} of his last ${p.hr10.total}`);
+  let s = parts.length ? parts.join(" — ") + "." : `A live ${mlabel} edge.`;
+  if (p.edge != null && p.edge > 0) s += ` That's a +${Math.round(p.edge * 100)}% edge over the market price of $${Number(p.odds).toFixed(2)}.`;
+  if (p.matchupFactor && p.matchupFactor !== 1 && p.opponent) {
+    const mp = Math.round((p.matchupFactor - 1) * 100);
+    if (mp >= 3) s += ` ${p.opponent} concedes +${mp}% ${mlabel}.`;
+  }
+  if (p.gameTotal != null && p.gameEnvFactor && p.gameEnvFactor > 1.02) s += ` Game projected high (total ${p.gameTotal}).`;
+  return s;
+}
+
+// One feed card = analysisLeg + the fields the last-5 hit-track and writeup need.
+function valueCard(p) {
+  return {
+    ...analysisLeg(p),
+    line: Number(p.line),
+    last5Values: Array.isArray(p.last5Values) ? p.last5Values.slice(-5) : [],
+    hr5: p.hr5 ? `${p.hr5.hits}/${p.hr5.total}` : null,
+    sampleSize: p.sampleSize ?? null,
+    gameLabel: p.gameLabel || null,
+    analysis: valueAnalysis(p),
+  };
+}
+
+// Same ranking as topValuePlays (best edge per player, positive only) but mapped to
+// the richer feed card.
+function rankValueBoard(enriched, n = 25) {
+  const eligible = enriched.filter((p) => p.statsAvailable && p.edge != null && p.sampleSize >= 3 && Number(p.odds) > 1);
+  const best = new Map();
+  for (const p of eligible) {
+    const cur = best.get(p.playerName);
+    if (!cur || (p.edge ?? -1) > (cur.edge ?? -1)) best.set(p.playerName, p);
+  }
+  return [...best.values()]
+    .filter((p) => (p.edge ?? 0) > 0)
+    .sort((a, b) => (b.edge ?? 0) - (a.edge ?? 0))
+    .slice(0, n)
+    .map(valueCard);
+}
+
+// Rate every player prop across the upcoming slate and return the ranked value board.
+// AFL only for v1 — the enrichment + calibration path is AFL-proven. Heavy (one event-odds
+// call per game), so callers cache via getValueBoard.
+async function computeValueBoard(req, sport) {
+  if ((sport || "AFL").toUpperCase() !== "AFL") return [];
+  const oddsContext = await fetchOddsContext(req, "AFL", null, null);
+  if (!oddsContext.available || !oddsContext.events?.length) return [];
+  const events = oddsContext.events.slice(0, 12);
+  const playerMarkets = { label: "AFL props", markets: ANALYSIS_PLAYER_MARKETS };
+  const allProps = [];
+  for (const ev of events) {
+    const ctx = await fetchEventOddsContext(req, "AFL", ev.id, playerMarkets);
+    if (ctx?.event) allProps.push(...extractPlayerPropsFromEvent(ctx.event));
+  }
+  if (!allProps.length) return [];
+  const players = [...new Set(allProps.map((p) => p.playerName))].slice(0, 240);
+  const metrics = [...new Set(allProps.map((p) => p.metric))];
+  const statsContext = await fetchStatsContext(req, "AFL", players, metrics);
+  const curve = await loadCalibrationCurve("AFL");
+  const defenseContext = await fetchDefenseContext(req);
+  const enriched = enrichProps(allProps, statsContext, defenseContext?.factors || null, curve);
+  return rankValueBoard(enriched, 25);
+}
+
+// Cached board read (compute-on-stale). Full board cached 6h; an empty result (off-season /
+// feed blip) retried after 30m. Cache lives in the value_board table; missing table degrades
+// to compute-every-time (still works, just no caching).
+const VALUE_BOARD_TTL_MS = 6 * 60 * 60 * 1000;
+const VALUE_BOARD_EMPTY_TTL_MS = 30 * 60 * 1000;
+async function getValueBoard(req, sport) {
+  const key = (sport || "AFL").toUpperCase();
+  if (supabaseAdmin) {
+    try {
+      const { data } = await supabaseAdmin.from("value_board").select("board,computed_at").eq("sport", key).maybeSingle();
+      if (data?.computed_at) {
+        const age = Date.now() - new Date(data.computed_at).getTime();
+        const ttl = data.board?.length ? VALUE_BOARD_TTL_MS : VALUE_BOARD_EMPTY_TTL_MS;
+        if (age < ttl) return { board: data.board || [], computedAt: data.computed_at };
+      }
+    } catch (e) { console.error("value_board read error:", e.message); }
+  }
+  const board = await computeValueBoard(req, key);
+  const computedAt = new Date().toISOString();
+  if (supabaseAdmin) {
+    try { await supabaseAdmin.from("value_board").upsert({ sport: key, board, computed_at: computedAt }, { onConflict: "sport" }); }
+    catch (e) { console.error("value_board upsert error:", e.message); }
+  }
+  return { board, computedAt };
+}
+
+// On-tap AI deep-dive for a single pick (Pro). Data-grounded, short.
+async function explainValuePick(pick) {
+  if (!pick?.player) return "No pick provided.";
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: EDGE_SYSTEM_PROMPT },
+        { role: "user", content: `Write a short (3-4 sentence) analysis of why this player prop has value, using ONLY this data. Ground every claim in the numbers; invent nothing (no injuries/news/scores). Informational only.\n\n${JSON.stringify({
+          player: pick.player, prop: pick.label, confidence: `${pick.confidence}%`, edge: pick.edgePct != null ? `${pick.edgePct}%` : null,
+          recentAverage: pick.recentAvg, last10HitRate: pick.hr10, last5Outputs: pick.last5Values, line: pick.line,
+          opponent: pick.opponent, opponentConcedes: pick.matchupPct ? `${pick.matchupPct}%` : null, bestOdds: pick.odds, bookmaker: pick.bookmaker,
+        })}` },
+      ],
+      temperature: 0.3, max_tokens: 240,
+    });
+    return completion.choices?.[0]?.message?.content || "Couldn't generate the deep-dive right now.";
+  } catch (e) {
+    console.error("explainValuePick error:", e.message);
+    return "Couldn't generate the deep-dive right now.";
+  }
+}
+
 // Matchup angles from defence factors: the stat each team concedes most AND the
 // stat each team defends best, vs league average.
 function buildMatchupAngles(factors, home, away) {
@@ -3731,6 +3851,30 @@ export default async function handler(req, res) {
       } catch (err) {
         return res.status(500).json({ valid: false, error: err.message || "Parse failed" });
       }
+    }
+
+    // Branch: value board (top value props across the slate) + on-tap AI deep-dive.
+    // Folded here to stay within Vercel Hobby's 12-function limit. Isolated from the
+    // build flow. Free users get 1 pick; Pro gets the full board.
+    if (body.intent === "value" || body.intent === "value_explain") {
+      const vsport = getSafeString(body.sport, "AFL").toUpperCase() === "NBA" ? "NBA" : "AFL";
+      const access = await checkGridBuildAccess(req);
+      if (body.intent === "value_explain") {
+        if (!access.subscribed) return res.status(200).json({ locked: true });
+        const analysis = await explainValuePick(body.pick || {});
+        return res.status(200).json({ analysis });
+      }
+      const { board, computedAt } = await getValueBoard(req, vsport);
+      const total = board.length;
+      const visible = access.subscribed ? board : board.slice(0, 1);
+      return res.status(200).json({
+        board: visible,
+        total,
+        locked: access.subscribed ? 0 : Math.max(0, total - 1),
+        subscribed: !!access.subscribed,
+        sport: vsport,
+        computedAt,
+      });
     }
 
     const { message, context } = body;
