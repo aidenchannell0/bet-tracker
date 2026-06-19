@@ -3725,25 +3725,35 @@ async function computeValueBoard(req, sport) {
   return await attachGameMeta(rankValueBoard(enriched, 25));
 }
 
-// TEMP diagnostic: per-game prop fetch breakdown, to find why the board only spans one game.
+// TEMP diagnostic: trace the full funnel per game (fetch -> enrich -> stats -> edge -> board).
 async function debugSlate(req, sport) {
   const oddsContext = await fetchOddsContext(req, "AFL", null, null);
   const events = (oddsContext.events || []).slice(0, 12);
   const playerMarkets = { label: "AFL props", markets: ANALYSIS_PLAYER_MARKETS };
-  const perGame = [];
-  let total = 0;
+  const allProps = [];
   for (const ev of events) {
-    const t0 = Date.now();
-    let n = 0, ok = false, err = null, quota = null;
-    try {
-      const ctx = await fetchEventOddsContext(req, "AFL", ev.id, playerMarkets);
-      ok = !!ctx?.event; quota = ctx?.quota ?? null;
-      if (ctx?.event) { n = extractPlayerPropsFromEvent(ctx.event).length; total += n; }
-      else err = String(ctx?.summary || "no event").slice(0, 140);
-    } catch (e) { err = e.message; }
-    perGame.push({ game: `${ev.homeTeam} v ${ev.awayTeam}`, ok, props: n, ms: Date.now() - t0, quota, err });
+    const ctx = await fetchEventOddsContext(req, "AFL", ev.id, playerMarkets);
+    if (ctx?.event) allProps.push(...extractPlayerPropsFromEvent(ctx.event));
   }
-  return { eventsAvailable: oddsContext.events?.length || 0, eventsUsed: events.length, totalProps: total, perGame };
+  const players = [...new Set(allProps.map((p) => p.playerName))];
+  const metrics = [...new Set(allProps.map((p) => p.metric))];
+  const statsContext = await fetchStatsContext(req, "AFL", players.slice(0, 240), metrics);
+  const curve = await loadCalibrationCurve("AFL");
+  const defenseContext = await fetchDefenseContext(req);
+  const enriched = enrichProps(allProps, statsContext, defenseContext?.factors || null, curve);
+  const board = rankValueBoard(enriched, 25);
+  const perGame = {};
+  const bump = (g, k) => { (perGame[g] = perGame[g] || {})[k] = (perGame[g][k] || 0) + 1; };
+  for (const p of allProps) bump(p.gameLabel || "?", "props");
+  for (const p of enriched) { if (p.statsAvailable) bump(p.gameLabel || "?", "statsOK"); if (p.edge != null) bump(p.gameLabel || "?", "edge"); }
+  for (const c of board) bump(c.gameLabel || "?", "board");
+  return {
+    distinctPlayers: players.length,
+    statsPlayersReturned: Array.isArray(statsContext?.players) ? statsContext.players.length : (statsContext?.available ? "avail-no-list" : "none"),
+    statsAvailable: statsContext?.available ?? null,
+    totalProps: allProps.length, enrichedTotal: enriched.length, boardSize: board.length,
+    perGame,
+  };
 }
 
 // Cached board read (compute-on-stale). Full board cached 6h; an empty result (off-season /
