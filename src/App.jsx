@@ -2445,7 +2445,6 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
   // chat refine). Drives the full-screen sphere animation in the output column
   // every time Build is pressed — even when a multi already exists.
   const [buildingMulti, setBuildingMulti] = useState(false);
-  const [showRiskExplanation, setShowRiskExplanation] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [lastEdgeContext, setLastEdgeContext] = useState(null);
   const [multiOutput, setMultiOutput] = useState(null);
@@ -3288,13 +3287,13 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                       ) : null}
                     </div>
                     {multiOutput && showMultiNumbers ? (
-                      <div className="mt-7 grid grid-cols-1 gap-y-6 border-t border-[var(--border-new)] pt-6 sm:grid-cols-3 sm:gap-x-0">
+                      <div className="mt-7 grid grid-cols-1 gap-y-6 border-t border-[var(--border-new)] pt-6 sm:grid-cols-2 sm:gap-x-0">
                         <div className="sm:pr-7 sm:border-r sm:border-[var(--border-new)]">
                           <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined chance</div>
                           <div className="mt-3 mono-nums text-[24px] font-semibold tracking-[-0.025em] leading-none text-[var(--text-new)]">{multiOutput.combinedProbPct}%</div>
                           <div className="mt-2 text-xs text-[var(--text-3-new)]">{multiOutput.correlated && typeof multiOutput.independentProbPct === "number" ? `Adjusted vs ${multiOutput.independentProbPct}% independent` : "Correlation-adjusted"}</div>
                         </div>
-                        <div className="sm:px-7 sm:border-r sm:border-[var(--border-new)]">
+                        <div className="sm:pl-7">
                           <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Value vs market</div>
                           <div className={"mt-3 mono-nums text-[24px] font-semibold tracking-[-0.025em] leading-none " + (multiOutput.evPct > 0 ? "text-[var(--accent-new)]" : "text-[var(--text-2-new)]")}>
                             {typeof multiOutput.evPct === "number" ? `${multiOutput.evPct > 0 ? "+" : ""}${multiOutput.evPct}%` : "—"}
@@ -3302,11 +3301,6 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                           <div className="mt-2 text-xs text-[var(--text-3-new)]">{typeof multiOutput.evPct === "number"
                             ? (multiOutput.evPct > 0 ? `${multiOutput.valueLegs} of ${multiOutput.legCount} +edge` : `Below fair value${multiOutput.sameGameNote ? " · same-game discount applied" : ""}`)
                             : "Form vs odds"}</div>
-                        </div>
-                        <div className="sm:pl-7">
-                          <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Risk</div>
-                          <div className="mt-3 mono-nums text-[24px] font-semibold tracking-[-0.025em] leading-none text-[var(--warning-new)]">{multiOutput.risk}<span className="text-sm text-[var(--text-3-new)] font-normal"> / 10</span></div>
-                          <div className="mt-2 text-xs text-[var(--text-3-new)]">{multiOutput.risk <= 3 ? "Conservative" : multiOutput.risk <= 6 ? "Balanced exposure" : "Higher variance"}</div>
                         </div>
                       </div>
                     ) : null}
@@ -3367,34 +3361,6 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                       />
                     ))}
                   </div>
-
-                  {/* Risk meter slab */}
-                  <div className="mt-6 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] px-5 py-4 flex items-center gap-5">
-                    <div className="mono-nums text-[26px] font-semibold tracking-[-0.02em] leading-none text-[var(--warning-new)]">
-                      {multiOutput ? multiOutput.risk : 6}<span className="text-sm text-[var(--text-3-new)] font-normal"> / 10</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-[var(--text-new)]">Overall risk score</div>
-                      <div className="text-xs text-[var(--text-3-new)]">{(multiOutput?.risk ?? 6) <= 3 ? "Lower variance — fewer/safer legs" : (multiOutput?.risk ?? 6) <= 6 ? "Balanced exposure" : "Higher variance — longer odds or more legs"}</div>
-                      <div className="mt-2.5 h-1 bg-[var(--bg-new)] rounded-full overflow-hidden">
-                        <div className="h-full rounded-full risk-gradient-fill" style={{ width: `${Math.min(100, ((multiOutput?.risk ?? 6) / 10) * 100)}%` }}></div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowRiskExplanation((c) => !c)}
-                      className="text-xs text-[var(--text-2-new)] hover:text-[var(--text-new)] transition-colors whitespace-nowrap"
-                    >
-                      {showRiskExplanation ? "Hide" : "Why?"}
-                    </button>
-                  </div>
-                  {showRiskExplanation ? (
-                    <div className="mt-3 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4 text-sm leading-6 text-[var(--text-2-new)]">
-                      {multiOutput
-                        ? multiOutput.riskExplanation
-                        : "A 6/10 preview score reflects a balanced multi with multiple legs and player-market variance. The live version will calculate this from odds, markets, leg count and data confidence."}
-                    </div>
-                  ) : null}
 
                   {/* Track this multi */}
                   {multiOutput ? (
@@ -3459,7 +3425,6 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button" onClick={() => useExamplePrompt(`Build a ${sport} example multi around ${displayedTargetOdds}. Keep it simple and explain the risk.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Build example multi</button>
                     <button type="button" onClick={() => useExamplePrompt(`Make the ${sport} example ${request || "disposals only"} and explain what data you would check.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Use my request</button>
-                    <button type="button" onClick={() => useExamplePrompt(`Explain why this ${sport} build has a 6 out of 10 risk score.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Explain risk score</button>
                     <button type="button" onClick={() => useExamplePrompt(`What data would you check before choosing players for this ${sport} build?`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">What data to check?</button>
                   </div>
                 </div>
