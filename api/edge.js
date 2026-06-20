@@ -3685,6 +3685,18 @@ async function attachGameMeta(cards) {
 // not longshots, so cap the price. Tweak here to change the cap.
 const VALUE_ODDS_MAX = 2.0;
 
+// Markets the value board scores: mainstream, liquid props punters actually bet and the major
+// books (incl. PointsBet) price. Deliberately excludes handballs/kicks/clearances — thin
+// markets PointsBet doesn't even offer, whose inflated "edge" is mostly noise and which were
+// crowding disposals (the sharpest, most-booked market) off the board.
+const VALUE_BOARD_MARKETS = [
+  "player_disposals_over",
+  "player_goals_scored_over",
+  "player_marks_over",
+  "player_tackles_over",
+  "player_afl_fantasy_points_over",
+];
+
 // Same ranking as topValuePlays (best edge per player, positive only) but mapped to the
 // richer feed card. Capped at VALUE_ODDS_MAX so every pick is multi-friendly.
 function rankValueBoard(enriched, n = 25) {
@@ -3709,7 +3721,7 @@ async function computeValueBoard(req, sport) {
   const oddsContext = await fetchOddsContext(req, "AFL", null, null);
   if (!oddsContext.available || !oddsContext.events?.length) return [];
   const events = oddsContext.events.slice(0, 12);
-  const playerMarkets = { label: "AFL props", markets: ANALYSIS_PLAYER_MARKETS };
+  const playerMarkets = { label: "AFL value", markets: VALUE_BOARD_MARKETS };
   const allProps = [];
   for (const ev of events) {
     const ctx = await fetchEventOddsContext(req, "AFL", ev.id, playerMarkets);
@@ -3732,7 +3744,7 @@ const VALUE_BOARD_TTL_MS = 8 * 60 * 60 * 1000; // > the 6h pre-warm cron, so rea
 const VALUE_BOARD_EMPTY_TTL_MS = 30 * 60 * 1000;
 // Bump to invalidate every cached board after a ranking/filter change (e.g. the odds cap),
 // so users see the new logic immediately instead of waiting out the TTL.
-const VALUE_BOARD_VERSION = 5;
+const VALUE_BOARD_VERSION = 6;
 async function getValueBoard(req, sport) {
   const key = (sport || "AFL").toUpperCase();
   if (supabaseAdmin) {
@@ -3931,6 +3943,16 @@ export default async function handler(req, res) {
     // build flow. Free users get 1 pick; Pro gets the full board.
     if (body.intent === "value" || body.intent === "value_explain" || body.intent === "value_refresh") {
       const vsport = getSafeString(body.sport, "AFL").toUpperCase() === "NBA" ? "NBA" : "AFL";
+      if (body.debug === "composition") {
+        const { board } = await getValueBoard(req, vsport);
+        const mC = {}, bC = {}; let pbRow = 0;
+        for (const c of board) {
+          mC[c.metric] = (mC[c.metric] || 0) + 1;
+          bC[c.bookmaker] = (bC[c.bookmaker] || 0) + 1;
+          if ((c.allOdds || []).some((o) => /pointsbet/i.test(o.book))) pbRow += 1;
+        }
+        return res.status(200).json({ size: board.length, metrics: mC, bestBooks: bC, pointsbetInRow: pbRow });
+      }
       // Pre-warm path: a cron forces a recompute + cache write so live visitors never
       // trigger the slow slate rating. Secret-gated (CRON_SECRET).
       if (body.intent === "value_refresh") {
