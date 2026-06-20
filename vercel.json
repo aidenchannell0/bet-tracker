@@ -2,8 +2,5 @@
   "rewrites": [
     { "source": "/preview", "destination": "/index.html" },
     { "source": "/preview/:path*", "destination": "/index.html" }
-  ],
-  "crons": [
-    { "path": "/api/calibration?mode=digest", "schedule": "0 22 * * 0" }
   ]
 }
