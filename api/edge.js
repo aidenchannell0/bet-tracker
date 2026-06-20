@@ -3943,16 +3943,6 @@ export default async function handler(req, res) {
     // build flow. Free users get 1 pick; Pro gets the full board.
     if (body.intent === "value" || body.intent === "value_explain" || body.intent === "value_refresh") {
       const vsport = getSafeString(body.sport, "AFL").toUpperCase() === "NBA" ? "NBA" : "AFL";
-      if (body.debug === "composition") {
-        const { board } = await getValueBoard(req, vsport);
-        const mC = {}, bC = {}; let pbRow = 0;
-        for (const c of board) {
-          mC[c.metric] = (mC[c.metric] || 0) + 1;
-          bC[c.bookmaker] = (bC[c.bookmaker] || 0) + 1;
-          if ((c.allOdds || []).some((o) => /pointsbet/i.test(o.book))) pbRow += 1;
-        }
-        return res.status(200).json({ size: board.length, metrics: mC, bestBooks: bC, pointsbetInRow: pbRow });
-      }
       // Pre-warm path: a cron forces a recompute + cache write so live visitors never
       // trigger the slow slate rating. Secret-gated (CRON_SECRET).
       if (body.intent === "value_refresh") {
