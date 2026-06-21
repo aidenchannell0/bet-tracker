@@ -213,6 +213,18 @@ function HeroSection() {
   );
 }
 
+// Persistent top-right "Log in" for returning users (shown on the live landing, not staging).
+export function LoginCorner() {
+  return (
+    <button
+      onClick={() => cta.login()}
+      style={{ position: "fixed", top: 22, right: 26, zIndex: 12, background: "rgba(10,10,11,0.5)", color: "#e9e9ec", fontWeight: 600, fontSize: 14, border: "1px solid #34343c", borderRadius: 11, padding: "9px 18px", cursor: "pointer", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+    >
+      Log in
+    </button>
+  );
+}
+
 // Staging-only banner. Hidden on the live landing (staging=false). The 3D/2D chips link
 // to /preview and /preview/2d so both variants can be eyeballed before launch.
 export function PreviewBanner({ which = "3d" }) {

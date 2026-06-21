@@ -3,7 +3,7 @@
 // No Three.js import here, so phones never download the heavy 3D bundle. Chosen by App for
 // narrow viewports (and anyone who prefers reduced motion).
 import { useRef } from "react";
-import { LIME, BG, cta, PreviewBanner, LandingContent } from "./LandingSections.jsx";
+import { LIME, BG, cta, PreviewBanner, LoginCorner, LandingContent } from "./LandingSections.jsx";
 
 // Three layered, tiled dot-fields at different sizes/offsets read as a calm starfield.
 const STARS =
@@ -20,7 +20,7 @@ export default function Landing2D({ onStartFree, onLogin, staging = false }) {
   cta.explore = () => rootRef.current?.scrollBy({ top: window.innerHeight * 0.92, behavior: "smooth" });
   return (
     <div style={{ position: "fixed", inset: 0, background: BG, overflow: "hidden" }}>
-      {staging ? <PreviewBanner which="2d" /> : null}
+      {staging ? <PreviewBanner which="2d" /> : <LoginCorner />}
       {/* static starfield */}
       <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", backgroundColor: BG, backgroundImage: STARS, backgroundSize: "240px 240px" }} />
       {/* soft green glow up top to echo the 3D version's bloom */}

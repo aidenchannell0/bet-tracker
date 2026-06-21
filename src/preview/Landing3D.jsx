@@ -7,7 +7,7 @@ import { useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import { useRef, useMemo, Suspense } from "react";
 import * as THREE from "three";
-import { LIME, BG, cta, PreviewBanner, LandingContent } from "./LandingSections.jsx";
+import { LIME, BG, cta, PreviewBanner, LoginCorner, LandingContent } from "./LandingSections.jsx";
 
 /* ── shared bits ── */
 function useSprite() {
@@ -146,7 +146,7 @@ export default function Landing3D({ onStartFree, onLogin, staging = false }) {
   cta.explore = () => rootRef.current?.scrollBy({ top: window.innerHeight * 0.92, behavior: "smooth" });
   return (
     <div style={{ position: "fixed", inset: 0, background: BG, overflow: "hidden" }}>
-      {staging ? <PreviewBanner which="3d" /> : null}
+      {staging ? <PreviewBanner which="3d" /> : <LoginCorner />}
       <div style={{ position: "fixed", inset: 0, zIndex: 0 }}>
         <Canvas dpr={[1, 2]} camera={{ position: [0, 0.5, 8.2], fov: 45 }} gl={{ antialias: true, powerPreference: "high-performance" }} onCreated={({ gl }) => { gl.localClippingEnabled = true; }}>
           <Suspense fallback={null}><Scene scrollRef={scrollRef} /></Suspense>
