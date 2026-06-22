@@ -3608,13 +3608,29 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                 </div>
               </div>
               {chatMessages.length === 0 ? (
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-[#FAF7EF]/70 p-4">
-                  <p className="text-sm font-semibold text-[#11203B]">Try MultiPick</p>
-                  <p className="mt-1 text-sm text-slate-600">Choose a starter prompt or type your own question below.</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => useExamplePrompt(`Build a ${sport} example multi around ${displayedTargetOdds}. Keep it simple and explain the risk.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Build example multi</button>
-                    <button type="button" onClick={() => useExamplePrompt(`Make the ${sport} example ${request || "disposals only"} and explain what data you would check.`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">Use my request</button>
-                    <button type="button" onClick={() => useExamplePrompt(`What data would you check before choosing players for this ${sport} build?`)} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] hover:bg-white/70">What data to check?</button>
+                <div className="mt-5 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4">
+                  <p className="text-sm font-semibold text-[var(--text-new)]">Try MultiPick</p>
+                  <p className="mt-1 text-[13px] text-[var(--text-2-new)]">Tap a prompt to drop it in the box, tweak if you like, then hit Send.</p>
+                  <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--text-3-new)]">Quick builds</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[
+                      { label: "Safe ~$2 multi", prompt: `Build a ${sport} example multi around $2.00 with the best chance of winning, and explain the risk.` },
+                      { label: "Balanced ~$5", prompt: `Build a balanced ${sport} example multi around $5.00.` },
+                      { label: "Longshot to $10", prompt: `Build an aggressive ${sport} example multi targeting $10.00.` },
+                      { label: `3-leg ${sport === "NBA" ? "points" : "disposals"}`, prompt: `Build a 3-leg ${sport} example multi using ${sport === "NBA" ? "points" : "disposals"} only, around $3.00.` },
+                    ].map((c) => (
+                      <button key={c.label} type="button" onClick={() => useExamplePrompt(c.prompt)} className="rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3 py-2 text-xs font-medium text-[var(--text-new)] transition hover:border-[var(--accent-new)] hover:text-[var(--accent-new)]">{c.label}</button>
+                    ))}
+                  </div>
+                  <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--text-3-new)]">Ask MultiPick</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[
+                      { label: "What's on this week?", prompt: `What ${sport} games are coming up, and which have the best markets to target?` },
+                      { label: "Best value right now", prompt: `What are the best value ${sport} player props on offer right now, and why?` },
+                      { label: "How do you pick legs?", prompt: `How do you choose the legs for a multi, and what data do you use?` },
+                    ].map((c) => (
+                      <button key={c.label} type="button" onClick={() => useExamplePrompt(c.prompt)} className="rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3 py-2 text-xs font-medium text-[var(--text-new)] transition hover:border-[var(--accent-new)] hover:text-[var(--accent-new)]">{c.label}</button>
+                    ))}
                   </div>
                 </div>
               ) : null}
@@ -3623,15 +3639,16 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
               </div>
               {multiOutput ? (
                 <div className="mt-5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Edit this build</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--text-3-new)]">Edit this build</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {[
                       { label: "Swap the weakest leg", prompt: "Swap the weakest leg for a better option." },
                       { label: "Add a leg", prompt: "Add another leg to the multi." },
                       { label: "Make it safer", prompt: "Make it safer." },
                       { label: "Longer odds", prompt: "Give it longer odds." },
+                      { label: "Explain the edge", prompt: "Explain the edge and why you chose each leg." },
                     ].map((chip) => (
-                      <button key={chip.label} type="button" onClick={() => sendChatMessage(chip.prompt)} disabled={edgeLoading} className="rounded-full border border-slate-300 bg-[#FAF7EF] px-3 py-2 text-xs font-medium text-[#11203B] transition hover:bg-white/70 disabled:opacity-50">{chip.label}</button>
+                      <button key={chip.label} type="button" onClick={() => sendChatMessage(chip.prompt)} disabled={edgeLoading} className="rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3 py-2 text-xs font-medium text-[var(--text-new)] transition hover:border-[var(--accent-new)] hover:text-[var(--accent-new)] disabled:opacity-50">{chip.label}</button>
                     ))}
                   </div>
                 </div>
