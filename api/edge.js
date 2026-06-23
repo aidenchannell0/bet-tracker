@@ -1868,9 +1868,13 @@ function selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile) {
   // relaxing into a technically-on-target but very unlikely combo. Best Chance
   // needs none (its objective already maximises combined chance); Balanced wants
   // at least a coin-flip; Aggressive is unconstrained.
+  // Rescaled for the winner's-curse haircut: honest AFL legs top out ~0.79, so a
+  // multi's combined chance is far lower than on the old inflated scale. The old
+  // 0.60/0.50 floors made Balanced relax straight to Aggressive every time and
+  // capped Best Chance to ~2 legs. These keep each tier's identity on the new scale.
   const MIN_COMBINED_PROB = {
-    "Best Chance": 0.60,  // the chance floor — enforced inside selectLegsForProfile (sort + cap)
-    Balanced: 0.50,
+    "Best Chance": 0.30,  // was 0.60 (pre-haircut)
+    Balanced: 0.22,       // was 0.50
     Aggressive: 0,
   };
   const chain = RELAX_CHAIN[riskProfile] || [riskProfile];
@@ -1970,7 +1974,11 @@ function selectLegsForProfile(enriched, targetLegs, targetOddsValue, riskProfile
     // target. The model's empirical is much more conservative than raw form here (90% form
     // → 76-87% chance), so 88% was brutal. The 60% COMBINED-chance floor below is Low's real
     // safety net; this gate just keeps each individual leg a strong favourite to stack.
-    if (riskProfile === "Best Chance" && (p.empirical ?? 0) < 0.80) return false;
+    // 0.72 = a strong favourite on the POST-haircut scale. Was 0.80, but the
+    // winner's-curse haircut now caps AFL empirical at ~0.79, so a 0.80 gate
+    // rejected every leg and Best Chance stopped building entirely. 0.72 is the
+    // haircut knee — i.e. legs the model genuinely rates above a coin-flip favourite.
+    if (riskProfile === "Best Chance" && (p.empirical ?? 0) < 0.72) return false;
     // Low never uses fantasy-points legs: they're heavily correlated with disposals (same
     // possession family — stacking them inflates the multi's REAL risk), confusing in a
     // disposals/goals build, and priced tight enough that they ran the combo -EV (a Will Day
@@ -3783,7 +3791,7 @@ const VALUE_BOARD_TTL_MS = 8 * 60 * 60 * 1000; // > the 6h pre-warm cron, so rea
 const VALUE_BOARD_EMPTY_TTL_MS = 30 * 60 * 1000;
 // Bump to invalidate every cached board after a ranking/filter change (e.g. the odds cap),
 // so users see the new logic immediately instead of waiting out the TTL.
-const VALUE_BOARD_VERSION = 7; // bump → honest (winner's-curse-adjusted) confidence + edges
+const VALUE_BOARD_VERSION = 8; // bump → forces recompute, also a marker to confirm this deploy promoted
 async function getValueBoard(req, sport) {
   const key = (sport || "AFL").toUpperCase();
   if (supabaseAdmin) {
