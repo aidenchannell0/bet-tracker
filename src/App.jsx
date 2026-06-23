@@ -1910,11 +1910,11 @@ function EdgeLegRow({ leg, index, sportContext }) {
             </div>
           ) : null}
 
-          {/* why included */}
-          {leg.extraReason ? (
+          {/* MultiPick's read — game-script writeup, honest numbers */}
+          {(leg.note || leg.extraReason) ? (
             <div className="mt-4">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)]">Why MultiPick included it</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-2-new)]">{leg.extraReason}</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-3-new)]">MultiPick's read</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-2-new)]">{leg.note || leg.extraReason}</p>
             </div>
           ) : null}
         </div>
@@ -3494,6 +3494,14 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                       </div>
                     ) : null}
                   </div>
+
+                  {/* How MultiPick built this — methodology + honest combined read */}
+                  {multiOutput?.narrative ? (
+                    <div className="mt-4 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-5 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--accent-new)]">How MultiPick built this</div>
+                      <p className="mt-2 text-sm leading-relaxed text-[var(--text-2-new)]">{multiOutput.narrative}</p>
+                    </div>
+                  ) : null}
 
                   {/* Heads up — every caveat (same-game / odds / profile / book /
                       cushion) consolidated into ONE card so they don't stack into a
