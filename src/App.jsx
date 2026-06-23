@@ -3495,11 +3495,16 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                     ) : null}
                   </div>
 
-                  {/* How MultiPick built this — methodology + honest combined read */}
-                  {multiOutput?.narrative ? (
-                    <div className="mt-4 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-5 py-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--accent-new)]">How MultiPick built this</div>
-                      <p className="mt-2 text-sm leading-relaxed text-[var(--text-2-new)]">{multiOutput.narrative}</p>
+                  {/* How MultiPick built this — scannable signal chips, not a paragraph */}
+                  {Array.isArray(multiOutput?.signals) && multiOutput.signals.length ? (
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-3-new)]">How it's built</span>
+                      {multiOutput.signals.map((s, i) => (
+                        <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-new)] bg-[var(--surface-new)] px-3 py-1 text-[12px] font-medium text-[var(--text-2-new)]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" />
+                          {s}
+                        </span>
+                      ))}
                     </div>
                   ) : null}
 

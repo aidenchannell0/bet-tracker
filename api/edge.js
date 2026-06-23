@@ -2613,47 +2613,37 @@ function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile, f
   };
 }
 
-// Per-leg "game-script" writeup — MultiLab-style depth, but every number is the
-// honest (calibrated) one. Templated, so it's instant + free on every build.
+// Per-leg "read" — two punchy sentences (form+cushion, then honest take+risk).
 function legRisk(metric) {
-  if (metric === "goals" || metric === "behinds") return "a forward's scoring is spiky, so one quiet game misses it";
-  if (metric === "marks") return "marks are low-count and streaky — less reliable than the average looks";
-  if (metric === "tackles") return "tackles swing with how hard his side is chasing the ball";
-  if (metric === "hitouts") return "it hinges on him owning the ruck without a backup splitting the taps";
-  if (metric === "fantasy_points") return "fantasy output moves with role and game flow";
-  return "the main risk is a hard tag cutting into his touches"; // disposals/kicks/handballs/clearances
+  if (metric === "goals" || metric === "behinds") return "a quiet game from a spiky forward";
+  if (metric === "marks") return "marks being low-count and streaky";
+  if (metric === "tackles") return "tackle counts swinging with the contest";
+  if (metric === "hitouts") return "him sharing the ruck";
+  if (metric === "fantasy_points") return "role and game flow";
+  return "a hard tag cutting his touches"; // disposals/kicks/handballs/clearances
 }
-function legNote(p, empPct, impPct, edgePct, matchupPct, cushion) {
+function legNote(p, empPct, impPct, edgePct) {
   const M = metricLabel(p.metric);
   const lineTo = Math.ceil(Number(p.line));
   const t = p.hr10?.total, h = p.hr10?.hits;
-  const parts = [];
-  parts.push(p.recentAvg != null
-    ? `Averaging ${p.recentAvg} ${M}${t ? `, cleared ${lineTo}+ in ${h} of his last ${t}` : ""}.`
-    : `On the ${lineTo}+ ${M} line.`);
   const margin = p.recentAvg != null ? Math.round((p.recentAvg - lineTo) * 10) / 10 : null;
-  if (margin != null && margin > 0 && cushion) parts.push(`The line sits ~${margin} under his average — ${cushion.toLowerCase()} cushion.`);
-  if (impPct != null) {
-    let s = `Market prices it ~${impPct}%; recent form puts it at ${empPct}%`;
-    if (edgePct != null && edgePct > 0) s += `, a +${edgePct}% edge`;
-    parts.push(s + ".");
-  }
-  if (matchupPct >= 3 && p.opponent) parts.push(`${p.opponent} concedes +${matchupPct}% ${M}.`);
-  else if (p.gameEnvFactor && p.gameEnvFactor > 1.02 && p.gameTotal != null) parts.push(`Game projects high (total ${p.gameTotal}).`);
-  parts.push(`The risk: ${legRisk(p.metric)}.`);
-  return parts.join(" ");
+  const s1 = p.recentAvg != null
+    ? `Averaging ${p.recentAvg} ${M}${t ? `, cleared ${lineTo}+ in ${h}/${t}` : ""}${margin != null && margin > 0 ? ` — ~${margin} cushion` : ""}.`
+    : `On the ${lineTo}+ ${M} line.`;
+  let s2 = impPct != null ? `Form puts it at ${empPct}% vs the market's ${impPct}%` : `Form rates it ${empPct}%`;
+  if (edgePct != null && edgePct > 0) s2 += ` (+${edgePct}%)`;
+  s2 += `; risk is ${legRisk(p.metric)}.`;
+  return `${s1} ${s2}`;
 }
-// Multi-level "how MultiPick built this" — methodology + the honest combined read.
-function buildMultiNarrative(selected, metrics, sg) {
-  const n = selected.length;
+// Multi-level "how MultiPick built this" — short scannable chips, not a paragraph.
+function buildSignals(selected, sg) {
+  const out = [];
   const nearLocks = selected.filter((p) => p.hr10 && p.hr10.total >= 5 && p.hr10.hits / p.hr10.total >= 0.8).length;
-  const games = [...new Set(selected.map((p) => p.gameLabel).filter(Boolean))];
-  const where = games.length === 1 ? games[0] : `${games.length} games`;
-  let s = `Rated every prop in ${where} on recent form, the matchup and the game script, then calibrated each against the market and how past picks have actually landed.`;
-  if (nearLocks) s += ` ${nearLocks} of ${n} ${nearLocks === 1 ? "leg clears" : "legs clear"} in 8+ of the last 10 — ${nearLocks === n ? "a genuine near-lock set" : "a strong core"}.`;
-  s += ` Combined chance about ${metrics.combinedProbPct}%`;
-  if (sg.sameGameCount) s += ` (correlation-adjusted — ${sg.sameGameCount} legs are same-game)`;
-  return s + ".";
+  if (nearLocks) out.push(`${nearLocks}/${selected.length} clear 8+ of 10`);
+  out.push("Calibrated to results");
+  if (selected.some((p) => p.matchupFactor && Math.abs(p.matchupFactor - 1) >= 0.03)) out.push("Matchup-adjusted");
+  if (sg.sameGameCount) out.push("Same-game priced");
+  return out;
 }
 
 // Build one structured leg from an enriched prop (shared by fresh builds + edits)
@@ -2705,7 +2695,7 @@ function structureLegFromEnriched(p) {
     cushionZ: p.cushionZ != null ? Number(p.cushionZ.toFixed(2)) : null, // recency-weighted clearance z
     cushionGrade: cushion, // "Comfortable" | "Solid" | "Slim" | "On the line" | null
     reason: `Cleared this line in ${l10} recent games, averaging ${p.recentAvg}.`,
-    note: legNote(p, empPct, impPct, edgePct, matchupPct, cushion),
+    note: legNote(p, empPct, impPct, edgePct),
     details,
     last5Values: p.last5Values || [], // most-recent-first; UI highlights the latest game
     // Per-game values across the last 10 fixtures, most-recent-first. The
@@ -2782,7 +2772,7 @@ function buildStructuredMulti(computed, sport, targetOdds) {
   return {
     sport,
     legCount: selected.length,
-    narrative: buildMultiNarrative(selected, metrics, sg),
+    signals: buildSignals(selected, sg),
     legs,
     combinedOdds: metrics.combinedOdds,
     combinedProbPct: metrics.combinedProbPct,
@@ -3836,7 +3826,7 @@ const VALUE_BOARD_TTL_MS = 8 * 60 * 60 * 1000; // > the 6h pre-warm cron, so rea
 const VALUE_BOARD_EMPTY_TTL_MS = 30 * 60 * 1000;
 // Bump to invalidate every cached board after a ranking/filter change (e.g. the odds cap),
 // so users see the new logic immediately instead of waiting out the TTL.
-const VALUE_BOARD_VERSION = 9; // bump = deploy-promotion marker (recompute is harmless)
+const VALUE_BOARD_VERSION = 10; // bump = deploy-promotion marker (recompute is harmless)
 async function getValueBoard(req, sport) {
   const key = (sport || "AFL").toUpperCase();
   if (supabaseAdmin) {
