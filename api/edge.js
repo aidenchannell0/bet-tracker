@@ -97,7 +97,12 @@ const CAL_NO_INFLATE_ABOVE = 0.80;
 function applyCalibrationCurve(curve, x) {
   if (!curve || !curve.length || x == null) return x;
   if (x < curve[0].x) return x;
-  if (x > curve[curve.length - 1].x) return x;
+  if (x > curve[curve.length - 1].x) {
+    // Above the fitted range: deflate to the highest clear-rate we actually
+    // observed (never inflate). Stops a raw 0.98 from skipping the curve entirely.
+    const topY = curve[curve.length - 1].y;
+    return topY < x ? topY : x;
+  }
   let y = x;
   for (let i = 0; i < curve.length - 1; i += 1) {
     if (x >= curve[i].x && x <= curve[i + 1].x) {
@@ -111,6 +116,25 @@ function applyCalibrationCurve(curve, x) {
   // Rail 2: high-confidence legs can be corrected down, never inflated up.
   if (x >= CAL_NO_INFLATE_ABOVE && y > x) return x;
   return y;
+}
+
+// ── Winner's-curse haircut on SELECTED legs (AFL) ────────────────────────────
+// The isotonic curve is fit on the whole candidate pool (every leg the selection
+// layer logged, empirical ≥ ~0.58). But we only ever BET the top-scored legs, and
+// that chosen subset regresses down harder than the pool — classic winner's curse.
+// Measured on 240 logged AFL multi legs: legs rated 95%+ actually cleared 73%,
+// 90–95% cleared 79%, 80–90% cleared 80% — so above ~0.80 the true SELECTED clear
+// rate is roughly flat ~0.77. Compress the post-curve empirical toward that ceiling.
+// Monotonic (preserves leg ranking) and AFL-only: NBA top legs (a 30-pt scorer over
+// 15.5) genuinely clear ~0.97 and we lack the NBA selected-leg sample to haircut yet.
+const AFL_PROP_METRICS = new Set(["kicks", "marks", "handballs", "disposals", "goals", "behinds", "hitouts", "tackles", "clearances", "fantasy_points"]);
+const SEL_BIAS_KNEE = 0.72;  // leave anything at/below this untouched
+const SEL_BIAS_CEIL = 0.80;  // selected legs above the knee top out near here in reality
+function selectionBiasAdjust(empirical, metric) {
+  if (empirical == null || !AFL_PROP_METRICS.has(metric)) return empirical;
+  if (empirical <= SEL_BIAS_KNEE) return empirical;
+  const slope = (SEL_BIAS_CEIL - SEL_BIAS_KNEE) / (1 - SEL_BIAS_KNEE);
+  return SEL_BIAS_KNEE + (empirical - SEL_BIAS_KNEE) * slope;
 }
 
 const FREE_BUILDS_PER_WEEK = 3;
@@ -1630,12 +1654,20 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null, g
     // are loaded yet. scripts/recalibrate.mjs refits weekly.
     const curveForLeg = pickCurveForMetric(calibrationCurve, prop.metric);
     const rawEmpirical = empirical;
-    const calibratedEmpirical = curveForLeg && empirical != null
+    // 1) population calibration (isotonic curve), then 2) winner's-curse haircut for
+    // the fact that we only ever bet the top-scored legs. `empirical` is the number we
+    // believe, bet, and display; `curveEmpirical` (pre-haircut) is the model's
+    // market-relative view, kept for the value board's edge ranking.
+    const curveEmpirical = curveForLeg && empirical != null
       ? Math.max(0.02, Math.min(0.98, applyCalibrationCurve(curveForLeg, empirical)))
       : empirical;
+    const calibratedEmpirical = curveEmpirical != null
+      ? Math.max(0.02, Math.min(0.98, selectionBiasAdjust(curveEmpirical, prop.metric)))
+      : curveEmpirical;
     const calibratedKind = curveForLeg ? (calibrationCurve?.markets?.[prop.metric] ? "per-market" : "global") : null;
 
     const edge = calibratedEmpirical != null && implied != null ? calibratedEmpirical - implied : null;
+    const valueEdge = curveEmpirical != null && implied != null ? curveEmpirical - implied : null;
 
     // Tag with inferred position (AFL only for now — NBA is a follow-up
     // once we pick a heuristic that holds up in modern position-less ball).
@@ -1668,12 +1700,14 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null, g
       impliedRaw,     // raw 1/odds — kept for transparency/diagnostics
       empirical: calibratedEmpirical,
       rawEmpirical,   // pre-calibration value, kept for diagnostics
+      curveEmpirical, // post-curve, pre-winner's-curse (value-board ranking basis)
       calibrated: calibratedKind,  // "per-market" | "global" | null
       restDays,       // days since the player's last logged game
       restFactor,     // multiplier applied to empirical for rest adjustment
       gameEnvFactor,  // pace (total) + blowout (spread) multiplier on empirical
       gameTotal: env?.total ?? null,
       edge,
+      valueEdge,      // curveEmpirical − implied: model-vs-market, pre-haircut
       margin: ms.recentAvg != null ? Number((ms.recentAvg - prop.line).toFixed(1)) : null,
       // Recency-weighted clearance z — how comfortably (margin + consistency)
       // the player clears this line. Drives the Best Chance cushion preference
@@ -3591,15 +3625,19 @@ function topKeyPlayersByTeam(enriched, home, away, perTeam = 4) {
 
 // Top value plays by edge (one best line per player, positive edge only)
 function topValuePlays(enriched, n = 5) {
-  const eligible = enriched.filter((p) => p.statsAvailable && p.edge != null && p.sampleSize >= 3 && Number(p.odds) > 1);
+  // Rank by the model's market-relative view (pre winner's-curse haircut) so the
+  // board still surfaces where the model most disagrees with the price; the card
+  // itself shows the honest (post-haircut) confidence via analysisLeg.
+  const ve = (p) => p.valueEdge ?? p.edge ?? -1;
+  const eligible = enriched.filter((p) => p.statsAvailable && p.valueEdge != null && p.sampleSize >= 3 && Number(p.odds) > 1);
   const best = new Map();
   for (const p of eligible) {
     const cur = best.get(p.playerName);
-    if (!cur || (p.edge ?? -1) > (cur.edge ?? -1)) best.set(p.playerName, p);
+    if (!cur || ve(p) > ve(cur)) best.set(p.playerName, p);
   }
   return [...best.values()]
-    .filter((p) => (p.edge ?? 0) > 0)
-    .sort((a, b) => (b.edge ?? 0) - (a.edge ?? 0))
+    .filter((p) => ve(p) > 0)
+    .sort((a, b) => ve(b) - ve(a))
     .slice(0, n)
     .map(analysisLeg);
 }
@@ -3700,15 +3738,16 @@ const VALUE_BOARD_MARKETS = [
 // Same ranking as topValuePlays (best edge per player, positive only) but mapped to the
 // richer feed card. Capped at VALUE_ODDS_MAX so every pick is multi-friendly.
 function rankValueBoard(enriched, n = 25) {
-  const eligible = enriched.filter((p) => p.statsAvailable && p.edge != null && p.sampleSize >= 3 && Number(p.odds) > 1 && Number(p.odds) <= VALUE_ODDS_MAX);
+  const ve = (p) => p.valueEdge ?? p.edge ?? -1;  // model-vs-market, pre winner's-curse haircut
+  const eligible = enriched.filter((p) => p.statsAvailable && p.valueEdge != null && p.sampleSize >= 3 && Number(p.odds) > 1 && Number(p.odds) <= VALUE_ODDS_MAX);
   const best = new Map();
   for (const p of eligible) {
     const cur = best.get(p.playerName);
-    if (!cur || (p.edge ?? -1) > (cur.edge ?? -1)) best.set(p.playerName, p);
+    if (!cur || ve(p) > ve(cur)) best.set(p.playerName, p);
   }
   return [...best.values()]
-    .filter((p) => (p.edge ?? 0) > 0)
-    .sort((a, b) => (b.edge ?? 0) - (a.edge ?? 0))
+    .filter((p) => ve(p) > 0)
+    .sort((a, b) => ve(b) - ve(a))
     .slice(0, n)
     .map(valueCard);
 }
