@@ -3514,6 +3514,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                   {(() => {
                     if (!multiOutput) return null;
                     const notes = [];
+                    if (multiOutput.lateMail) notes.push({ label: "Late mail", text: multiOutput.lateMail });
                     if (multiOutput.sameGameNote) notes.push({ label: "Same game", text: multiOutput.sameGameNote });
                     if (multiOutput.oddsNote) notes.push({ text: multiOutput.oddsNote });
                     if (multiOutput.profileNote) notes.push({ html: multiOutput.profileNote.replace(/\*\*(.+?)\*\*/g, '<span class="text-[var(--text-new)] font-medium">$1</span>') });

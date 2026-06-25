@@ -1489,7 +1489,57 @@ function matchStatsForProp(prop, statsMap) {
 }
 
 // Attach probability, edge and recent-form numbers to each prop
-function enrichProps(props, aflStats, factors = null, calibrationCurve = null, gameEnv = null) {
+// ── Confirmed-lineup context: powers "drop un-named players" + the sponge ─────
+// A player named in afl_lineups is playing; a team regular who ISN'T named is out.
+// We rank each team's mids from recent history (the "key mids"), so when a key mid
+// is out the remaining named mids get a small, MEASURED bump (~+3% per key mid out).
+// Cached per warm lambda; returns null when there's no FRESH lineup (e.g. mid-week
+// before teams drop) so the builder behaves exactly as before.
+let _lineupCtx = null, _lineupCtxAt = 0;
+async function loadLineupContext() {
+  if (!supabaseAdmin) return null;
+  if (_lineupCtx !== null && Date.now() - _lineupCtxAt < 30 * 60 * 1000) return _lineupCtx;
+  _lineupCtxAt = Date.now();
+  try {
+    const { data: latest } = await supabaseAdmin.from("afl_lineups").select("season,round,scraped_at").order("scraped_at", { ascending: false }).limit(1);
+    if (!latest?.length || Date.now() - new Date(latest[0].scraped_at).getTime() > 5 * 24 * 3600 * 1000) { _lineupCtx = null; return null; }
+    const { data: named } = await supabaseAdmin.from("afl_lineups").select("name_key").eq("season", latest[0].season).eq("round", latest[0].round);
+    const namedSet = new Set((named || []).map((r) => r.name_key));
+    if (namedSet.size < 30) { _lineupCtx = null; return null; }
+    const since = new Date(Date.now() - 220 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const agg = new Map();
+    for (let from = 0; ; from += 1000) {
+      const { data } = await supabaseAdmin.from("afl_player_games").select("name_key,team,disposals").gte("game_date", since).range(from, from + 999);
+      if (!data?.length) break;
+      for (const r of data) { const a = agg.get(r.name_key) || { team: r.team, sum: 0, n: 0 }; a.sum += Number(r.disposals) || 0; a.n++; a.team = r.team; agg.set(r.name_key, a); }
+      if (data.length < 1000) break;
+    }
+    const teamOf = new Map(), teamPlayers = new Map();
+    for (const [nk, a] of agg) { teamOf.set(nk, a.team); if (!teamPlayers.has(a.team)) teamPlayers.set(a.team, []); teamPlayers.get(a.team).push({ nk, avg: a.sum / a.n, n: a.n }); }
+    const teamMids = new Map();
+    for (const [team, arr] of teamPlayers) teamMids.set(team, arr.filter((p) => p.n >= 6 && p.avg >= 18).sort((x, y) => y.avg - x.avg).map((p) => p.nk));
+    _lineupCtx = { namedSet, teamOf, teamMids, teamPlayers };
+    return _lineupCtx;
+  } catch (e) { console.error("lineup ctx:", e.message); _lineupCtx = null; return null; }
+}
+function _teamNamed(ctx, team) {
+  const players = ctx.teamPlayers.get(team); if (!players?.length) return false;
+  let n = 0; for (const p of players) if (ctx.namedSet.has(p.nk)) n++;
+  return n >= 16; // most of a named team present = team has been announced
+}
+// Returns { out, keyMidsOut } for a player, or a no-op when there's no usable lineup.
+function lineupAdjust(ctx, nameKey) {
+  if (!ctx || !nameKey) return { out: false, keyMidsOut: 0 };
+  const team = ctx.teamOf.get(nameKey);
+  if (!team || !_teamNamed(ctx, team)) return { out: false, keyMidsOut: 0 };  // team not named → no info
+  if (!ctx.namedSet.has(nameKey)) return { out: true, keyMidsOut: 0 };        // regular not named → out
+  const mids = ctx.teamMids.get(team) || []; const idx = mids.indexOf(nameKey);
+  if (idx < 0) return { out: false, keyMidsOut: 0 };                          // not a core mid → no sponge
+  let keyMidsOut = 0; for (let i = 0; i < idx; i++) if (!ctx.namedSet.has(mids[i])) keyMidsOut++;
+  return { out: false, keyMidsOut: Math.min(keyMidsOut, 2) };
+}
+
+function enrichProps(props, aflStats, factors = null, calibrationCurve = null, gameEnv = null, lineupCtx = null) {
   const statsMap = new Map();
   for (const ps of aflStats?.players || []) {
     statsMap.set(String(ps.player || "").toLowerCase(), ps);
@@ -1661,9 +1711,13 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null, g
     const curveEmpirical = curveForLeg && empirical != null
       ? Math.max(0.02, Math.min(0.98, applyCalibrationCurve(curveForLeg, empirical)))
       : empirical;
-    const calibratedEmpirical = curveEmpirical != null
+    let calibratedEmpirical = curveEmpirical != null
       ? Math.max(0.02, Math.min(0.98, selectionBiasAdjust(curveEmpirical, prop.metric)))
       : curveEmpirical;
+    // Sponge: a confirmed key-mid absence lifts the remaining mids' true chance.
+    // Measured at ~+2–5% clear, so +3% per key mid out (capped). No-op without lineups.
+    const spongeKeyOut = lineupAdjust(lineupCtx, prop.name_key).keyMidsOut;
+    if (spongeKeyOut > 0 && calibratedEmpirical != null) calibratedEmpirical = Math.min(0.98, calibratedEmpirical + 0.03 * spongeKeyOut);
     const calibratedKind = curveForLeg ? (calibrationCurve?.markets?.[prop.metric] ? "per-market" : "global") : null;
 
     const edge = calibratedEmpirical != null && implied != null ? calibratedEmpirical - implied : null;
@@ -1708,6 +1762,7 @@ function enrichProps(props, aflStats, factors = null, calibrationCurve = null, g
       gameTotal: env?.total ?? null,
       edge,
       valueEdge,      // curveEmpirical − implied: model-vs-market, pre-haircut
+      spongeKeyOut,   // # of higher-usage mids confirmed out (powers the late-mail read)
       margin: ms.recentAvg != null ? Number((ms.recentAvg - prop.line).toFixed(1)) : null,
       // Recency-weighted clearance z — how comfortably (margin + consistency)
       // the player clears this line. Drives the Best Chance cushion preference
@@ -2587,8 +2642,8 @@ function detectMultiMetricFilter(message, context) {
 }
 
 // Shared computation: enrich props, select legs, compute combined metrics + risk
-function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile, factors = null, calibrationCurve = null, gameEnv = null) {
-  const enriched = enrichProps(props, aflStats, factors, calibrationCurve, gameEnv);
+function computeAFLMulti(props, aflStats, targetLegs, targetOdds, riskProfile, factors = null, calibrationCurve = null, gameEnv = null, lineupCtx = null) {
+  const enriched = enrichProps(props, aflStats, factors, calibrationCurve, gameEnv, lineupCtx);
   const targetOddsValue = parseOddsValue(targetOdds);
   const selected = selectOptimalLegs(enriched, targetLegs, targetOddsValue, riskProfile);
   const srcLabel = aflStats?.source || "Stats";
@@ -2633,7 +2688,8 @@ function legNote(p, empPct, impPct, edgePct) {
   let s2 = impPct != null ? `Form puts it at ${empPct}% vs the market's ${impPct}%` : `Form rates it ${empPct}%`;
   if (edgePct != null && edgePct > 0) s2 += ` (+${edgePct}%)`;
   s2 += `; risk is ${legRisk(p.metric)}.`;
-  return `${s1} ${s2}`;
+  const sponge = p.spongeKeyOut > 0 ? " A key mid's out, so he soaks up extra midfield ball." : "";
+  return `${s1} ${s2}${sponge}`;
 }
 // Multi-level "how MultiPick built this" — short scannable chips, not a paragraph.
 function buildSignals(selected, sg) {
@@ -3826,7 +3882,7 @@ const VALUE_BOARD_TTL_MS = 8 * 60 * 60 * 1000; // > the 6h pre-warm cron, so rea
 const VALUE_BOARD_EMPTY_TTL_MS = 30 * 60 * 1000;
 // Bump to invalidate every cached board after a ranking/filter change (e.g. the odds cap),
 // so users see the new logic immediately instead of waiting out the TTL.
-const VALUE_BOARD_VERSION = 10; // bump = deploy-promotion marker (recompute is harmless)
+const VALUE_BOARD_VERSION = 11; // bump = deploy-promotion marker (recompute is harmless)
 async function getValueBoard(req, sport) {
   const key = (sport || "AFL").toUpperCase();
   if (supabaseAdmin) {
@@ -4623,18 +4679,30 @@ ${buildAnalysisDataBlock(analysis)}`,
           });
         }
 
+        const lineupCtx = await loadLineupContext();
+        const droppedOut = [];
+        const propsForBuild = lineupCtx
+          ? allProps.filter((p) => {
+              if (lineupAdjust(lineupCtx, p.name_key).out) { if (!droppedOut.includes(p.playerName)) droppedOut.push(p.playerName); return false; }
+              return true;
+            })
+          : allProps;
         const computed = computeAFLMulti(
-          allProps,
+          propsForBuild,
           statsContext,
           targetLegs,
           targetOdds,
           riskProfile,
           defenseFactors,
           calibrationCurve,
-          gameEnvByLabel
+          gameEnvByLabel,
+          lineupCtx
         );
         const dataBlock = buildAFLMultiDataBlock(computed, targetLegs, targetOdds, riskProfile, sport);
         const structuredMulti = buildStructuredMulti(computed, sport, targetOdds);
+        if (structuredMulti && droppedOut.length) {
+          structuredMulti.lateMail = `${droppedOut.join(", ")} ${droppedOut.length === 1 ? "is" : "are"} not named in the confirmed team — dropped from the pool.`;
+        }
 
         // Pinned-bookmaker note — at most ONE, kept short. Either the pool fell
         // short of the requested leg count, or (if it didn't) a brief nudge to
