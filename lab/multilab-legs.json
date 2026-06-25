@@ -1,0 +1,22 @@
+[
+  {"batch":1,"player":"Jaspa Fletcher","market":"disposals","line":15.5,"ai_prob":88.41,"ev":17.59,"odds":1.33,"l10":60,"target":24.6,"tags":["Max Minutes","Active Sponge"]},
+  {"batch":1,"player":"Jake Lloyd","market":"marks","line":2.5,"ai_prob":87.66,"ev":15.71,"odds":1.32,"l10":70,"h2h":88.89,"target":5.1,"tags":["Max Minutes","Anti Sponge"]},
+  {"batch":1,"player":"Lloyd Meek","market":"disposals","line":9.5,"ai_prob":83.11,"ev":3.89,"odds":1.25,"base":13.3,"form_delta":0.5,"tags":["Max Minutes","Anti Sponge"]},
+  {"batch":1,"player":"Harvey Thomas","market":"marks","line":1.5,"ai_prob":82.33,"ev":15.26,"odds":1.40,"base":3.1,"target":3.4,"tags":["Max Minutes","Active Sponge"]},
+  {"batch":1,"player":"Liam Baker","market":"disposals","line":14.5,"ai_prob":88.43,"ev":17.61,"odds":1.33,"l10":70,"h2h":85.71,"base":21.4,"target":24.6,"tags":["Max Minutes","Anti Sponge"]},
+  {"batch":1,"player":"Jack Ison","market":"marks","line":2.5,"ai_prob":87.15,"ev":12.42,"odds":1.29,"l10":100,"target":4.2,"tags":["Max Minutes","Ghost","Low Impact","Anti Sponge"]},
+  {"batch":1,"player":"Tyler Sonsie","market":"disposals","line":12.5,"ai_prob":91.33,"ev":15.99,"odds":1.27,"base":19.0,"target":22.3,"tags":["Max Minutes","Active Sponge"]},
+  {"batch":1,"player":"Seth Campbell","market":"marks","line":2.5,"ai_prob":80.85,"ev":9.96,"odds":1.36,"base":3.9,"target":4.7,"tags":["Max Minutes","Active Sponge"]},
+  {"batch":1,"player":"Izak Rankine","market":"goals","line":0.5,"ai_prob":79.13,"ev":7.62,"odds":1.36,"l10":80,"h2h":83.33,"target":1.2,"tags":["Max Minutes","Anti Sponge"]},
+  {"batch":1,"player":"Christian Moraes","market":"marks","line":1.5,"ai_prob":88.02,"ev":10.02,"odds":1.25,"target":4.2,"tags":["Max Minutes"]},
+  {"batch":2,"player":"Jai Murray","market":"marks","line":2.5,"ai_prob":97.41,"ev":21.76,"odds":1.25,"l10":100,"base":6.0,"target":6.0,"tags":["Risk Minutes","Ghost","Low Impact","Active Sponge"]},
+  {"batch":2,"player":"Bailey Humphrey","market":"tackles","line":1.5,"ai_prob":90.09,"ev":22.52,"odds":1.36,"base":3.9,"target":3.9,"game_total":175.1,"tags":["Max Minutes","Tackle Fest"]},
+  {"batch":2,"player":"Jacob Farrow","market":"disposals","line":12.5,"ai_prob":88.1,"ev":2.2,"odds":1.16,"base":18.9,"target":20.1,"form_delta":0.2,"tags":["Max Minutes"]},
+  {"batch":2,"player":"Hussien El Achkar","market":"goals","line":0.5,"ai_prob":72.5,"ev":10.93,"odds":1.53,"target":1.2,"tags":["Risk Minutes","Ghost","Low Impact","Active Sponge"]},
+  {"batch":2,"player":"Jaxon Prior","market":"disposals","line":13.5,"ai_prob":76.92,"ev":11.53,"odds":1.45,"form_delta":2.7,"target":18.2,"tags":["Max Minutes"]},
+  {"batch":2,"player":"Xavier Bamert","market":"marks","line":2.5,"ai_prob":97.36,"ev":30.46,"odds":1.34,"l10":100,"target":5.0,"tags":["Risk Minutes","Ghost","Low Impact","Anti Sponge"]},
+  {"batch":2,"player":"Lachie Schultz","market":"tackles","line":2.5,"ai_prob":85.36,"ev":17.8,"odds":1.38,"form_delta":0.5,"target":4.6,"tags":["Max Minutes","Tackle Fest"]},
+  {"batch":2,"player":"Toby Greene","market":"disposals","line":15.5,"ai_prob":78.8,"ev":19.78,"odds":1.52,"form_delta":3.1,"target":21.5,"tags":["Max Minutes"]},
+  {"batch":2,"player":"Joe Fonti","market":"marks","line":3.5,"ai_prob":85.57,"ev":-0.74,"odds":1.16,"base":6.3,"target":7.3,"form_delta":1.6,"tags":["Max Minutes","Active Sponge"]},
+  {"batch":2,"player":"Jack Ison","market":"marks","line":2.5,"ai_prob":87.15,"ev":12.42,"odds":1.29,"note":"DUPLICATE of batch 1"}
+]
