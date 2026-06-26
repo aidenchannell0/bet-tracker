@@ -2626,13 +2626,13 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
   const [customTargetOdds, setCustomTargetOdds] = useState("2.20");
   const [riskProfile, setRiskProfile] = useState(prefill?.riskProfile || "Best Chance");
   const [bookmaker, setBookmaker] = useState(prefill?.bookmaker || "");
-  const [markets, setMarkets] = useState(["disposals", "goals", "tackles", "marks"]);
+  const [markets, setMarkets] = useState(["disposals", "goals", "tackles", "marks", "fantasy_points"]);
   useEffect(() => {
-    setMarkets(sport === "NBA" ? ["points", "rebounds", "assists", "threes"] : ["disposals", "goals", "tackles", "marks"]);
+    setMarkets(sport === "NBA" ? ["points", "rebounds", "assists", "threes"] : ["disposals", "goals", "tackles", "marks", "fantasy_points"]);
   }, [sport]);
   const marketChoices = sport === "NBA"
     ? [["points", "Points"], ["rebounds", "Rebounds"], ["assists", "Assists"], ["threes", "Threes"]]
-    : [["disposals", "Disposals"], ["goals", "Goals"], ["tackles", "Tackles"], ["marks", "Marks"]];
+    : [["disposals", "Disposals"], ["goals", "Goals"], ["tackles", "Tackles"], ["marks", "Marks"], ["fantasy_points", "Fantasy"]];
   const [request, setRequest] = useState(prefill?.request || "");
   const [showMultiNumbers, setShowMultiNumbers] = useState(false); // collapse the raw %s; pills carry the plain read
   const [chatInput, setChatInput] = useState("");
