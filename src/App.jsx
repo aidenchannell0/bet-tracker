@@ -35,6 +35,84 @@ function LandingGate({ onStartFree, onLogin }) {
 // server-side (/api/calibration?view=founder verifies the JWT email). Keep both in sync.
 const FOUNDER_EMAIL = "aidenchannell0@gmail.com";
 
+const CHART_TYPES = [["bars", "Bars"], ["area", "Area line"], ["lollipop", "Lollipop"], ["stacked", "Won–lost"], ["kpi", "Sparkline"]];
+// Weekly win-rate chart: rounded bars by default, switchable via the dropdown.
+// Y axis is always 0–100%; X axis is the week labels. Reads from data.weekly.
+function WinRateChart({ title, sub, points }) {
+  const [type, setType] = useState("bars");
+  const n = points.length;
+  const W = 520, H = 190, x0 = 38, x1 = 506, y0 = 14, y1 = 162;
+  const yOf = (v) => y1 - (Math.max(0, Math.min(100, v)) / 100) * (y1 - y0);
+  const xOf = (i) => (n <= 1 ? (x0 + x1) / 2 : x0 + (i * (x1 - x0)) / (n - 1));
+  const bw = n > 1 ? Math.min(34, ((x1 - x0) / (n - 1)) * 0.62) : 42;
+  const every = n > 8 ? 2 : 1;
+  const ticks = [0, 25, 50, 75, 100];
+  const gid = "wg-" + title.replace(/\W/g, "");
+  const line = points.map((p, i) => `${xOf(i).toFixed(1)},${yOf(p.value).toFixed(1)}`).join(" ");
+  return (
+    <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[13px] font-semibold text-[var(--text-new)]">{title}</p>
+          {sub ? <p className="text-[11px] text-[var(--text-3-new)]">{sub}</p> : null}
+        </div>
+        <select value={type} onChange={(e) => setType(e.target.value)} className="shrink-0 rounded-lg border border-[var(--border-new)] bg-[var(--surface-2-new)] px-2.5 py-1.5 text-[12px] text-[var(--text-new)] outline-none focus:border-[var(--accent-new)]">
+          {CHART_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </div>
+      {!n ? (
+        <div className="py-12 text-center text-[12px] text-[var(--text-3-new)]">Not enough settled multis yet.</div>
+      ) : type === "kpi" ? (
+        <div className="flex items-center gap-4 py-3">
+          <div className="shrink-0">
+            <div className="text-[32px] font-semibold tracking-[-0.02em] text-emerald-600" style={{ fontFamily: "ui-monospace, monospace" }}>{points[n - 1].value}%</div>
+            <div className="text-[11px] text-[var(--text-3-new)]">{points[n - 1].label} · latest</div>
+          </div>
+          <svg viewBox="0 0 220 46" className="flex-1" preserveAspectRatio="none" style={{ height: 46 }}>
+            <polyline points={points.map((p, i) => `${(n <= 1 ? 110 : (i * 216) / (n - 1) + 2).toFixed(1)},${(42 - (p.value / 100) * 36).toFixed(1)}`).join(" ")} fill="none" stroke="var(--accent-new)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+      ) : (
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: "auto" }}>
+          {ticks.map((t) => (
+            <g key={t}>
+              <line x1={x0} y1={yOf(t)} x2={x1} y2={yOf(t)} stroke="var(--border-new)" strokeWidth="1" strokeDasharray={t === 0 ? "0" : "2 4"} opacity={t === 0 ? "1" : "0.55"} />
+              <text x={x0 - 6} y={yOf(t) + 3.5} textAnchor="end" fontSize="10.5" fill="var(--text-3-new)">{t}%</text>
+            </g>
+          ))}
+          {points.map((p, i) => (i % every === 0 || i === n - 1) ? <text key={"x" + i} x={xOf(i)} y={H - 9} textAnchor="middle" fontSize="10" fill="var(--text-3-new)">{p.label}</text> : null)}
+          {type === "bars" && points.map((p, i) => (
+            <g key={i}>
+              <rect x={xOf(i) - bw / 2} y={yOf(p.value)} width={bw} height={y1 - yOf(p.value)} rx="5" fill="var(--accent-new)" opacity={i === n - 1 ? "1" : "0.55"} />
+              <text x={xOf(i)} y={yOf(p.value) - 4} textAnchor="middle" fontSize="9.5" fill="var(--accent-new)">{p.value}%</text>
+            </g>
+          ))}
+          {type === "area" && (
+            <g>
+              <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#d4f23a" stopOpacity="0.28" /><stop offset="100%" stopColor="#d4f23a" stopOpacity="0" /></linearGradient></defs>
+              <path d={`M${line} ${xOf(n - 1).toFixed(1)},${y1} ${xOf(0).toFixed(1)},${y1}Z`} fill={`url(#${gid})`} />
+              <polyline points={line} fill="none" stroke="var(--accent-new)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              {points.map((p, i) => <circle key={i} cx={xOf(i)} cy={yOf(p.value)} r="3" fill="var(--accent-new)" />)}
+            </g>
+          )}
+          {type === "lollipop" && points.map((p, i) => (
+            <g key={i}>
+              <line x1={xOf(i)} y1={y1} x2={xOf(i)} y2={yOf(p.value)} stroke="var(--border-strong-new)" strokeWidth="2" />
+              <circle cx={xOf(i)} cy={yOf(p.value)} r="5" fill="var(--accent-new)" />
+            </g>
+          ))}
+          {type === "stacked" && points.map((p, i) => (
+            <g key={i}>
+              <rect x={xOf(i) - bw / 2} y={y0} width={bw} height={yOf(p.value) - y0} rx="4" fill="var(--surface-2-new)" />
+              <rect x={xOf(i) - bw / 2} y={yOf(p.value)} width={bw} height={y1 - yOf(p.value)} rx="4" fill="var(--accent-new)" />
+            </g>
+          ))}
+        </svg>
+      )}
+    </div>
+  );
+}
+
 function FounderTile({ label, value, sub, tone }) {
   return (
     <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
@@ -145,6 +223,17 @@ function FounderPage({ setActivePage, accessToken }) {
                 </div>
               </div>
 
+              {/* Weekly trend */}
+              {(d.weekly && d.weekly.length) ? (
+                <div>
+                  <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Weekly trend</p>
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    <WinRateChart title="Multis won" sub="% of settled multis, by week" points={d.weekly.filter((w) => w.multiRate != null).map((w) => ({ label: w.label, value: w.multiRate, won: w.multiWon, lost: w.multiLost, total: w.multiTotal }))} />
+                    <WinRateChart title="Legs won" sub="% of legs cleared, by week" points={d.weekly.filter((w) => w.legRate != null).map((w) => ({ label: w.label, value: w.legRate, won: w.legCleared, lost: w.legTotal - w.legCleared, total: w.legTotal }))} />
+                  </div>
+                </div>
+              ) : null}
+
               {/* You vs others */}
               <div>
                 <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">You vs other users</p>
@@ -179,7 +268,7 @@ function FounderPage({ setActivePage, accessToken }) {
               {/* Recent multis */}
               <div>
                 <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Recent multis</p>
-                <div className="overflow-hidden rounded-2xl border border-[var(--border-new)]">
+                <div className="max-h-[22rem] overflow-y-auto rounded-2xl border border-[var(--border-new)]">
                   {recentView.length ? recentView.map((m, i) => (
                     <div key={i} className={"flex items-center gap-3 px-4 py-3 " + (i ? "border-t border-[var(--border-new)] " : "") + "bg-[var(--surface-new)]"}>
                       <div className="w-[78px] shrink-0 text-[12px] text-[var(--text-3-new)]">{new Date(m.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</div>
