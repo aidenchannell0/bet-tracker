@@ -2626,6 +2626,13 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
   const [customTargetOdds, setCustomTargetOdds] = useState("2.20");
   const [riskProfile, setRiskProfile] = useState(prefill?.riskProfile || "Best Chance");
   const [bookmaker, setBookmaker] = useState(prefill?.bookmaker || "");
+  const [markets, setMarkets] = useState(["disposals", "goals", "tackles", "marks"]);
+  useEffect(() => {
+    setMarkets(sport === "NBA" ? ["points", "rebounds", "assists", "threes"] : ["disposals", "goals", "tackles", "marks"]);
+  }, [sport]);
+  const marketChoices = sport === "NBA"
+    ? [["points", "Points"], ["rebounds", "Rebounds"], ["assists", "Assists"], ["threes", "Threes"]]
+    : [["disposals", "Disposals"], ["goals", "Goals"], ["tackles", "Tackles"], ["marks", "Marks"]];
   const [request, setRequest] = useState(prefill?.request || "");
   const [showMultiNumbers, setShowMultiNumbers] = useState(false); // collapse the raw %s; pills carry the plain read
   const [chatInput, setChatInput] = useState("");
@@ -3002,6 +3009,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
             targetOdds: displayedTargetOdds,
             riskProfile: opts.riskOverride || riskProfile,
             bookmaker,
+            markets,
             request,
             gameId: selectedGameId,
             gameIds: opts.gameIds && opts.gameIds.length ? opts.gameIds : (selectedGameId ? [selectedGameId] : undefined),
@@ -3304,17 +3312,35 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                         ))}
                       </div>
                       <RiskDial value={riskProfile} onChange={setRiskProfile} />
-                      <label className="flex flex-col gap-1">
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Markets</span>
+                        <div className="flex flex-wrap gap-2">
+                          {marketChoices.map(([key, label]) => {
+                            const on = markets.includes(key);
+                            return (
+                              <button key={key} type="button"
+                                onClick={() => setMarkets((m) => m.includes(key) ? (m.length > 1 ? m.filter((x) => x !== key) : m) : [...m, key])}
+                                className={"rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors " + (on ? "bg-[var(--accent-new)] text-[var(--bg-new)]" : "bg-[var(--surface-new)] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}>
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </label>
+                      <label className="flex flex-col gap-1.5">
                         <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Bookmaker</span>
-                        <select value={bookmaker} onChange={(event) => setBookmaker(event.target.value)} className="cursor-pointer rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none focus:border-[var(--text-new)]">
-                          <option value="">Best available</option>
-                          <option value="sportsbet">Sportsbet</option>
-                          <option value="tab">TAB</option>
-                          <option value="ladbrokes_au">Ladbrokes</option>
-                          <option value="neds">Neds</option>
-                          <option value="pointsbetau">PointsBet</option>
-                          <option value="unibet">Unibet</option>
-                        </select>
+                        <div className="flex flex-wrap gap-2">
+                          {[["", "↗ Best", null], ["sportsbet", "sb", "#2b8fff"], ["tab", "TAB", "#4ad295"], ["ladbrokes_au", "L", "#ff4d4d"], ["pointsbetau", "PB", "#ff4d6d"], ["neds", "neds", "#ff8a3d"], ["unibet", "UB", "#16c79a"]].map(([val, lbl, color]) => {
+                            const on = bookmaker === val;
+                            return (
+                              <button key={val || "best"} type="button" onClick={() => setBookmaker(val)}
+                                className={"min-w-[52px] rounded-xl border-2 px-3 py-1.5 text-[13px] font-bold transition-colors " + (on ? "border-[var(--accent-new)] bg-[var(--surface-new)]" : "border-transparent bg-[var(--surface-new)] hover:border-[var(--border-strong-new)]")}
+                                style={{ color: color || "var(--accent-new)" }}>
+                                {lbl}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </label>
                       {targetOdds === "Custom" ? (
                         <label className="flex flex-col gap-1">

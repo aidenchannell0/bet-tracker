@@ -3882,7 +3882,7 @@ const VALUE_BOARD_TTL_MS = 8 * 60 * 60 * 1000; // > the 6h pre-warm cron, so rea
 const VALUE_BOARD_EMPTY_TTL_MS = 30 * 60 * 1000;
 // Bump to invalidate every cached board after a ranking/filter change (e.g. the odds cap),
 // so users see the new logic immediately instead of waiting out the TTL.
-const VALUE_BOARD_VERSION = 11; // bump = deploy-promotion marker (recompute is harmless)
+const VALUE_BOARD_VERSION = 12; // bump = deploy-promotion marker (recompute is harmless)
 async function getValueBoard(req, sport) {
   const key = (sport || "AFL").toUpperCase();
   if (supabaseAdmin) {
@@ -4472,6 +4472,7 @@ ${buildAnalysisDataBlock(analysis)}`,
       // Optional: pin all legs to one bookmaker so the multi is placeable there.
       // Empty/"best" keeps the default best-price-across-books behaviour.
       const preferredBook = getSafeString(context?.bookmaker, "");
+      const selectedMarkets = Array.isArray(context?.markets) && context.markets.length ? context.markets : null;
 
       // Choose which game(s) to build from: a specific game (selected in the form, or
       // named in the chat) if given; otherwise probe the first few upcoming games.
@@ -4681,12 +4682,14 @@ ${buildAnalysisDataBlock(analysis)}`,
 
         const lineupCtx = await loadLineupContext();
         const droppedOut = [];
+        // Market filter: only consider the markets the user kept selected.
+        const marketPool = selectedMarkets ? allProps.filter((p) => selectedMarkets.includes(p.metric)) : allProps;
         const propsForBuild = lineupCtx
-          ? allProps.filter((p) => {
+          ? marketPool.filter((p) => {
               if (lineupAdjust(lineupCtx, p.name_key).out) { if (!droppedOut.includes(p.playerName)) droppedOut.push(p.playerName); return false; }
               return true;
             })
-          : allProps;
+          : marketPool;
         const computed = computeAFLMulti(
           propsForBuild,
           statsContext,
