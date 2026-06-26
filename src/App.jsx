@@ -3647,56 +3647,50 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                   <span className="rounded-full bg-[#11203B] px-3 py-2 text-xs font-semibold text-white">{sport === "AFL" ? "Live AFL data" : "Preview mode"}</span>
                 </div>
               </div>
-              {chatMessages.length === 0 ? (
-                <div className="mt-5 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-4">
-                  <p className="text-sm font-semibold text-[var(--text-new)]">Try MultiPick</p>
-                  <p className="mt-1 text-[13px] text-[var(--text-2-new)]">Tap a prompt to drop it in the box, tweak if you like, then hit Send.</p>
-                  <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--text-3-new)]">Quick builds</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {[
-                      { label: "Safe ~$2 multi", prompt: `Build a ${sport} example multi around $2.00 with the best chance of winning, and explain the risk.` },
-                      { label: "Balanced ~$5", prompt: `Build a balanced ${sport} example multi around $5.00.` },
-                      { label: "Longshot to $10", prompt: `Build an aggressive ${sport} example multi targeting $10.00.` },
-                      { label: `3-leg ${sport === "NBA" ? "points" : "disposals"}`, prompt: `Build a 3-leg ${sport} example multi using ${sport === "NBA" ? "points" : "disposals"} only, around $3.00.` },
-                    ].map((c) => (
-                      <button key={c.label} type="button" onClick={() => useExamplePrompt(c.prompt)} className="rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3 py-2 text-xs font-medium text-[var(--text-new)] transition hover:border-[var(--accent-new)] hover:text-[var(--accent-new)]">{c.label}</button>
-                    ))}
-                  </div>
-                  <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--text-3-new)]">Ask MultiPick</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {[
-                      { label: "What's on this week?", prompt: `What ${sport} games are coming up, and which have the best markets to target?` },
-                      { label: "Best value right now", prompt: `What are the best value ${sport} player props on offer right now, and why?` },
-                      { label: "How do you pick legs?", prompt: `How do you choose the legs for a multi, and what data do you use?` },
-                    ].map((c) => (
-                      <button key={c.label} type="button" onClick={() => useExamplePrompt(c.prompt)} className="rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3 py-2 text-xs font-medium text-[var(--text-new)] transition hover:border-[var(--accent-new)] hover:text-[var(--accent-new)]">{c.label}</button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
               <div className="mt-5 space-y-3">
                 {chatMessages.map((chatMessage, index) => <EdgeMessage key={index} role={chatMessage.role}>{chatMessage.text}</EdgeMessage>)}
               </div>
               {multiOutput ? (
-                <div className="mt-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--text-3-new)]">Edit this build</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {[
-                      { label: "Swap the weakest leg", prompt: "Swap the weakest leg for a better option." },
-                      { label: "Add a leg", prompt: "Add another leg to the multi." },
-                      { label: "Make it safer", prompt: "Make it safer." },
-                      { label: "Longer odds", prompt: "Give it longer odds." },
-                      { label: "Explain the edge", prompt: "Explain the edge and why you chose each leg." },
-                    ].map((chip) => (
-                      <button key={chip.label} type="button" onClick={() => sendChatMessage(chip.prompt)} disabled={edgeLoading} className="rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3 py-2 text-xs font-medium text-[var(--text-new)] transition hover:border-[var(--accent-new)] hover:text-[var(--accent-new)] disabled:opacity-50">{chip.label}</button>
-                    ))}
-                  </div>
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  {[
+                    { label: "Swap weakest leg", prompt: "Swap the weakest leg for a better option." },
+                    { label: "Add a leg", prompt: "Add another leg to the multi." },
+                    { label: "Make it safer", prompt: "Make it safer." },
+                    { label: "Longer odds", prompt: "Give it longer odds." },
+                    { label: "Explain the edge", prompt: "Explain the edge and why you chose each leg." },
+                  ].map((chip) => (
+                    <button key={chip.label} type="button" onClick={() => sendChatMessage(chip.prompt)} disabled={edgeLoading} className="rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--text-2-new)] transition hover:border-[var(--accent-new)] hover:text-[var(--accent-new)] disabled:opacity-50">{chip.label}</button>
+                  ))}
                 </div>
               ) : null}
-              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-                <Input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={multiOutput ? "Refine your build — e.g. ‘swap leg 2’, ‘make it safer’, ‘around $3’" : "Ask MultiPick a follow-up..."} onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }} disabled={edgeLoading} />
-                <Button onClick={() => sendChatMessage()} className="sm:px-6" disabled={edgeLoading}>{edgeLoading ? "Thinking..." : "Send"}</Button>
+              {/* Pill input — minimal, with a circular send */}
+              <div className="mt-5 flex items-center gap-2 rounded-full border border-[var(--border-new)] bg-[var(--surface-new)] py-2 pl-5 pr-2 transition focus-within:border-[var(--accent-new)]">
+                <input
+                  value={chatInput}
+                  onChange={(event) => setChatInput(event.target.value)}
+                  placeholder={multiOutput ? "Refine your build — ‘swap leg 2’, ‘safer’, ‘around $3’" : "Ask MultiPick anything…"}
+                  onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }}
+                  disabled={edgeLoading}
+                  className="flex-1 bg-transparent text-[15px] text-[var(--text-new)] outline-none placeholder:text-[var(--text-3-new)] disabled:opacity-60"
+                />
+                <button type="button" onClick={() => sendChatMessage()} disabled={edgeLoading || !chatInput.trim()} aria-label="Send" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-new)] text-[var(--bg-new)] transition hover:opacity-90 disabled:opacity-40">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5" /><path d="M5 12l7-7 7 7" /></svg>
+                </button>
               </div>
+              {/* Starter prompts — minimal row, only on an empty chat */}
+              {chatMessages.length === 0 ? (
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  {[
+                    { label: "Safe ~$2 multi", prompt: `Build a ${sport} example multi around $2.00 with the best chance of winning, and explain the risk.` },
+                    { label: "Balanced ~$5", prompt: `Build a balanced ${sport} example multi around $5.00.` },
+                    { label: "Longshot to $10", prompt: `Build an aggressive ${sport} example multi targeting $10.00.` },
+                    { label: `3-leg ${sport === "NBA" ? "points" : "disposals"}`, prompt: `Build a 3-leg ${sport} example multi using ${sport === "NBA" ? "points" : "disposals"} only, around $3.00.` },
+                    { label: "Best value now", prompt: `What are the best value ${sport} player props on offer right now, and why?` },
+                  ].map((c) => (
+                    <button key={c.label} type="button" onClick={() => useExamplePrompt(c.prompt)} className="rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--text-2-new)] transition hover:border-[var(--accent-new)] hover:text-[var(--accent-new)]">{c.label}</button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </Card></div>
         </div>
