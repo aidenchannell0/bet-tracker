@@ -84,7 +84,7 @@ function WinRateChart({ title, sub, points }) {
           {type === "bars" && points.map((p, i) => (
             <g key={i}>
               <rect x={xOf(i) - bw / 2} y={yOf(p.value)} width={bw} height={y1 - yOf(p.value)} rx="5" fill="var(--accent-new)" opacity={i === n - 1 ? "1" : "0.55"} />
-              <text x={xOf(i)} y={yOf(p.value) - 4} textAnchor="middle" fontSize="9.5" fill="var(--accent-new)">{p.value}%</text>
+              <text x={xOf(i)} y={yOf(p.value) - 7} textAnchor="middle" fontSize="17" fontWeight="700" fill="var(--accent-new)">{p.value}%</text>
             </g>
           ))}
           {type === "area" && (
