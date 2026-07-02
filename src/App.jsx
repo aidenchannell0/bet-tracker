@@ -4500,29 +4500,47 @@ function LegalPage({ page, setActivePage }) {
 
 const NAV_ICONS = {
   home: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
       <path d="M3 11.5 12 4l9 7.5" />
       <path d="M5.5 10.5V20h13v-9.5" />
       <path d="M9.5 20v-5h5v5" />
     </svg>
   ),
+  // trend line — Tracker (previously reused the home icon by mistake)
+  tracker: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
+      <path d="M3 3v18h18" />
+      <path d="M7 14l3.5-4 3 2.5L20 7" />
+    </svg>
+  ),
   add: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
       <path d="M12 5v14M5 12h14" />
     </svg>
   ),
-  // 2x2 grid — on-brand for "MultiPick" (assembling blocks)
+  // merge — several legs converging into one multi ("legs → one")
   build: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
-      <rect x="3.5" y="3.5" width="7" height="7" rx="1.6" />
-      <rect x="13.5" y="3.5" width="7" height="7" rx="1.6" />
-      <rect x="3.5" y="13.5" width="7" height="7" rx="1.6" />
-      <rect x="13.5" y="13.5" width="7" height="7" rx="1.6" />
+    <svg viewBox="0 0 24 24" className="h-[22px] w-[22px]">
+      <g fill="currentColor" stroke="currentColor" strokeWidth="1.4">
+        <circle cx="5" cy="6" r="1.7" />
+        <circle cx="5" cy="12" r="1.7" />
+        <circle cx="5" cy="18" r="1.7" />
+        <circle cx="19" cy="12" r="2.3" />
+      </g>
+      <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+        <path d="M6.8 6c5 0 3.5 6 9.9 6M6.8 18c5 0 3.5-6 9.9-6M6.8 12h9.9" />
+      </g>
+    </svg>
+  ),
+  // lightning bolt — Value
+  value: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
+      <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" />
     </svg>
   ),
   // sliders — clean line-icon for settings (matches the others, not an emoji)
   settings: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[22px] w-[22px]">
       <line x1="4" y1="8" x2="20" y2="8" />
       <circle cx="9" cy="8" r="2.3" />
       <line x1="4" y1="16" x2="20" y2="16" />
@@ -4541,38 +4559,45 @@ function MobileBottomNav({ activePage, setActivePage, formRef }) {
     window.setTimeout(() => formRef?.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
 
-  // 2026 refresh: subtle glassmorphism on the dark base, active tab uses the
-  // primary text token (no chunky pill), Add stays warning-gold for contrast.
-  const tab = (active) =>
-    "flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition active:scale-95 " +
-    (active ? "font-semibold text-[var(--text-new)]" : "font-medium text-[var(--text-3-new)]");
+  // 2026 refresh: a frosted "liquid glass" pill that floats above the base, so
+  // page content blurs through behind and beside it. The active tab is lime
+  // with a soft radial glow (no chunky filled pill).
+  const Item = ({ active, icon, label, onClick }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={"relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-2 py-1.5 text-[10px] transition active:scale-90 " + (active ? "font-semibold" : "font-medium")}
+      style={{ color: active ? "var(--accent-new)" : "var(--text-3-new)" }}
+    >
+      {active && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-1 h-9 w-9 -translate-x-1/2 rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(212,242,58,0.42), transparent 70%)" }}
+        />
+      )}
+      <span className="relative">{icon}</span>
+      <span className="relative whitespace-nowrap leading-none">{label}</span>
+    </button>
+  );
 
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-50 px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:hidden"
-      style={{
-        background: "rgba(10, 10, 11, 0.85)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderTop: "1px solid var(--border-new)",
-      }}
-    >
-      <div className="mx-auto flex max-w-md items-stretch">
-        <button type="button" onClick={goToDashboard} className={tab(activePage === "app")}>
-          {NAV_ICONS.home}<span>Home</span>
-        </button>
-        <button type="button" onClick={() => setActivePage("tracker")} className={tab(activePage === "tracker")}>
-          {NAV_ICONS.home}<span>Tracker</span>
-        </button>
-        <button type="button" onClick={() => setActivePage("edge")} className={tab(activePage === "edge")}>
-          {NAV_ICONS.build}<span>MultiPick</span>
-        </button>
-        <button type="button" onClick={() => setActivePage("value")} className={tab(activePage === "value")}>
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg><span>Value</span>
-        </button>
-        <button type="button" onClick={() => setActivePage("settings")} className={tab(activePage === "settings")}>
-          {NAV_ICONS.settings}<span>Settings</span>
-        </button>
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pt-1 pb-[max(env(safe-area-inset-bottom),0.6rem)] md:hidden">
+      <div
+        className="pointer-events-auto flex w-full max-w-sm items-center gap-0.5 rounded-full p-1.5"
+        style={{
+          background: "rgba(20, 20, 25, 0.55)",
+          backdropFilter: "blur(18px) saturate(180%)",
+          WebkitBackdropFilter: "blur(18px) saturate(180%)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: "0 10px 34px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.16)",
+        }}
+      >
+        <Item active={activePage === "app"} icon={NAV_ICONS.home} label="Home" onClick={goToDashboard} />
+        <Item active={activePage === "tracker"} icon={NAV_ICONS.tracker} label="Tracker" onClick={() => setActivePage("tracker")} />
+        <Item active={activePage === "edge"} icon={NAV_ICONS.build} label="MultiPick" onClick={() => setActivePage("edge")} />
+        <Item active={activePage === "value"} icon={NAV_ICONS.value} label="Value" onClick={() => setActivePage("value")} />
+        <Item active={activePage === "settings"} icon={NAV_ICONS.settings} label="Settings" onClick={() => setActivePage("settings")} />
       </div>
     </nav>
   );
