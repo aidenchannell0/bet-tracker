@@ -1605,6 +1605,7 @@ function Footer({ setActivePage }) {
 
 function SettingsPage({ setActivePage, handleLogout, bets, exportCsv, exportBackup, clearAllBets, fileInputRef, importBackup, darkMode, setDarkMode, onReplayTour, unitSize, setUnitSize, showUnits, setShowUnits, isFounder }) {
   return (
+    <>
     <div className="page-fade-in min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
@@ -1747,8 +1748,9 @@ function SettingsPage({ setActivePage, handleLogout, bets, exportCsv, exportBack
       </main>
       <Footer setActivePage={setActivePage} />
       <Analytics />
-      <MobileBottomNav activePage="settings" setActivePage={setActivePage} />
     </div>
+    <MobileBottomNav activePage="settings" setActivePage={setActivePage} />
+    </>
   );
 }
 
@@ -3146,6 +3148,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
   };
 
   return (
+    <>
     <div className="page-fade-in min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="bg-[#E8E2D4] p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
@@ -3786,8 +3789,9 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
       </main>
       <Footer setActivePage={setActivePage} />
       <Analytics />
-      <MobileBottomNav activePage="edge" setActivePage={setActivePage} />
     </div>
+    <MobileBottomNav activePage="edge" setActivePage={setActivePage} />
+    </>
   );
 }
 
