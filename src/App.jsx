@@ -1187,56 +1187,31 @@ function Input({ className = "", ...props }) {
   );
 }
 
-// Risk-per-leg dial — a minimalist hairline needle gauge over the three calibrated
-// tiers (Low = Best Chance, Balanced, High = Aggressive). The engine floors are
-// unchanged; this is just the control surface. The needle is an element ROTATED
-// around its pivot (CSS transform), so the tip sweeps cleanly along the arc instead
-// of cutting a straight chord. `value` is the riskProfile string; onChange emits it.
+// Risk-per-leg control — minimal underline tabs (Low / Balanced / High). The
+// three engine tiers (Low = Best Chance, Balanced, High = Aggressive) and their
+// floors are unchanged; this is just a slim control surface that replaced the
+// taller arc-gauge dial. `value` is the riskProfile string; onChange emits it.
 const RISK_LEVELS = [
-  { tier: "Best Chance", label: "Low", color: "#4ade80", angle: -60 },
-  { tier: "Balanced", label: "Balanced", color: "#fbbf24", angle: 0 },
-  { tier: "Aggressive", label: "High", color: "#f87171", angle: 60 },
+  { tier: "Best Chance", label: "Low" },
+  { tier: "Balanced", label: "Balanced" },
+  { tier: "Aggressive", label: "High" },
 ];
 function RiskDial({ value, onChange, compact = false }) {
-  const sel = Math.max(0, RISK_LEVELS.findIndex((l) => l.tier === value));
-  const cur = RISK_LEVELS[sel] || RISK_LEVELS[0];
-  // Geometry derived from one width so the compact (dashboard) build is the same
-  // dial, just scaled. Default (164) is unchanged from before.
-  const W = compact ? 132 : 164;
-  const R = W / 2 - 16;
-  const H = R + 18;
-  const CX = W / 2;
-  const CY = H - 10;
-  const arc = `M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`;
+  const cur = RISK_LEVELS.find((l) => l.tier === value) || RISK_LEVELS[0];
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Risk per leg</span>
-      <div className={"rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] " + (compact ? "px-3 pb-2.5 pt-3" : "px-4 pb-3 pt-4")}>
-        <div className="flex flex-col items-center">
-          <div className="relative" style={{ width: W, height: H }}>
-            <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
-              <path d={arc} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={compact ? 2 : 2.5} strokeLinecap="round" />
-              <circle cx={CX} cy={CY} r={compact ? 3 : 3.5} fill="#f5f5f7" />
-            </svg>
-            <div style={{ position: "absolute", left: CX, bottom: 10, width: compact ? 2 : 2.5, height: R - 8, background: cur.color, borderRadius: 3,
-              transformOrigin: "bottom center", transform: `translateX(-50%) rotate(${cur.angle}deg)`,
-              transition: "transform 0.45s cubic-bezier(0.2,1,0.3,1), background-color 0.35s ease" }} />
-          </div>
-          <div className="brand-wordmark mt-0.5 font-semibold" style={{ color: cur.color, fontSize: compact ? 15 : 17, transition: "color 0.35s ease" }}>{cur.label}</div>
-        </div>
-        <div className={"flex justify-center " + (compact ? "mt-2 gap-5" : "mt-2.5 gap-7")}>
-          {RISK_LEVELS.map((l) => {
-            const on = l.tier === cur.tier;
-            return (
-              <button key={l.tier} type="button" onClick={() => onChange(l.tier)}
-                className={"relative pb-1.5 transition-colors duration-300 " + (compact ? "text-[12px] " : "text-[13px] ") + (on ? "font-semibold" : "font-medium text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}
-                style={on ? { color: l.color } : undefined}>
-                {l.label}
-                <span style={{ position: "absolute", left: "50%", bottom: 0, width: on ? (compact ? 14 : 16) : 0, height: 2, borderRadius: 2, background: l.color, transform: "translateX(-50%)", transition: "width 0.3s ease" }} />
-              </button>
-            );
-          })}
-        </div>
+      <div className={"flex items-center justify-between rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] " + (compact ? "px-3.5 py-2" : "px-4 py-2.5")}>
+        {RISK_LEVELS.map((l) => {
+          const on = l.tier === cur.tier;
+          return (
+            <button key={l.tier} type="button" onClick={() => onChange(l.tier)}
+              className={"relative pb-1.5 transition-colors " + (compact ? "text-[13px] " : "text-[14px] ") + (on ? "font-semibold text-[var(--accent-new)]" : "font-medium text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}>
+              {l.label}
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 rounded-full" style={{ background: "var(--accent-new)", opacity: on ? 1 : 0, transition: "opacity 0.25s ease" }} />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -3467,45 +3442,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                   </div>
                 )}
 
-            {/* MultiPick performance block — sits below the controls on the
-                left rail. Shows lifetime stats for multis built with the AI
-                (multis picked, won/loss split, P/L, ROI). Editorial Layout B
-                styling: tiny eyebrow + 2-up hairline grid + mono numerals. */}
-            {gridBuildStats && gridBuildStats.count > 0 ? (
-              <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
-                <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">MultiPick performance</p>
-                <p className="mt-1 text-[13px] text-[var(--text-2-new)]">How your saved AI multis have actually gone.</p>
-                <div className="mt-4 grid grid-cols-2 gap-y-4">
-                  <div>
-                    <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Multis picked</div>
-                    <div className="mt-1 mono-nums text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">{gridBuildStats.count}</div>
-                  </div>
-                  <div className="border-l border-[var(--border-new)] pl-4">
-                    <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Won / Lost</div>
-                    <div className="mt-1 mono-nums text-[22px] font-semibold tracking-[-0.02em] leading-none text-[var(--text-new)]">
-                      <span className="text-[var(--positive-new)]">{gridBuildStats.wins}</span>
-                      <span className="text-[var(--text-3-new)]"> / </span>
-                      <span className="text-[var(--danger-new)]">{Math.max(0, gridBuildStats.completed - gridBuildStats.wins)}</span>
-                    </div>
-                  </div>
-                  <div className="border-t border-[var(--border-new)] pt-4">
-                    <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">Profit / loss</div>
-                    <div className={"mt-1 mono-nums text-[22px] font-semibold tracking-[-0.02em] leading-none " + (gridBuildStats.profit >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>{fmtMoney(gridBuildStats.profit)}</div>
-                  </div>
-                  <div className="border-l border-t border-[var(--border-new)] pl-4 pt-4">
-                    <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)]">ROI</div>
-                    <div className={"mt-1 mono-nums text-[22px] font-semibold tracking-[-0.02em] leading-none " + (gridBuildStats.roi == null ? "text-[var(--text-3-new)]" : gridBuildStats.roi >= 0 ? "text-[var(--positive-new)]" : "text-[var(--danger-new)]")}>
-                      {gridBuildStats.roi == null ? "—" : `${gridBuildStats.roi >= 0 ? "+" : ""}${gridBuildStats.roi.toFixed(1)}%`}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-[var(--border-new)] bg-[var(--surface-new)] p-5">
-                <p className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">MultiPick performance</p>
-                <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-2-new)]">Save your first MultiPick build to your bet tracker and the performance numbers will appear here once they settle.</p>
-              </div>
-            )}
+            {/* MultiPick performance card removed from the builder to declutter —
+                the lifetime AI-multi stats still live on the Tracker page. */}
             </div>
 
             <div className="min-w-0 space-y-6" ref={outputPanelRef}>
