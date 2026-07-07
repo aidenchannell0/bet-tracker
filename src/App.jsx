@@ -2691,87 +2691,48 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
   );
 }
 
-// Result modal — the 3 labelled multis (best chance / best value / longshot) as
-// a frosted-glass, swipeable card stack. Touch-swipe + dots + desktop arrows.
-// Deliberately spare: label, combined odds, chance, legs, save. No stats grid.
-const METRIC_SHORT = { disposals: "disp", goals: "goals", tackles: "tackles", marks: "marks", kicks: "kicks", handballs: "HB", hitouts: "hit-outs", clearances: "clr", behinds: "behinds", fantasy_points: "fantasy", points: "pts", rebounds: "reb", assists: "ast", threes: "3PM", steals: "stl", blocks: "blk" };
-function trayLegLine(l) {
-  const short = METRIC_SHORT[l.metric] || l.metric || "";
-  return `${l.player} · ${Math.ceil(Number(l.line))}+ ${short}`;
-}
-function trayLegHit(l) {
-  const d = (l.details || []).find((x) => x.label === "Last 10 hit rate");
-  if (d && d.value && d.value !== "N/A") return d.value;
-  return l.confidence || "";
-}
-function MultiTrayModal({ open, multis, onClose, onSave, saving }) {
-  const [idx, setIdx] = useState(0);
+// Result modal — the built multi on a frosted-glass card over the build screen.
+// Legs are the full EdgeLegRow (team crest + tap to expand the form breakdown);
+// header stays spare: combined odds, chance, legs, units + save.
+function MultiTrayModal({ open, multi, onClose, onSave, saving }) {
   const [stake, setStake] = useState("1");
-  const touchX = useRef(null);
-  useEffect(() => { if (open) setIdx(0); }, [open, multis]);
-  if (!open || !Array.isArray(multis) || !multis.length) return null;
-  const n = multis.length;
-  const i = Math.min(idx, n - 1);
-  const card = multis[i];
-  const go = (d) => setIdx((c) => Math.max(0, Math.min(n - 1, c + d)));
+  if (!open || !multi) return null;
+  const card = multi;
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose} role="dialog" aria-modal="true" aria-label="Your multis">
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose} role="dialog" aria-modal="true" aria-label="Your multi">
       <div
-        className="relative w-full max-w-[440px] rounded-3xl border p-5"
+        className="relative flex max-h-[90vh] w-full max-w-[460px] flex-col rounded-3xl border"
         style={{ background: "rgba(20,20,25,0.72)", backdropFilter: "blur(24px) saturate(160%)", WebkitBackdropFilter: "blur(24px) saturate(160%)", borderColor: "rgba(255,255,255,0.14)", boxShadow: "0 24px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.16)" }}
         onClick={(e) => e.stopPropagation()}
-        onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
-        onTouchEnd={(e) => { if (touchX.current == null) return; const dx = e.changedTouches[0].clientX - touchX.current; if (Math.abs(dx) > 45) go(dx < 0 ? 1 : -1); touchX.current = null; }}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-[14px] font-semibold text-[var(--text-new)]">Your multis</span>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] text-[var(--text-3-new)]">{i + 1} / {n}</span>
-            <button type="button" onClick={onClose} aria-label="Close" className="text-[16px] leading-none text-[var(--text-3-new)] hover:text-[var(--text-new)]">✕</button>
+        <div className="flex items-center justify-between px-5 pt-5">
+          <span className="text-[14px] font-semibold text-[var(--text-new)]">Your multi</span>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-[16px] leading-none text-[var(--text-3-new)] hover:text-[var(--text-new)]">✕</button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5">
+          <div className="mt-3 flex items-baseline gap-3">
+            <span className="mono-nums text-[40px] font-semibold leading-none tracking-[-0.03em] text-[var(--text-new)]">${formatOdds(card.combinedOdds)}</span>
+            <span className="text-[13px] text-[var(--text-3-new)]">~{card.combinedProbPct}% chance</span>
           </div>
-        </div>
+          <div className="mt-1 text-[12px] text-[var(--text-3-new)]">{card.legCount} legs · tap a leg for its form</div>
 
-        <div className="mt-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--accent-new)]">{card.variantLabel || "Multi"}</div>
-        {card.variantBlurb ? <div className="mt-0.5 text-[12px] text-[var(--text-3-new)]">{card.variantBlurb}</div> : null}
-
-        <div className="mt-3 flex items-baseline gap-3">
-          <span className="mono-nums text-[40px] font-semibold leading-none tracking-[-0.03em] text-[var(--text-new)]">${formatOdds(card.combinedOdds)}</span>
-          <span className="text-[13px] text-[var(--text-3-new)]">~{card.combinedProbPct}% chance</span>
-        </div>
-
-        <div className="mt-4">
-          {(card.legs || []).map((l, k) => (
-            <div key={k} className="flex items-center justify-between gap-3 border-t border-[rgba(255,255,255,0.08)] py-2.5">
-              <span className="text-[13px] text-[var(--text-new)]">{trayLegLine(l)}</span>
-              <span className="whitespace-nowrap text-[12px] text-[var(--text-3-new)]">{trayLegHit(l)}</span>
-            </div>
-          ))}
-        </div>
-
-        {card.lateMail ? <div className="mt-3 rounded-lg bg-[var(--warning-soft-new)] px-3 py-2 text-[11.5px] text-[var(--warning-new)]">{card.lateMail}</div> : null}
-
-        {n > 1 ? (
-          <div className="mt-4 flex justify-center gap-2">
-            {multis.map((_, k) => (
-              <button key={k} type="button" onClick={() => setIdx(k)} aria-label={`Multi ${k + 1}`} className="h-1.5 rounded-full transition-all" style={{ width: k === i ? 20 : 6, background: k === i ? "var(--accent-new)" : "rgba(255,255,255,0.25)" }} />
+          <div className="mt-2 divide-y divide-[rgba(255,255,255,0.07)]">
+            {(card.legs || []).map((l, k) => (
+              <EdgeLegRow key={k} leg={l} index={k} sportContext={card.sport} />
             ))}
           </div>
-        ) : null}
 
-        <div className="mt-4 flex items-center gap-2">
+          {card.lateMail ? <div className="mb-1 mt-2 rounded-lg bg-[var(--warning-soft-new)] px-3 py-2 text-[11.5px] text-[var(--warning-new)]">{card.lateMail}</div> : null}
+        </div>
+
+        <div className="flex items-center gap-2 border-t border-[rgba(255,255,255,0.08)] p-4">
           <div className="flex items-center gap-1.5 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-3 py-2.5">
             <span className="text-[12px] text-[var(--text-3-new)]">Units</span>
             <input value={stake} onChange={(e) => setStake(e.target.value)} inputMode="decimal" className="w-9 bg-transparent text-[14px] font-semibold text-[var(--text-new)] outline-none" />
           </div>
           <button type="button" onClick={() => onSave(card, stake)} disabled={saving} className="flex-1 rounded-xl bg-[var(--accent-new)] py-3 text-[13px] font-bold text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:opacity-50">{saving ? "Saving…" : "Save to tracker"}</button>
         </div>
-
-        {n > 1 ? (
-          <>
-            <button type="button" onClick={() => go(-1)} disabled={i === 0} aria-label="Previous" className="absolute -left-3.5 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border-new)] bg-[var(--surface-new)] text-[18px] text-[var(--text-2-new)] transition-opacity hover:text-[var(--text-new)] disabled:opacity-30 sm:flex">‹</button>
-            <button type="button" onClick={() => go(1)} disabled={i === n - 1} aria-label="Next" className="absolute -right-3.5 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border-new)] bg-[var(--surface-new)] text-[18px] text-[var(--text-2-new)] transition-opacity hover:text-[var(--text-new)] disabled:opacity-30 sm:flex">›</button>
-          </>
-        ) : null}
       </div>
     </div>,
     document.body
@@ -2803,8 +2764,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
   const [chatMessages, setChatMessages] = useState([]);
   const [lastEdgeContext, setLastEdgeContext] = useState(null);
   const [multiOutput, setMultiOutput] = useState(null);
-  // Redesigned build: the labelled trio (best chance / value / longshot) + swipe modal.
-  const [trayMultis, setTrayMultis] = useState(null);
+  // Redesigned build: the quick-built multi shown in the glass modal.
+  const [trayMulti, setTrayMulti] = useState(null);
   const [trayOpen, setTrayOpen] = useState(false);
   const [buildErr, setBuildErr] = useState("");
   const [analysisOutput, setAnalysisOutput] = useState(null);
@@ -3123,8 +3084,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
     }, 100);
   };
 
-  // Redesigned build: fetch the labelled trio (best chance / value / longshot)
-  // in one request and open the swipe modal — no chat, no inline output panel.
+  // Redesigned build: one quick deterministic multi, opened in the glass
+  // modal — no chat, no inline output panel.
   const buildTrio = async (opts) => {
     if (edgeLoading) return;
     if (gatedNow) { setShowPaywall(true); return; }
@@ -3145,7 +3106,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
             mode: "multi", sport, legs: "Any",
             targetOdds: displayedTargetOdds,
             riskProfile, bookmaker, markets,
-            variants: 3,
+            quickBuild: true,
             gameId: selectedGameId,
             gameIds,
           },
@@ -3162,7 +3123,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
       }
       if (data?.gated) { setShowPaywall(true); return; }
       if (Array.isArray(data?.multis) && data.multis.length) {
-        setTrayMultis(data.multis);
+        setTrayMulti(data.multis[0]);
         setTrayOpen(true);
       } else {
         setBuildErr(data?.error || "Couldn't build a multi for these games — try different games or markets.");
@@ -3592,7 +3553,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
       <Footer setActivePage={setActivePage} />
       <Analytics />
     </div>
-    <MultiTrayModal open={trayOpen} multis={trayMultis} onClose={() => setTrayOpen(false)} onSave={handleTraySave} saving={savingBet} />
+    <MultiTrayModal open={trayOpen} multi={trayMulti} onClose={() => setTrayOpen(false)} onSave={handleTraySave} saving={savingBet} />
     <MobileBottomNav activePage="edge" setActivePage={setActivePage} />
     </>
   );
