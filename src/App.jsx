@@ -161,6 +161,7 @@ function FounderPage({ setActivePage, accessToken }) {
   const fmtRate = (v) => (v == null ? "—" : `${v}%`);
 
   return (
+    <>
     <div className="page-fade-in min-h-screen bg-[#E8E2D4] pb-24 text-[#11203B] md:pb-0">
       <main className="p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6"><TopNav activePage="founder" setActivePage={setActivePage} /></div>
@@ -290,6 +291,8 @@ function FounderPage({ setActivePage, accessToken }) {
         </div>
       </main>
     </div>
+    <MobileBottomNav activePage="founder" setActivePage={setActivePage} />
+    </>
   );
 }
 
@@ -1507,6 +1510,7 @@ function ValuePage({ setActivePage, accessToken }) {
   const d = state.data;
 
   return (
+    <>
     <div className="page-fade-in min-h-screen pb-24 md:pb-0" style={{ background: "var(--bg-new)", color: "var(--text-new)" }}>
       <main className="p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6"><TopNav activePage="value" setActivePage={setActivePage} /></div>
@@ -1550,6 +1554,8 @@ function ValuePage({ setActivePage, accessToken }) {
         </div>
       </main>
     </div>
+    <MobileBottomNav activePage="value" setActivePage={setActivePage} />
+    </>
   );
 }
 
@@ -4474,7 +4480,8 @@ function LegalPage({ page, setActivePage }) {
   const selected = content[page] || content.disclaimer;
 
   return (
-    <div className="page-fade-in min-h-screen bg-[#E8E2D4] p-4 text-[#11203B] md:p-8">
+    <>
+    <div className="page-fade-in min-h-screen bg-[#E8E2D4] p-4 pb-24 text-[#11203B] md:p-8 md:pb-8">
       <div className="mx-auto max-w-3xl space-y-6">
         <button onClick={() => setActivePage("app")} className="text-sm font-medium text-slate-600 underline">← Back to dashboard</button>
         <Card>
@@ -4498,6 +4505,8 @@ function LegalPage({ page, setActivePage }) {
         </Card>
       </div>
     </div>
+    <MobileBottomNav activePage={page} setActivePage={setActivePage} />
+    </>
   );
 }
 
