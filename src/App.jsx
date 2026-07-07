@@ -2691,6 +2691,93 @@ function BuildingAnimation({ height = 380, showStatus = true, showBeam = true, c
   );
 }
 
+// Result modal — the 3 labelled multis (best chance / best value / longshot) as
+// a frosted-glass, swipeable card stack. Touch-swipe + dots + desktop arrows.
+// Deliberately spare: label, combined odds, chance, legs, save. No stats grid.
+const METRIC_SHORT = { disposals: "disp", goals: "goals", tackles: "tackles", marks: "marks", kicks: "kicks", handballs: "HB", hitouts: "hit-outs", clearances: "clr", behinds: "behinds", fantasy_points: "fantasy", points: "pts", rebounds: "reb", assists: "ast", threes: "3PM", steals: "stl", blocks: "blk" };
+function trayLegLine(l) {
+  const short = METRIC_SHORT[l.metric] || l.metric || "";
+  return `${l.player} · ${Math.ceil(Number(l.line))}+ ${short}`;
+}
+function trayLegHit(l) {
+  const d = (l.details || []).find((x) => x.label === "Last 10 hit rate");
+  if (d && d.value && d.value !== "N/A") return d.value;
+  return l.confidence || "";
+}
+function MultiTrayModal({ open, multis, onClose, onSave, saving }) {
+  const [idx, setIdx] = useState(0);
+  const [stake, setStake] = useState("1");
+  const touchX = useRef(null);
+  useEffect(() => { if (open) setIdx(0); }, [open, multis]);
+  if (!open || !Array.isArray(multis) || !multis.length) return null;
+  const n = multis.length;
+  const i = Math.min(idx, n - 1);
+  const card = multis[i];
+  const go = (d) => setIdx((c) => Math.max(0, Math.min(n - 1, c + d)));
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose} role="dialog" aria-modal="true" aria-label="Your multis">
+      <div
+        className="relative w-full max-w-[440px] rounded-3xl border p-5"
+        style={{ background: "rgba(20,20,25,0.72)", backdropFilter: "blur(24px) saturate(160%)", WebkitBackdropFilter: "blur(24px) saturate(160%)", borderColor: "rgba(255,255,255,0.14)", boxShadow: "0 24px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.16)" }}
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => { if (touchX.current == null) return; const dx = e.changedTouches[0].clientX - touchX.current; if (Math.abs(dx) > 45) go(dx < 0 ? 1 : -1); touchX.current = null; }}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[14px] font-semibold text-[var(--text-new)]">Your multis</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-[var(--text-3-new)]">{i + 1} / {n}</span>
+            <button type="button" onClick={onClose} aria-label="Close" className="text-[16px] leading-none text-[var(--text-3-new)] hover:text-[var(--text-new)]">✕</button>
+          </div>
+        </div>
+
+        <div className="mt-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--accent-new)]">{card.variantLabel || "Multi"}</div>
+        {card.variantBlurb ? <div className="mt-0.5 text-[12px] text-[var(--text-3-new)]">{card.variantBlurb}</div> : null}
+
+        <div className="mt-3 flex items-baseline gap-3">
+          <span className="mono-nums text-[40px] font-semibold leading-none tracking-[-0.03em] text-[var(--text-new)]">${formatOdds(card.combinedOdds)}</span>
+          <span className="text-[13px] text-[var(--text-3-new)]">~{card.combinedProbPct}% chance</span>
+        </div>
+
+        <div className="mt-4">
+          {(card.legs || []).map((l, k) => (
+            <div key={k} className="flex items-center justify-between gap-3 border-t border-[rgba(255,255,255,0.08)] py-2.5">
+              <span className="text-[13px] text-[var(--text-new)]">{trayLegLine(l)}</span>
+              <span className="whitespace-nowrap text-[12px] text-[var(--text-3-new)]">{trayLegHit(l)}</span>
+            </div>
+          ))}
+        </div>
+
+        {card.lateMail ? <div className="mt-3 rounded-lg bg-[var(--warning-soft-new)] px-3 py-2 text-[11.5px] text-[var(--warning-new)]">{card.lateMail}</div> : null}
+
+        {n > 1 ? (
+          <div className="mt-4 flex justify-center gap-2">
+            {multis.map((_, k) => (
+              <button key={k} type="button" onClick={() => setIdx(k)} aria-label={`Multi ${k + 1}`} className="h-1.5 rounded-full transition-all" style={{ width: k === i ? 20 : 6, background: k === i ? "var(--accent-new)" : "rgba(255,255,255,0.25)" }} />
+            ))}
+          </div>
+        ) : null}
+
+        <div className="mt-4 flex items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-3 py-2.5">
+            <span className="text-[12px] text-[var(--text-3-new)]">Units</span>
+            <input value={stake} onChange={(e) => setStake(e.target.value)} inputMode="decimal" className="w-9 bg-transparent text-[14px] font-semibold text-[var(--text-new)] outline-none" />
+          </div>
+          <button type="button" onClick={() => onSave(card, stake)} disabled={saving} className="flex-1 rounded-xl bg-[var(--accent-new)] py-3 text-[13px] font-bold text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:opacity-50">{saving ? "Saving…" : "Save to tracker"}</button>
+        </div>
+
+        {n > 1 ? (
+          <>
+            <button type="button" onClick={() => go(-1)} disabled={i === 0} aria-label="Previous" className="absolute -left-3.5 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border-new)] bg-[var(--surface-new)] text-[18px] text-[var(--text-2-new)] transition-opacity hover:text-[var(--text-new)] disabled:opacity-30 sm:flex">‹</button>
+            <button type="button" onClick={() => go(1)} disabled={i === n - 1} aria-label="Next" className="absolute -right-3.5 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border-new)] bg-[var(--surface-new)] text-[18px] text-[var(--text-2-new)] transition-opacity hover:text-[var(--text-new)] disabled:opacity-30 sm:flex">›</button>
+          </>
+        ) : null}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, prefill, onPrefillConsumed, fmtMoney = formatCurrency }) {
   const [mode, setMode] = useState("multi");
   const [sport, setSport] = useState(prefill?.sport || "AFL");
@@ -2698,13 +2785,13 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
   const [customTargetOdds, setCustomTargetOdds] = useState("2.20");
   const [riskProfile, setRiskProfile] = useState(prefill?.riskProfile || "Best Chance");
   const [bookmaker, setBookmaker] = useState(prefill?.bookmaker || "");
-  const [markets, setMarkets] = useState(["disposals", "goals", "tackles", "marks", "fantasy_points"]);
+  const [markets, setMarkets] = useState(["disposals", "goals", "tackles", "marks"]);
   useEffect(() => {
-    setMarkets(sport === "NBA" ? ["points", "rebounds", "assists", "threes"] : ["disposals", "goals", "tackles", "marks", "fantasy_points"]);
+    setMarkets(sport === "NBA" ? ["points", "rebounds", "assists", "threes"] : ["disposals", "goals", "tackles", "marks"]);
   }, [sport]);
   const marketChoices = sport === "NBA"
     ? [["points", "Points"], ["rebounds", "Rebounds"], ["assists", "Assists"], ["threes", "Threes"]]
-    : [["disposals", "Disposals"], ["goals", "Goals"], ["tackles", "Tackles"], ["marks", "Marks"], ["fantasy_points", "Fantasy"]];
+    : [["disposals", "Disposals"], ["goals", "Goals"], ["tackles", "Tackles"], ["marks", "Marks"]];
   const [request, setRequest] = useState(prefill?.request || "");
   const [showMultiNumbers, setShowMultiNumbers] = useState(false); // collapse the raw %s; pills carry the plain read
   const [chatInput, setChatInput] = useState("");
@@ -2716,6 +2803,10 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
   const [chatMessages, setChatMessages] = useState([]);
   const [lastEdgeContext, setLastEdgeContext] = useState(null);
   const [multiOutput, setMultiOutput] = useState(null);
+  // Redesigned build: the labelled trio (best chance / value / longshot) + swipe modal.
+  const [trayMultis, setTrayMultis] = useState(null);
+  const [trayOpen, setTrayOpen] = useState(false);
+  const [buildErr, setBuildErr] = useState("");
   const [analysisOutput, setAnalysisOutput] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [betStake, setBetStake] = useState("");
@@ -2845,6 +2936,15 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
       setSaveBetMsg("Saved to your bets as pending. Settle it on the dashboard after the games.");
       setBetStake("");
     }
+  };
+
+  // Save the swiped-to card from the trio modal, then close it.
+  const handleTraySave = async (card, stake) => {
+    if (savingBet || typeof onSaveMulti !== "function") return;
+    setSavingBet(true);
+    const result = await onSaveMulti(card, stake || "1");
+    setSavingBet(false);
+    if (!result?.error) setTrayOpen(false);
   };
   const [games, setGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState("");
@@ -3023,6 +3123,58 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
     }, 100);
   };
 
+  // Redesigned build: fetch the labelled trio (best chance / value / longshot)
+  // in one request and open the swipe modal — no chat, no inline output panel.
+  const buildTrio = async (opts) => {
+    if (edgeLoading) return;
+    if (gatedNow) { setShowPaywall(true); return; }
+    setBuildErr("");
+    const gameIdsOverride = Array.isArray(opts?.gameIds) ? opts.gameIds.filter(Boolean) : null;
+    const gameIds = gameIdsOverride && gameIdsOverride.length
+      ? gameIdsOverride
+      : (selectedGameIds?.length ? selectedGameIds : (selectedGameId ? [selectedGameId] : undefined));
+    setEdgeLoading(true);
+    setBuildingMulti(true);
+    try {
+      const response = await fetch("/api/edge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+        body: JSON.stringify({
+          message: `Build ${sport} multis targeting ${displayedTargetOdds}.`,
+          context: {
+            mode: "multi", sport, legs: "Any",
+            targetOdds: displayedTargetOdds,
+            riskProfile, bookmaker, markets,
+            variants: 3,
+            gameId: selectedGameId,
+            gameIds,
+          },
+        }),
+      });
+      const data = await response.json();
+      if (typeof data?.usage === "number") {
+        setEntitlement((current) => ({
+          subscribed: data.subscribed ?? current.subscribed,
+          usage: data.usage,
+          limit: data.limit ?? current.limit,
+          foundingSpotsLeft: current.foundingSpotsLeft,
+        }));
+      }
+      if (data?.gated) { setShowPaywall(true); return; }
+      if (Array.isArray(data?.multis) && data.multis.length) {
+        setTrayMultis(data.multis);
+        setTrayOpen(true);
+      } else {
+        setBuildErr(data?.error || "Couldn't build a multi for these games — try different games or markets.");
+      }
+    } catch {
+      setBuildErr("Build failed — check your connection and try again.");
+    } finally {
+      setEdgeLoading(false);
+      setBuildingMulti(false);
+    }
+  };
+
   // One-tap from the "Low capped short" reframe: switch the dial to Balanced and
   // rebuild the same games immediately (riskOverride beats the not-yet-updated state).
   const switchToBalanced = () => {
@@ -3039,7 +3191,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
     if (autoBuiltRef.current) return;
     autoBuiltRef.current = true;
     onPrefillConsumed?.();
-    previewMulti({ gameIds: buildGameIdsRef.current });
+    buildTrio({ gameIds: buildGameIdsRef.current });
   };
   useEffect(() => {
     if (autoBuiltRef.current || !prefill?.autoBuild) return;
@@ -3151,11 +3303,7 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
           <header className="grid gap-10 border-b border-[var(--border-new)] pb-9 lg:grid-cols-[1.4fr_1fr] lg:items-end">
             <div>
               <button onClick={() => setActivePage("app")} className="mb-3 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-3-new)] hover:text-[var(--text-2-new)]">← Back to dashboard</button>
-              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-3-new)]">AI multi builder · Beta preview</p>
-              <h1 className="mt-3.5 text-[40px] font-semibold leading-[0.95] tracking-[-0.04em] md:text-[52px]">
-                MultiPick.<br />Form-backed multis.
-              </h1>
-              <p className="mt-3 max-w-[480px] text-sm leading-relaxed text-[var(--text-2-new)]">A smarter way to build structured example multis using market lines, recent trends and risk scoring.</p>
+              <h1 className="text-[26px] font-semibold leading-[1.05] tracking-[-0.03em] md:text-[30px]">Build a multi<span className="text-[var(--accent-new)]">.</span></h1>
               {/* Subscription state — small inline pill below the subtitle, not
                   a big bordered card. Free-tier users see a tiny 'X of N
                   builds left' link; Pro users see a thin 'Manage subscription'
@@ -3199,7 +3347,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
               predicted / typical gap), well-calibrated pill, "view detail"
               link. The link opens a modal with the bucket-by-bucket breakdown
               for users who want the math. Keeps the casual-user view clean. */}
-          {calibration && calibration.resolved >= 10 && calibration.overall ? (() => {
+          {/* Track-record block hidden on the build screen — kept in code, lives elsewhere. */}
+          {false && calibration && calibration.resolved >= 10 && calibration.overall ? (() => {
             const overall = calibration.overall;
             const gap = Math.abs(Number(overall.predicted || 0) - Number(overall.actual || 0));
             const wellCalibrated = gap <= 5;
@@ -3334,15 +3483,8 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
             document.body
           ) : null}
 
-          <section className="grid items-start gap-12 lg:grid-cols-[460px_1fr]">
+          <section className="mx-auto max-w-[480px]">
             <div className="min-w-0 space-y-5">
-              {/* Controls — bare-underline editorial. No Card wrapper, no
-                  cream backgrounds. Mode pill at top, fields stack below. */}
-              <div className="grid grid-cols-2 rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] p-1 text-[12px] font-medium">
-                <button onClick={() => setMode("multi")} className={"rounded px-3 py-2 transition-colors " + (mode === "multi" ? "bg-[var(--text-new)] text-[var(--bg-new)] font-semibold" : "text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}>Example Multi</button>
-                <button onClick={() => setMode("analysis")} className={"rounded px-3 py-2 transition-colors " + (mode === "analysis" ? "bg-[var(--text-new)] text-[var(--bg-new)] font-semibold" : "text-[var(--text-3-new)] hover:text-[var(--text-2-new)]")}>Game Analysis</button>
-              </div>
-
                 {mode === "multi" ? (
                     /* Card-style builder — games scroller (multi-select) + compact
                        controls, matching the dashboard mini-builder, on all sizes. */
@@ -3421,17 +3563,14 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                           <input type="number" min="1" step="0.01" inputMode="decimal" value={customTargetOdds} onChange={(event) => setCustomTargetOdds(event.target.value)} placeholder="e.g. 4.50" className="rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none focus:border-[var(--text-new)] placeholder:text-[var(--text-3-new)]" />
                         </label>
                       ) : null}
-                      <label className="flex flex-col gap-1">
-                        <span className="text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--text-3-new)]">Optional request</span>
-                        <input value={request} onChange={(event) => setRequest(event.target.value)} placeholder="e.g. Disposals only, no same-game legs" className="rounded-lg border border-[var(--border-new)] bg-[var(--surface-new)] px-2.5 py-2 text-[13px] text-[var(--text-new)] outline-none focus:border-[var(--text-new)] placeholder:text-[var(--text-3-new)]" />
-                      </label>
                       <button
-                        onClick={() => previewMulti({ gameIds: selectedGameIds })}
+                        onClick={() => buildTrio({ gameIds: selectedGameIds })}
                         disabled={edgeLoading}
                         className="w-full rounded-md bg-[var(--accent-new)] py-3.5 text-[13px] font-bold uppercase tracking-[0.06em] text-[var(--bg-new)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {edgeLoading ? "Building…" : selectedGameIds.length >= 2 ? `Build · ${selectedGameIds.length} games` : "Build multi"}
+                        {edgeLoading ? "Building…" : "Build multi"}
                       </button>
+                      {buildErr ? <p className="text-center text-[12px] text-[var(--danger-new)]">{buildErr}</p> : null}
                     </div>
                 ) : (
                   <div className="mt-6 space-y-5">
@@ -3446,294 +3585,14 @@ function EdgePage({ setActivePage, onSaveMulti, accessToken, gridBuildStats, pre
                 the lifetime AI-multi stats still live on the Tracker page. */}
             </div>
 
-            <div className="min-w-0 space-y-6" ref={outputPanelRef}>
-              {analysisOutput || analyzing ? (
-                <GameAnalysisOutput analysis={analysisOutput} loading={analyzing} />
-              ) : (
-              /* NEW 2026 minimalist build-output card — replaces the old Card.
-                 Tokens are in index.css under "2026 minimalist refresh".
-                 Old version preserved in src/App.legacy.jsx. */
-              <div className="rounded-2xl border border-[var(--border-new)] bg-[var(--bg-new)] overflow-hidden">
-                <div className="p-4 md:p-8">
-                  {/* Editorial header — eyebrow on the left, meta on the
-                      right, like the preview. */}
-                  <div className="flex items-start justify-between gap-4 border-b border-[var(--border-new)] pb-5">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.10em] font-medium text-[var(--text-3-new)]">MultiPick output</p>
-                      <h2 className="mt-2 text-[22px] md:text-[26px] font-medium tracking-[-0.02em] text-[var(--text-new)]">
-                        {buildingMulti
-                          ? <>Building your {sport} multi<span className="text-[var(--accent-new)]">.</span></>
-                          : multiOutput
-                          ? <>{multiOutput.legCount}-leg {multiOutput.sport} multi {multiOutput.game ? <span className="text-[var(--text-2-new)]"> · {multiOutput.game}</span> : null}</>
-                          : <>Example {sport} multi</>}
-                      </h2>
-                    </div>
-                    {multiOutput ? (
-                      <p className="text-right text-xs text-[var(--text-3-new)] whitespace-nowrap">
-                        Built {multiOutput.builtAgo || "just now"}
-                        {multiOutput.bookmakerLabel ? <> · {multiOutput.bookmakerLabel}</> : null}
-                      </p>
-                    ) : null}
-                  </div>
-                  {buildingMulti ? (
-                    <BuildingAnimation />
-                  ) : (
-                  <div className="multi-reveal">
-                  <p className="mt-4 text-sm text-[var(--text-2-new)]" style={{ display: "none" }}>
-                    {multiOutput
-                      ? <>Real form × current odds. Refine in chat below.</>
-                      : <>The example is illustrative. Click <span className="text-[var(--text-new)] font-medium">Build multi</span> to build from real {sport} stats and current market lines.</>}
-                  </p>
-
-                  {/* Plain-English read (Style C) — colour-coded pills that
-                      translate the stat strip below into a glance. Real builds only. */}
-                  {multiOutput && plainMultiPills(multiOutput).length ? (
-                    <div className="reveal-part mt-6 flex flex-wrap gap-2.5" style={{ animationDelay: "0.02s" }}>
-                      {plainMultiPills(multiOutput).map((pill) => (
-                        <div
-                          key={pill.label}
-                          className={"rounded-xl border border-[var(--border-new)] px-3.5 py-2.5 " + (pill.tone === "green" ? "bg-[var(--positive-soft-new)]" : pill.tone === "amber" ? "bg-[var(--warning-soft-new)]" : "bg-[var(--surface-new)]")}
-                        >
-                          <div className="text-[8.5px] font-semibold uppercase tracking-[0.1em] text-[var(--text-3-new)]">{pill.label}</div>
-                          <div className={"brand-wordmark mt-1 text-[14px] font-bold tracking-[-0.01em] " + (pill.tone === "green" ? "text-[var(--positive-new)]" : pill.tone === "amber" ? "text-[var(--warning-new)]" : "text-[var(--text-new)]")}>{pill.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {/* Combined odds (always) + a toggle to reveal the raw numbers.
-                      The plain-English pills above already translate chance / value
-                      / risk at a glance, so the %s are collapsed by default. */}
-                  <div className="reveal-part mt-7 border-b border-[var(--border-new)] py-7 md:py-9" style={{ animationDelay: "0.05s" }}>
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined</div>
-                        <div className="mt-3.5 mono-nums text-[36px] md:text-[44px] font-semibold tracking-[-0.04em] leading-none text-[var(--text-new)]">${multiOutput ? formatOdds(multiOutput.combinedOdds) : displayedTargetOdds.replace("$", "")}</div>
-                        <div className="mt-3 text-xs text-[var(--text-3-new)]">{(() => {
-                          if (!multiOutput) return "Target";
-                          const target = parseFloat(String(displayedTargetOdds).replace(/[^0-9.]/g, ""));
-                          const combined = Number(multiOutput.combinedOdds);
-                          if (!target || !combined) return `Target ${displayedTargetOdds}`;
-                          // Low undershot = the safe-leg pool across the selected games is exhausted.
-                          // Low reaches longer odds by STACKING safe legs, so the honest nudge is "add a
-                          // game". The one-tap to Balanced stays as a quick fewer-legs alternative.
-                          if (multiOutput.profileUsed === "Best Chance" && combined < target - 0.30) {
-                            return (
-                              <>
-                                <span className="text-[var(--warning-new)]">Safest legs here — add a game to reach {displayedTargetOdds}</span>
-                                <button type="button" onClick={switchToBalanced} className="mt-2 flex w-fit items-center gap-1.5 rounded-lg border border-[rgba(212,242,58,0.45)] bg-[var(--accent-soft-new)] px-3 py-1.5 text-[12px] font-semibold text-[var(--accent-new)] transition-opacity hover:opacity-90">
-                                  or fewer legs on Balanced →
-                                </button>
-                              </>
-                            );
-                          }
-                          const closeness = Math.abs((combined - target) / target * 100);
-                          return <>Target <span className="mono-nums">{displayedTargetOdds}</span> · within <span className="mono-nums">{closeness.toFixed(1)}%</span></>;
-                        })()}</div>
-                      </div>
-                      {multiOutput ? (
-                        <button type="button" onClick={() => setShowMultiNumbers((v) => !v)} className="shrink-0 text-[11px] font-medium text-[var(--text-3-new)] underline-offset-2 hover:text-[var(--text-2-new)] hover:underline">
-                          {showMultiNumbers ? "Hide numbers ▴" : "Show the numbers ▾"}
-                        </button>
-                      ) : null}
-                    </div>
-                    {multiOutput && showMultiNumbers ? (
-                      <div className="mt-7 grid grid-cols-1 gap-y-6 border-t border-[var(--border-new)] pt-6 sm:grid-cols-2 sm:gap-x-0">
-                        <div className="sm:pr-7 sm:border-r sm:border-[var(--border-new)]">
-                          <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Combined chance</div>
-                          <div className="mt-3 mono-nums text-[24px] font-semibold tracking-[-0.025em] leading-none text-[var(--text-new)]">{multiOutput.combinedProbPct}%</div>
-                          <div className="mt-2 text-xs text-[var(--text-3-new)]">{multiOutput.correlated && typeof multiOutput.independentProbPct === "number" ? `Adjusted vs ${multiOutput.independentProbPct}% independent` : "Correlation-adjusted"}</div>
-                        </div>
-                        <div className="sm:pl-7">
-                          <div className="text-[10px] uppercase tracking-[0.10em] text-[var(--text-3-new)] font-medium">Value vs market</div>
-                          <div className={"mt-3 mono-nums text-[24px] font-semibold tracking-[-0.025em] leading-none " + (multiOutput.evPct > 0 ? "text-[var(--accent-new)]" : "text-[var(--text-2-new)]")}>
-                            {typeof multiOutput.evPct === "number" ? `${multiOutput.evPct > 0 ? "+" : ""}${multiOutput.evPct}%` : "—"}
-                          </div>
-                          <div className="mt-2 text-xs text-[var(--text-3-new)]">{typeof multiOutput.evPct === "number"
-                            ? (multiOutput.evPct > 0 ? `${multiOutput.valueLegs} of ${multiOutput.legCount} +edge` : `Below fair value${multiOutput.sameGameNote ? " · same-game discount applied" : ""}`)
-                            : "Form vs odds"}</div>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* How MultiPick built this — scannable signal chips, not a paragraph */}
-                  {Array.isArray(multiOutput?.signals) && multiOutput.signals.length ? (
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-3-new)]">How it's built</span>
-                      {multiOutput.signals.map((s, i) => (
-                        <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-new)] bg-[var(--surface-new)] px-3 py-1 text-[12px] font-medium text-[var(--text-2-new)]">
-                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-new)]" />
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {/* Heads up — every caveat (same-game / odds / profile / book /
-                      cushion) consolidated into ONE card so they don't stack into a
-                      wall of amber banners. */}
-                  {(() => {
-                    if (!multiOutput) return null;
-                    const notes = [];
-                    if (multiOutput.lateMail) notes.push({ label: "Late mail", text: multiOutput.lateMail });
-                    if (multiOutput.sameGameNote) notes.push({ label: "Same game", text: multiOutput.sameGameNote });
-                    if (multiOutput.oddsNote) notes.push({ text: multiOutput.oddsNote });
-                    if (multiOutput.profileNote) notes.push({ html: multiOutput.profileNote.replace(/\*\*(.+?)\*\*/g, '<span class="text-[var(--text-new)] font-medium">$1</span>') });
-                    if (multiOutput.bookmakerNote) notes.push({ text: multiOutput.bookmakerNote });
-                    if (multiOutput.cushionNote) notes.push({ label: "Lines", text: multiOutput.cushionNote });
-                    if (!notes.length) return null;
-                    return (
-                      <div className="mt-4 border-l-2 border-[var(--warning-new)] rounded-r-lg px-5 py-3.5 text-sm leading-relaxed text-[var(--text-2-new)]" style={{ background: "linear-gradient(90deg, var(--warning-soft-new) 0%, transparent 100%)" }}>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--warning-new)]">Heads up</div>
-                        <ul className="mt-2 space-y-1.5">
-                          {notes.map((n, i) => (
-                            <li key={i} className="flex gap-2">
-                              <span className="mt-0.5 shrink-0 text-[var(--warning-new)]">·</span>
-                              {n.html
-                                ? <span dangerouslySetInnerHTML={{ __html: (n.label ? `<span class="text-[var(--text-new)] font-medium">${n.label}: </span>` : "") + n.html }} />
-                                : <span>{n.label ? <span className="text-[var(--text-new)] font-medium">{n.label}: </span> : null}{n.text}</span>}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    );
-                  })()}
-
-                  {edgeLoading ? (
-                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-[var(--border-new)] bg-[var(--surface-new)] px-4 py-3 text-sm text-[var(--text-2-new)]">
-                      <span className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[var(--border-strong-new)] border-t-[var(--text-new)]" />
-                      <span>Crunching live odds, recent form and market lines…</span>
-                    </div>
-                  ) : null}
-
-                  {/* Legs section header — matches preview B exactly */}
-                  <div className="mt-9 mb-4 flex items-baseline justify-between border-b border-[var(--border-new)] pb-3">
-                    <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Legs</div>
-                    <div className="text-[10px] font-medium uppercase tracking-[0.10em] text-[var(--text-3-new)]">Tap a row for full form breakdown</div>
-                  </div>
-
-                  {/* Legs — vertical rows with hair-thin dividers */}
-                  {/* Legs list — Layout B preview style: NO card backgrounds.
-                      Each row is just hairline-divided. Cleaner editorial feel. */}
-                  <div className="divide-y divide-[var(--border-new)]">
-                    {(multiOutput?.legs || exampleLegs).map((leg, index) => (
-                      <EdgeLegRow
-                        key={`${leg.name}-${index}`}
-                        leg={leg}
-                        index={index}
-                        sportContext={multiOutput?.sport || sport}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Track this multi */}
-                  {multiOutput ? (
-                    <div className="mt-6 rounded-2xl border border-[var(--border-new)] bg-[var(--surface-new)] p-5">
-                      <div className="text-sm font-medium text-[var(--text-new)]">Track this multi</div>
-                      <div className="mt-1 text-xs text-[var(--text-3-new)]">Save to tracker as a pending bet — settle it on the dashboard after the games.</div>
-                      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Stake (e.g. 20)"
-                          value={betStake}
-                          onChange={(event) => setBetStake(event.target.value)}
-                          className="sm:max-w-[160px] mono-nums"
-                        />
-                        <button
-                          type="button"
-                          onClick={addMultiToBets}
-                          disabled={savingBet}
-                          className="rounded-lg bg-[var(--accent-new)] text-[var(--bg-new)] font-semibold text-sm px-5 py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50"
-                        >
-                          {savingBet ? "Saving…" : "Add to my bets"}
-                        </button>
-                      </div>
-                      {Number(betStake) > 0 && multiOutput.combinedOdds ? (
-                        <div className="mt-3 text-xs text-[var(--text-2-new)]">
-                          <span className="mono-nums">{formatCurrency(Number(betStake))}</span> returns{" "}
-                          <span className="mono-nums font-semibold text-[var(--positive-new)]">{formatCurrency(Number(betStake) * multiOutput.combinedOdds)}</span> at{" "}
-                          <span className="mono-nums">${formatOdds(multiOutput.combinedOdds)}</span> ·{" "}
-                          <span className="mono-nums">{formatCurrency(Number(betStake) * multiOutput.combinedOdds - Number(betStake))}</span> profit
-                        </div>
-                      ) : null}
-                      {saveBetMsg ? <div className="mt-2 text-xs font-medium text-[var(--text-new)]">{saveBetMsg}</div> : null}
-                    </div>
-                  ) : null}
-                  </div>
-                  )}
-                </div>
-              </div>
-              )}
-            </div>
           </section>
 
-          <div ref={chatSectionRef}><Card>
-            <div className="p-5 md:p-6">
-              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Chat with MultiPick</p>
-                  <h2 className="text-xl font-semibold">Refine the build naturally</h2>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={resetEdgeChat}>New chat</Button>
-                  <Button type="button" variant="ghost" onClick={clearEdgeChat}>Clear chat</Button>
-                  <span className="rounded-full bg-[#11203B] px-3 py-2 text-xs font-semibold text-white">{sport === "AFL" ? "Live AFL data" : "Preview mode"}</span>
-                </div>
-              </div>
-              <div className="mt-5 space-y-3">
-                {chatMessages.map((chatMessage, index) => <EdgeMessage key={index} role={chatMessage.role}>{chatMessage.text}</EdgeMessage>)}
-              </div>
-              {multiOutput ? (
-                <div className="mt-5 flex flex-wrap justify-center gap-2">
-                  {[
-                    { label: "Swap weakest leg", prompt: "Swap the weakest leg for a better option." },
-                    { label: "Add a leg", prompt: "Add another leg to the multi." },
-                    { label: "Make it safer", prompt: "Make it safer." },
-                    { label: "Longer odds", prompt: "Give it longer odds." },
-                    { label: "Explain the edge", prompt: "Explain the edge and why you chose each leg." },
-                  ].map((chip) => (
-                    <button key={chip.label} type="button" onClick={() => sendChatMessage(chip.prompt)} disabled={edgeLoading} className="rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--text-2-new)] transition hover:border-[var(--accent-new)] hover:text-[var(--accent-new)] disabled:opacity-50">{chip.label}</button>
-                  ))}
-                </div>
-              ) : null}
-              {/* Pill input — minimal, with a circular send */}
-              <div className="mt-5 flex items-center gap-2 rounded-full border border-[var(--border-new)] bg-[var(--surface-new)] py-2 pl-5 pr-2 transition focus-within:border-[var(--accent-new)]">
-                <input
-                  value={chatInput}
-                  onChange={(event) => setChatInput(event.target.value)}
-                  placeholder={multiOutput ? "Refine your build — ‘swap leg 2’, ‘safer’, ‘around $3’" : "Ask MultiPick anything…"}
-                  onKeyDown={(event) => { if (event.key === "Enter") sendChatMessage(); }}
-                  disabled={edgeLoading}
-                  className="flex-1 bg-transparent text-[15px] text-[var(--text-new)] outline-none placeholder:text-[var(--text-3-new)] disabled:opacity-60"
-                />
-                <button type="button" onClick={() => sendChatMessage()} disabled={edgeLoading || !chatInput.trim()} aria-label="Send" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-new)] text-[var(--bg-new)] transition hover:opacity-90 disabled:opacity-40">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5" /><path d="M5 12l7-7 7 7" /></svg>
-                </button>
-              </div>
-              {/* Starter prompts — minimal row, only on an empty chat */}
-              {chatMessages.length === 0 ? (
-                <div className="mt-3 flex flex-wrap justify-center gap-2">
-                  {[
-                    { label: "Safe ~$2 multi", prompt: `Build a ${sport} example multi around $2.00 with the best chance of winning, and explain the risk.` },
-                    { label: "Balanced ~$5", prompt: `Build a balanced ${sport} example multi around $5.00.` },
-                    { label: "Longshot to $10", prompt: `Build an aggressive ${sport} example multi targeting $10.00.` },
-                    { label: `3-leg ${sport === "NBA" ? "points" : "disposals"}`, prompt: `Build a 3-leg ${sport} example multi using ${sport === "NBA" ? "points" : "disposals"} only, around $3.00.` },
-                    { label: "Best value now", prompt: `What are the best value ${sport} player props on offer right now, and why?` },
-                  ].map((c) => (
-                    <button key={c.label} type="button" onClick={() => useExamplePrompt(c.prompt)} className="rounded-full border border-[var(--border-new)] bg-[var(--surface-2-new)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--text-2-new)] transition hover:border-[var(--accent-new)] hover:text-[var(--accent-new)]">{c.label}</button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </Card></div>
         </div>
       </main>
       <Footer setActivePage={setActivePage} />
       <Analytics />
     </div>
+    <MultiTrayModal open={trayOpen} multis={trayMultis} onClose={() => setTrayOpen(false)} onSave={handleTraySave} saving={savingBet} />
     <MobileBottomNav activePage="edge" setActivePage={setActivePage} />
     </>
   );

@@ -4473,6 +4473,9 @@ ${buildAnalysisDataBlock(analysis)}`,
       // Empty/"best" keeps the default best-price-across-books behaviour.
       const preferredBook = getSafeString(context?.bookmaker, "");
       const selectedMarkets = Array.isArray(context?.markets) && context.markets.length ? context.markets : null;
+      // Redesigned build screen asks for a labelled trio (best chance / best
+      // value / longshot) in one shot instead of a single multi + refine chat.
+      const wantTrio = context?.variants === 3 || context?.trio === true;
 
       // Choose which game(s) to build from: a specific game (selected in the form, or
       // named in the chat) if given; otherwise probe the first few upcoming games.
@@ -4690,6 +4693,77 @@ ${buildAnalysisDataBlock(analysis)}`,
               return true;
             })
           : marketPool;
+
+        // ── Labelled trio (redesigned build screen) ───────────────────────
+        // Best chance / Best value / Longshot in one deterministic pass. No LLM
+        // narration, so three cards cost the same time as the old single build.
+        if (wantTrio) {
+          const targetVal = parseOddsValue(targetOdds) || 2.0;
+          // The risk-per-leg selector shifts the whole trio's ambition: Low aims
+          // shorter/safer, High aims longer/bolder, Balanced sits at the target.
+          const riskMult = riskProfile === "Best Chance" ? 0.9 : riskProfile === "Aggressive" ? 1.25 : 1.0;
+          const baseTarget = targetVal * riskMult;
+          const fmtT = (v) => `$${v.toFixed(2)}`;
+          const specs = [
+            { key: "best_chance", label: "Best chance", blurb: "Safest of the three", profile: "Best Chance", target: fmtT(baseTarget) },
+            { key: "best_value", label: "Best value", blurb: "Most underpriced vs the market", profile: "Balanced", target: fmtT(baseTarget) },
+            { key: "longshot", label: "Longshot", blurb: "Biggest payout", profile: "Aggressive", target: fmtT(baseTarget * 1.7) },
+          ];
+          const bookLabelUsed = bookmakerLabel(preferredBook);
+          const built = [];
+          const seenSigs = new Set();
+          for (const spec of specs) {
+            const c = computeAFLMulti(propsForBuild, statsContext, targetLegs, spec.target, spec.profile, defenseFactors, calibrationCurve, gameEnvByLabel, lineupCtx);
+            const sm = buildStructuredMulti(c, sport, spec.target);
+            if (!sm) continue;
+            const sig = (sm.legs || []).map((l) => `${l.player}|${l.metric}|${l.line}`).sort().join(",");
+            if (seenSigs.has(sig)) continue; // a thin pool can land the same legs for two tiers
+            seenSigs.add(sig);
+            sm.variantKey = spec.key;
+            sm.variantLabel = spec.label;
+            sm.variantBlurb = spec.blurb;
+            if (droppedOut.length) sm.lateMail = `${droppedOut.join(", ")} ${droppedOut.length === 1 ? "is" : "are"} not named in the confirmed team — dropped from the pool.`;
+            if (bookLabelUsed) {
+              const wantLegs = parseInt(targetLegs, 10);
+              if (Number.isFinite(wantLegs) && sm.legCount < wantLegs) {
+                sm.bookmakerNote = `Only ${sm.legCount} of ${wantLegs} legs are available at ${bookLabelUsed} for these games — switch to “Best available” for more.`;
+              }
+            }
+            built.push({ spec, computed: c, sm });
+          }
+
+          let usageAfter = access.usage;
+          if (built.length && !access.subscribed && access.userId) {
+            await recordGridBuildUsage(access.userId);
+            usageAfter = access.usage + 1;
+          }
+          if (built.length) {
+            // Log calibration once from the full pool; record the best-chance
+            // build for founder stats so it stays one-multi-per-build as before.
+            const ratedPool = enrichProps(allProps, statsContext, defenseFactors, calibrationCurve, gameEnvByLabel);
+            const firstComputed = built[0].computed;
+            const selectedSet = new Set((firstComputed.selected || []).map((p) => `${nameKeyFromName(p.playerName)}|${p.metric}|${p.line}`));
+            await recordPredictions(ratedPool, selectedSet, defenseContext?.season, access.userId);
+            await recordMulti(firstComputed, sport, access.userId);
+          }
+
+          return res.status(200).json({
+            multis: built.map((b) => b.sm),
+            oddsConnected: oddsContext.available,
+            statsConnected: statsContext.available,
+            gamesAnalysed: statsContext.gamesAnalysed,
+            propsFound: allProps.length,
+            usage: usageAfter,
+            limit: access.limit,
+            subscribed: access.subscribed,
+            intent: "multi3",
+            sport,
+            detectedTeam: detectedTeam?.team || null,
+            dateWindow: dateWindow?.label || "upcoming games",
+            edgeContext,
+          });
+        }
+
         const computed = computeAFLMulti(
           propsForBuild,
           statsContext,
